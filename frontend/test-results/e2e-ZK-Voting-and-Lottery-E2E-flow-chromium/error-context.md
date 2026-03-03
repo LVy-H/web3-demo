@@ -1,0 +1,53 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e6]:
+        - heading "ZK Ballot & Lottery" [level=1] [ref=e7]
+        - paragraph [ref=e8]: Provably fair and permanently anonymous.
+      - button "Connect MetaMask" [active] [ref=e11]
+    - main [ref=e12]:
+      - generic [ref=e13]:
+        - heading "👤 Voter Dashboard" [level=2] [ref=e14]:
+          - generic [ref=e15]: 👤
+          - text: Voter Dashboard
+        - generic [ref=e17]:
+          - heading "1. Identity (Zero-Knowledge)" [level=3] [ref=e18]
+          - paragraph [ref=e19]: Your private key stays strictly in your browser. It is mathematically impossible to link your identity to your vote.
+          - button "Generate Local Identity" [ref=e20]
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - heading "Live Poll Status" [level=2] [ref=e23]
+          - generic [ref=e24]:
+            - generic [ref=e25]: Registration
+            - generic [ref=e26]: Voting
+            - generic [ref=e27]: Closed
+          - generic [ref=e28]:
+            - generic [ref=e29]:
+              - generic [ref=e30]: Candidate A
+              - generic [ref=e31]: "0"
+            - generic [ref=e33]:
+              - generic [ref=e34]: Candidate B
+              - generic [ref=e35]: "0"
+        - generic [ref=e37]:
+          - generic [ref=e38]: ⚙️
+          - heading "Admin Controls" [level=2] [ref=e39]
+          - generic [ref=e40]:
+            - button "Start Voting" [disabled] [ref=e41]
+            - button "Close & Draw Lottery" [disabled] [ref=e42]
+  - generic [ref=e44]:
+    - img [ref=e48] [cursor=pointer]
+    - img [ref=e52]
+    - generic [ref=e54]:
+      - generic [ref=e56]:
+        - generic [ref=e57] [cursor=pointer]: Desktop
+        - generic [ref=e58] [cursor=pointer]: Mobile
+      - generic [ref=e61]:
+        - img [ref=e63]
+        - generic [ref=e14704]:
+          - text: Scan to connect and sign with
+          - generic [ref=e14705]: MetaMask mobile app
+    - generic [ref=e14706]: SDK Version v0.33.1
+```
