@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAccount, useConnect, useDisconnect, useReadContract, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi'
 import { hardhat, localhost } from 'wagmi/chains'
 import { Identity } from '@semaphore-protocol/identity'
@@ -8,9 +8,28 @@ import ZKVotingABI from './ZkVotingLottery.json'
 import { CONTRACT_ADDRESS } from './config'
 import { keccak256, toBytes } from 'viem'
 
-// Hardcoded Group details simulating an offchain tracker 
-// In a production app, the frontend would query events to build this tree precisely
+// Hardcoded Group details simulating an offchain tracker.
+// In a production app, the frontend would query VoterRegistered events to build this tree precisely.
 const group = new Group()
+
+function loadSavedIdentity(): Identity | null {
+  try {
+    const saved = localStorage.getItem('semaphore-identity')
+    if (!saved) return null
+    const id = new Identity(saved)
+    // Mirror the on-chain group state locally (best-effort – may be stale on reload).
+    // Semaphore's Group throws when the same commitment is added twice; ignore that case.
+    try {
+      group.addMember(id.commitment)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (!msg.includes('already')) console.warn('Group.addMember:', msg)
+    }
+    return id
+  } catch {
+    return null
+  }
+}
 
 export default function App() {
   const { address, isConnected } = useAccount()
@@ -21,7 +40,7 @@ export default function App() {
 
   const isWrongNetwork = isConnected && chainId !== hardhat.id && chainId !== localhost.id
 
-  const [localIdentity, setLocalIdentity] = useState<Identity | null>(null)
+  const [localIdentity, setLocalIdentity] = useState<Identity | null>(loadSavedIdentity)
   const [candidate, setCandidate] = useState<number>(1)
   const [statusMsg, setStatusMsg] = useState<string>("")
   const [claimAddress, setClaimAddress] = useState<string>("")
@@ -59,19 +78,6 @@ export default function App() {
   const { data: hash, writeContractAsync } = useWriteContract()
   const { isLoading: isTxConfirming, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({ hash })
 
-  useEffect(() => {
-    // Load existing identity from local storage
-    const saved = localStorage.getItem('semaphore-identity')
-    if (saved) {
-      const id = new Identity(saved)
-      setLocalIdentity(id)
-
-      // Attempt to add it to our off-chain group tracker if it exists
-      // Wait, in a real app we'd fetch ALL past `VoterRegistered` events to populate the group
-      try { group.addMember(id.commitment) } catch (e) { }
-    }
-  }, [])
-
   const generateIdentity = () => {
     const newId = new Identity()
     localStorage.setItem('semaphore-identity', newId.privateKey.toString())
@@ -90,9 +96,10 @@ export default function App() {
         args: [localIdentity.commitment],
       })
       group.addMember(localIdentity.commitment)
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e)
-      setStatusMsg(`Registration Error: ${e.shortMessage || e.message}`)
+      const err = e as { shortMessage?: string; message?: string }
+      setStatusMsg(`Registration Error: ${err.shortMessage ?? err.message ?? String(e)}`)
     }
   }
 
@@ -125,9 +132,10 @@ export default function App() {
 
       localStorage.setItem('my-nullifier', fullProof.nullifier.toString())
       setStatusMsg("Voted Successfully! Your anonymity is guaranteed.")
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e)
-      setStatusMsg(`Voting Error: ${e.shortMessage || e.message}`)
+      const err = e as { shortMessage?: string; message?: string }
+      setStatusMsg(`Voting Error: ${err.shortMessage ?? err.message ?? String(e)}`)
     }
   }
 
@@ -160,9 +168,10 @@ export default function App() {
       })
 
       setStatusMsg("Prize Claimed successfully to your new anonymous address!")
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e)
-      setStatusMsg(`Claim Error: ${e.shortMessage || e.message}`)
+      const err = e as { shortMessage?: string; message?: string }
+      setStatusMsg(`Claim Error: ${err.shortMessage ?? err.message ?? String(e)}`)
     }
   }
 
