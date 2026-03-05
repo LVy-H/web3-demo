@@ -3,9 +3,8 @@ pragma solidity ^0.8.23;
 
 import "@semaphore-protocol/contracts/interfaces/ISemaphore.sol";
 import "@semaphore-protocol/contracts/Semaphore.sol";
-import "@semaphore-protocol/contracts/base/SemaphoreVerifier.sol";
 
-contract ZkVotingLottery {
+contract ZkVoting {
     ISemaphore public semaphore;
     uint256 public groupId;
 
@@ -18,34 +17,26 @@ contract ZkVotingLottery {
 
     address public owner;
 
-    // Tracking used nullifiers to prevent double voting and for the lottery
+    // Tracking used nullifiers to prevent double voting
     mapping(uint256 => bool) public isNullifierUsed;
-    uint256[] public usedNullifiersList;
 
     // Store votes for candidates
     mapping(uint256 => uint256) public voteCounts;
 
-    // Lottery tracking
-    uint256 public winningNullifier;
-    bool public prizeClaimed;
-
     event VoterRegistered(uint256 identityCommitment);
     event VoteCast(uint256 candidate);
     event PollClosed();
-    event LotteryDrawn(uint256 winningNullifier);
-    event PrizeClaimed(address indexed receiver, uint256 winningNullifier);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Not owner");
         _;
     }
 
-    constructor(address _semaphoreAddress) {
+    constructor(address _semaphoreAddress, address _owner) {
         semaphore = ISemaphore(_semaphoreAddress);
-        owner = msg.sender;
+        owner = _owner;
         state = PollState.Registration;
 
-        // V4 creates the groupId automatically and returns it
         groupId = semaphore.createGroup(address(this));
     }
 
@@ -57,6 +48,15 @@ contract ZkVotingLottery {
         emit VoterRegistered(identityCommitment);
     }
 
+    function registerVoters(uint256[] calldata identityCommitments) external {
+        require(state == PollState.Registration, "Not in registration phase");
+
+        for (uint256 i = 0; i < identityCommitments.length; i++) {
+            semaphore.addMember(groupId, identityCommitments[i]);
+            emit VoterRegistered(identityCommitments[i]);
+        }
+    }
+
     function startVoting() external onlyOwner {
         require(
             state == PollState.Registration,
@@ -65,29 +65,11 @@ contract ZkVotingLottery {
         state = PollState.Voting;
     }
 
-    function endVotingAndDrawLottery() external onlyOwner {
+    function endVoting() external onlyOwner {
         require(state == PollState.Voting, "Not in voting phase");
         state = PollState.Ended;
 
         emit PollClosed();
-
-        if (usedNullifiersList.length > 0) {
-            // Pseudo-random generation for PoC. DO NOT USE IN PRODUCTION.
-            // In production, use Chainlink VRF.
-            uint256 randomWord = uint256(
-                keccak256(
-                    abi.encodePacked(
-                        block.timestamp,
-                        block.prevrandao,
-                        blockhash(block.number - 1)
-                    )
-                )
-            );
-            uint256 winningIndex = randomWord % usedNullifiersList.length;
-            winningNullifier = usedNullifiersList[winningIndex];
-
-            emit LotteryDrawn(winningNullifier);
-        }
     }
 
     // Cast an anonymous vote using Semaphore
@@ -111,37 +93,8 @@ contract ZkVotingLottery {
 
         // Record vote
         isNullifierUsed[proof.nullifier] = true;
-        usedNullifiersList.push(proof.nullifier);
         voteCounts[vote]++;
 
         emit VoteCast(vote);
     }
-
-    // Winner proves ownership of the winning nullifier to claim funds
-    function claimPrize(
-        address receiver,
-        ISemaphore.SemaphoreProof calldata proof
-    ) external {
-        require(state == PollState.Ended, "Lottery not concluded");
-        require(!prizeClaimed, "Prize already claimed");
-        require(winningNullifier != 0, "No winner drawn");
-
-        // Ensure the proof is specifically for claiming the prize
-        uint256 claimScope = uint256(keccak256("CLAIM_PRIZE_SCOPE"));
-        require(proof.scope == claimScope, "Invalid claim scope");
-        require(
-            proof.message == uint256(uint160(receiver)),
-            "Receiver mismatch"
-        );
-
-        bool isValid = semaphore.verifyProof(groupId, proof);
-        require(isValid, "Invalid claim proof");
-
-        prizeClaimed = true;
-
-        emit PrizeClaimed(receiver, proof.nullifier);
-    }
-
-    // Allow deposit of prize funds
-    receive() external payable {}
 }

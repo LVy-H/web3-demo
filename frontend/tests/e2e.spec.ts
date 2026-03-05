@@ -10,7 +10,7 @@ test('ZK Voting and Lottery E2E flow', async ({ page }) => {
     console.log('Available buttons:', buttons);
 
     // 2. Connect the Mock Wallet
-    await page.getByRole('button', { name: /Connect/ }).first().click();
+    await page.getByRole('button', { name: 'Connect Mock Connector' }).click();
 
     // Wait for the Disconnect button to appear showing connection is successful
     await expect(page.getByRole('button', { name: 'Disconnect' })).toBeVisible({ timeout: 10000 });
@@ -26,7 +26,7 @@ test('ZK Voting and Lottery E2E flow', async ({ page }) => {
     // 5. Admin - Start Voting
     await page.getByRole('button', { name: 'Start Voting' }).click();
     await expect(page.getByText('Transaction confirmed!')).toBeVisible({ timeout: 15000 });
-    await expect(page.locator('.border-fuchsia-500', { hasText: 'Voting' })).toBeVisible();
+    await expect(page.locator('.border-fuchsia-500', { hasText: 'Voting' })).toBeVisible({ timeout: 15000 });
 
     // 6. Vote for Candidate A
     await page.getByRole('button', { name: 'Generate Proof & Vote' }).click();

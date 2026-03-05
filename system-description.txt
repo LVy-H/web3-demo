@@ -1,0 +1,214 @@
+               Hệ thống ẩn danh trên nền tảng web3
+ I.​ Người dùng & Phân tích Nhu cầu (Use-cases)
+⍟ Chúng ta có thể chia người dùng thành 3 nhóm chính:
+
+   ●​ Nhóm 1 - Người tổ chức / Người tạo sự kiện (Creator / Organizer):
+      Những người có nhu cầu tạo ra các chiến dịch bỏ phiếu, mở phiên
+      đấu giá, tạo phòng xổ số hoặc đăng bán tài sản (NFT/Token).
+   ●​ Nhóm 2 - Người tham gia / Người dùng cuối (Participant /
+      End-User): Những người tham gia bỏ phiếu, mua vé số, đặt giá thầu
+      hoặc mua/bán tài sản.
+   ●​ Nhóm 3 - Quản trị viên hệ thống (Administrators / DAO Members):
+      Những người duy trì nền tảng, quản lý phí giao dịch, hoặc xử lý các
+      tranh chấp (nếu có cơ chế). Đây là nhóm nắm giữ token quản trị
+      (DAO).
+
+⍟ Nhu cầu riêng của từng nhóm người dùng:
+
+A. Nhóm 1: Người tổ chức (Creator)
+
+Cốt lõi: Cần công cụ dễ sử dụng để tạo hợp đồng thông minh (smart
+contract) mà không cần biết code; cần đảm bảo tính minh bạch để người
+tham gia tin tưởng; cần cơ chế chống gian lận.
+
+Chi tiết:
+
+   ●​ Chung:
+        ○​ Kết nối ví Web3.
+        ○​ Tạo hồ sơ ẩn danh (Thiết lập nickname/avatar gắn với địa chỉ
+           ví).
+   ●​ Bỏ phiếu (Voting):
+        ○​ Tạo chiến dịch bỏ phiếu (Thiết lập tiêu đề, lựa chọn, thời
+           gian,...).
+        ○​ Thiết lập cơ chế kiểm duyệt: Tải lên danh sách Whitelist
+           (những ví được phép bầu) hoặc yêu cầu chứng minh nhân
+           dạng ẩn danh.
+   ●​ Xổ số (Lottery):
+        ○​ Tạo pool xổ số: Đặt giá vé, chọn token thanh toán (ETH,
+           USDT, v.v.), thiết lập thuật toán quay số ngẫu nhiên (VD: tích
+           hợp Chainlink VRF).
+   ●​ Module Đấu giá & Mua bán (Auction/Trading):
+        ○​ Đăng ký tài sản lên sàn (Mint NFT hoặc khóa token vào smart
+           contract).
+        ○​ Tạo phiên đấu giá (Đấu giá kín - Blind Auction hoặc Đấu giá
+           công khai), thiết lập giá sàn, bước giá, thời gian.
+
+B. Nhóm 2: Người tham gia (Participant)
+
+Cốt lõi: Cần sự riêng tư tuyệt đối (không ai biết mình là ai, đã bầu cho ai
+hay mua gì); giao dịch an toàn không sợ bị lừa đảo (Trustless); phí mạng
+lưới tối ưu.
+
+Chi tiết:
+
+   ●​ Bỏ phiếu (Voting):
+        ○​ Xác thực quyền bỏ phiếu mà không lộ danh tính thực.
+        ○​ Thực hiện bỏ phiếu ẩn danh.
+        ○​ Tra cứu kết quả minh bạch trên On-chain.
+   ●​ Xổ số (Lottery):
+        ○​ Mua vé số ẩn danh.
+        ○​ Nhận giải thưởng tự động về ví khi trúng giải.
+   ●​ Đấu giá & Mua bán (Auction/Trading):
+        ○​ Tìm kiếm và lọc các phiên đấu giá/vật phẩm.
+        ○​ Đặt giá thầu ẩn danh.
+        ○​ Thực hiện hoán đổi/mua bán ẩn danh (P2P Swap qua Smart
+           Contract).
+        ○​ Rút tiền cọc (Refund) khi bị người khác trả giá cao hơn trong
+           đấu giá.
+⍟ Tính năng giữ chân người dùng (Retention / Killer Features)
+Tính năng 1: Hệ thống "Uy tín Ẩn danh" (Anonymous Reputation
+System qua Soulbound Tokens - SBT)
+
+  ●​ Vấn đề: Trong môi trường ẩn danh, mọi người rất sợ lừa đảo (scam)
+     hoặc người dùng "ảo" phá hoại.
+  ●​ Giải pháp: Xây dựng hệ thống cấp phát thẻ chứng nhận (Soulbound
+     Token - loại NFT không thể chuyển nhượng) để đánh giá độ uy tín.
+     Ví dụ: Khi người dùng A giao dịch thành công 50 lần, hệ thống cấp
+     cho ví đó danh hiệu "Nhà giao dịch Uy tín". Hoặc khi họ tham gia
+     bầu cử 10 lần, họ nhận huy hiệu "Cử tri Tích cực".
+  ●​ Lý do giữ chân: Người dùng đã tốn công xây dựng một "nhân dạng
+     ẩn danh có uy tín cao" trên nền tảng của bạn. Lịch sử uy tín này giúp
+     họ bán đồ dễ hơn, tạo poll có nhiều người tham gia hơn. Họ sẽ
+     không muốn bỏ sang nền tảng khác và phải cày lại uy tín từ con số 0.
+
+Tính năng 2: Nền kinh tế trả thưởng (Trade-to-Earn / Vote-to-Earn)
+
+  ●​ Giải pháp: Phát hành token riêng của dự án (ví dụ: $LEVARI). Mỗi
+     lần người dùng tham gia bỏ phiếu hợp lệ, mua vé số, hoặc thực hiện
+     một giao dịch thành công, họ sẽ được "hoàn tiền" hoặc "thưởng" một
+     lượng nhỏ token $LEVARI.
+  ●​ Lý do giữ chân: Người dùng có động lực quay lại vì họ cảm thấy
+     việc sử dụng nền tảng tạo ra giá trị kinh tế trực tiếp cho bản thân.
+     Hơn nữa, những người hold token này có thể được chia sẻ doanh thu
+     (phí giao dịch của sàn) thông qua cơ chế Staking, khiến họ gắn bó
+     lâu dài với hệ sinh thái.
+II.​ Phân tích Cạnh tranh & Chiến lược khác biệt
+  A.​ Đối thủ là ai?
+     ⏣ Đối thủ trực tiếp:
+  -​ Snapshot: Nền tảng bỏ phiếu DAO phổ biến nhất hiện nay, minh
+     bạch 100%, tuy nhiên không ẩn danh nên dễ dẫn đến tâm lý e ngại,
+     sợ bị trả đũa hoặc hùa theo số đông.
+
+
+
+
+  -​   Vocdoni / Aragon: Các nền tảng quản trị có ứng dụng một phần
+       công nghệ mã hóa, nhưng quy trình thiết lập rất phức tạp, UX/UI
+       kém thân thiện với người mới và chưa đạt được mức độ ẩn danh toàn
+       diện (Tier 4).
+   ⏣ Đối thủ trực tiếp:
+-​ Web2 (Google Forms, SurveyMonkey): Dễ dùng, miễn phí nhưng
+   là hệ thống "Hộp đen" (Blackbox). Người dùng phải đặt niềm tin
+   100% vào Admin (người hoàn toàn có thể sửa kết quả).
+
+
+
+
+-​ Privacy Chains (Monero, Zcash, Aztec): Đây là các nền tảng
+   blockchain ẩn danh tập trung vào giao dịch tiền tệ, chứ không cung
+   cấp sẵn giao diện DApp để tổ chức đấu giá hay bỏ phiếu.
+  B.​Lợi thế cạnh tranh
+  -​ Bảo mật & Quyền riêng tư tuyệt đối (Privacy): Khắc phục hoàn
+     toàn điểm yếu của Snapshot. Người dùng được bảo vệ bởi toán học
+     (Zero-Knowledge Proofs), đảm bảo không ai (kể cả quản trị viên)
+     biết họ đã thao tác gì.
+  -​ Trải nghiệm UI/UX mượt mà như Web2 (Gasless): Người dùng
+     Web3 rất ghét việc phải trả phí Gas (phí giao dịch) cho mỗi lần click
+     chuột. Nhờ tích hợp mạng lưới trạm trung chuyển (Relayer), hệ
+     thống sẽ trả hộ phí Gas.
+  -​ Chi phí tổ chức rẻ hơn: Việc xác minh ZK-Proof trên một số Layer
+     2 (như Arbitrum, zkSync, …) tốn ít phí bảo trì mạng lưới hơn nhiều
+     so với việc chạy các hợp đồng thông minh phức tạp trên Ethereum
+     Layer 1.
+
+  C.​Chống sao chép
+​    Mẫu chốt của việc chống sao chép nằm ở "Lõi kỹ thuật ngầm":
+  -​ Thiết kế mạch ZK (Custom ZK Circuits): Thuật toán sinh bằng
+     chứng Zero-Knowledge cho riêng nghiệp vụ "Đấu giá kín" và "Xổ
+     số" là rất phức tạp. Việc tinh chỉnh mạch này để trình duyệt web có
+     thể tính toán nhanh trong 3-5 giây là một rào cản kỹ thuật lớn mà các
+     team khác khó để sao chép nhanh được.
+  -​ Hạ tầng Relayer Network: Giao diện frontend có thể bị copy,
+     nhưng hệ thống server Relayer (để giấu IP và xử lý phí Gas) được
+     đáp ứng bằng khả năng vận hành backend mạnh mẽ và an toàn.
+  -​ Tiếp cận ngách (Niche Approach): Tập trung sâu vào "Tier 4:
+     Permissionless Anonymity" (Ẩn danh không cần cấp phép). Việc kết
+     hợp token dùng một lần thay vì định danh ví truyền thống là một
+     hướng đi ngách rất khó triển khai toàn diện.
+
+
+
+  D.​Unique Selling Proposition (USP)
+     USP của dự án: Ẩn danh Cấp độ 4 (Permissionless Anonymity) kết
+hợp Bỏ phiếu không phí Gas (Gasless 1-Click).​
+III.​ Sơ đồ Kiến trúc Hệ thống (System Architecture)
+    A.​ Các cấp độ ẩn danh
+       Hệ thống được thiết kế để có thể cung cấp các cấp độ ẩn danh sau:
+    -​ Tier 1 - Commit-Reveal: Lưu minh chứng trước, tiết lộ kết quả sau.
+       Nó cho phép người dùng ẩn danh trong giai đoạn bỏ phiếu để tránh
+       các tác nhân can thiệp, sau đó sẽ tiết lộ phiếu để bình xét kết quả bỏ
+       phiếu cuối cùng.
+
+
+
+
+   -​ Tier 2 - Gated Pseudonymity: Phân phát quyền bỏ phiếu cho một
+      nhóm người, khi bỏ phiếu, hệ thống chỉ xác nhận danh tính thuộc
+      nhóm được cấp và chưa từng bỏ phiếu, chứ không lưu lại các dấu vết
+      cho phép phân biệt phiếu của một cá nhân trong nhóm người có
+      quyền bỏ phiếu.
+-​ Tier 3 - Permanent Action Anonymity: Người dùng giữ một one
+   time token để có quyền bỏ phiếu, một người/nhóm người giữ “khóa
+   thùng phiếu” coordinator (tác nhân tin cậy). Cơ chế cho phép “bỏ
+   phiếu” nhiều lần và “lật lọng” kết quả bỏ phiếu trước đó bằng một lá
+   phiếu “reset” đặc biệt (làm mới và cấp lại token). Sau khi bỏ phiếu
+   xong, chỉ có coordinator giải mã được và kiểm phiếu. Coordinator
+   sau đó thực hiện zk-proof để chứng minh quá trình kiểm phiếu và tải
+   kết quả kiểm phiếu cùng minh chứng lên chain.
+-​ Tier 4 - Permissionless Anonymity: Một wallet mới được tạo để thực
+   hiện toàn bộ giao dịch, không liên quan tới danh tính người dùng và
+   trong trường hợp lý tưởng, ví này chỉ dùng 1 lần duy nhất để thực thi
+   giao dịch ẩn danh. Để hiểu hơn về tier 4, ta cùng xem xét một số
+   trường hợp để wallet mới “bỏ phiếu thay”:
+Các phương pháp truyền thống dễ dàng bị truy vết ngược ai là người
+“đứng đằng sau” ví B mới tạo.​
+Để implement được tier 4, ta dùng 2 phương pháp để cắt đuôi:
+-​ Xóa vết: ta gửi token của mình vào một pool chung mà chỉ ta có giấy
+   chứng thư để rút ra.
+
+
+
+
+-​ Trả tiền relayer: Sau khi sử dụng private key để rút phiếu từ pool về
+   ví B, ta nhờ một bên thứ 3 chuyển dữ liệu phiếu đã điền lên chain.
+   Smart contract của chain sẽ trả tiền cho relayer thay.
+B.​Thiết kế hệ thống hiện tại.
+-​ Hiện tại, nhóm mới chỉ triển khai cơ bản hệ thống đạt cấp độ 2 với
+   các component như sau:
+Và luồng thực thi như sau:
+C.​Tự đánh giá và định hướng
+      1.​ Tự đánh giá
+-​ Về chain, nhóm chỉ đạt được tier 2 vì vẫn có thể lần theo phí gas để
+   tìm được người bỏ phiếu (dù không biết nội dung phiếu).
+-​ Về giao diện người dùng: Chỉ ở mức cơ bản về Proof of concept,
+   chưa có cơ chế UI/UX, authentication/authorization.
+      2.​ Định hướng
+-​ Nâng cấp giao diện và thêm một số tính năng dựa trên nền tảng hệ
+   thống bỏ phiếu blockchain đã xây dựng.
+-​ Nâng cấp hệ thống bỏ phiếu để hỗ trợ thêm tier 3 và 4.
+IV.​ Liên kết ngoài
+     Link github dự án: https://github.com/LVy-H/web3-demo
+     Link tham khảo dự án khác:
+     https://github.com/advaita-saha/zk-Voting
+     Survey tham khảo: https://dl.acm.org/doi/10.1145/3723178.3723275
+
