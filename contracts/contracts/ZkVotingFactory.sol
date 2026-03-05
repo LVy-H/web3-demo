@@ -27,9 +27,10 @@ contract ZkVotingFactory {
 
     function createPoll(
         string calldata title,
-        string calldata description
+        string calldata description,
+        string[] calldata options
     ) external returns (address) {
-        ZkVoting newPoll = new ZkVoting(semaphoreAddress, msg.sender);
+        ZkVoting newPoll = new ZkVoting(semaphoreAddress, msg.sender, options);
 
         polls.push(
             PollContext({

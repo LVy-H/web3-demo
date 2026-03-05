@@ -13,8 +13,29 @@ until curl -s --request POST --data '{"jsonrpc":"2.0","method":"eth_chainId","pa
 done
 echo "Hardhat node is successfully running!"
 
+echo ""
+echo "====================================================================="
+echo "🦊 MetaMask Local Node Configuration:"
+echo "---------------------------------------------------------------------"
+echo "Network Name:    Hardhat Local"
+echo "New RPC URL:     http://127.0.0.1:8545"
+echo "Chain ID:        31337"
+echo "Currency Symbol: ETH"
+echo ""
+echo "Example Account (Account #0):"
+grep -m 1 -A 1 "Account #0:" hardhat-node.log || echo "Warning: Could not extract account info from logs"
+echo "====================================================================="
+echo ""
+
 echo "Deploying system contracts to local node..."
 npm run deploy:local
+
+echo ""
+echo "====================================================================="
+echo "Generating Anonymous Tokens for Voting / Claims:"
+npx hardhat run scripts/generateTokens.ts --network localhost
+echo "====================================================================="
+echo ""
 
 echo "Contracts are fully deployed. Tailing logs..."
 # Tail the logs in the foreground to keep the docker container running

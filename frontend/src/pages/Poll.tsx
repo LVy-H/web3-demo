@@ -1,30 +1,27 @@
-import { useState } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useChainId, usePublicClient } from 'wagmi'
 import { hardhat, localhost } from 'wagmi/chains'
 import { Identity } from '@semaphore-protocol/identity'
 import { Group } from '@semaphore-protocol/group'
 import { generateProof } from '@semaphore-protocol/proof'
+import { parseAbiItem } from 'viem'
 import ZKVotingABI from '../ZkVoting.json'
 
-const group = new Group()
+let group: Group | null = null;
 
-function loadSavedIdentity(): Identity | null {
+function loadSavedIdentity(pollAddr: string | undefined): Identity | null {
+    if (!pollAddr) return null
     try {
-        const saved = localStorage.getItem('semaphore-identity')
+        const saved = localStorage.getItem(`semaphore-identity-${pollAddr}`)
         if (!saved) return null
-        const id = new Identity(saved)
-        try {
-            group.addMember(id.commitment)
-        } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : String(e)
-            if (!msg.includes('already')) console.warn('Group.addMember:', msg)
-        }
-        return id
+        return new Identity(saved)
     } catch {
         return null
     }
 }
+
+let isGroupSynced = false;
 
 export default function Poll() {
     const { address: pollAddress } = useParams()
@@ -33,17 +30,34 @@ export default function Poll() {
 
     const isWrongNetwork = isConnected && chainId !== hardhat.id && chainId !== localhost.id
 
-    const [localIdentity, setLocalIdentity] = useState<Identity | null>(loadSavedIdentity)
-    const [candidate, setCandidate] = useState<number>(1)
+    const [localIdentity, setLocalIdentity] = useState<Identity | null>(null)
+
+    // Load identity scoped to this poll
+    useEffect(() => {
+        setLocalIdentity(loadSavedIdentity(pollAddress))
+        isGroupSynced = false
+    }, [pollAddress])
+    const [selectedOption, setSelectedOption] = useState<number>(0)
     const [statusMsg, setStatusMsg] = useState<string>("")
     const [inviteToken, setInviteToken] = useState<string>("")
-    const [adminTokens, setAdminTokens] = useState<string>("")
+    const [isSyncing, setIsSyncing] = useState(false)
+    const [isPending, startTransition] = useTransition()
 
-    // --- Contract Reads ---
+    // Admin: token generation
+    const [tokenCount, setTokenCount] = useState<number>(5)
+    const [generatedTokens, setGeneratedTokens] = useState<string[]>([])
+    const [newOptionLabel, setNewOptionLabel] = useState<string>("")
+
     const { data: pollOwner } = useReadContract({
         address: pollAddress as `0x${string}`,
         abi: ZKVotingABI.abi,
         functionName: 'owner',
+    })
+
+    const { data: contractGroupId } = useReadContract({
+        address: pollAddress as `0x${string}`,
+        abi: ZKVotingABI.abi,
+        functionName: 'groupId',
     })
 
     const { data: pollState } = useReadContract({
@@ -53,35 +67,88 @@ export default function Poll() {
         query: { refetchInterval: 2000 },
     })
 
-    const { data: voteCountA } = useReadContract({
+    const { data: optionsData, refetch: refetchOptions } = useReadContract({
         address: pollAddress as `0x${string}`,
         abi: ZKVotingABI.abi,
-        functionName: 'voteCounts',
-        args: [1],
-        query: { refetchInterval: 2000 },
+        functionName: 'getOptions',
+        query: { refetchInterval: 5000 },
     })
 
-    const { data: voteCountB } = useReadContract({
-        address: pollAddress as `0x${string}`,
-        abi: ZKVotingABI.abi,
-        functionName: 'voteCounts',
-        args: [2],
-        query: { refetchInterval: 2000 },
-    })
+    const pollOptions = (optionsData as string[]) || []
 
     const currentPollState = pollState !== undefined ? Number(pollState) : -1;
     const { address } = useAccount();
     const isAdmin = pollOwner === address;
 
-    // --- Contract Writes ---
     const { data: hash, mutateAsync: writeContractAsync } = useWriteContract()
     const { isLoading: isTxConfirming, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const publicClient = usePublicClient()
+
+    // Read vote counts for all options dynamically
+    const [voteCounts, setVoteCounts] = useState<number[]>([])
+
+    useEffect(() => {
+        if (!pollAddress || pollOptions.length === 0 || !publicClient) return
+        const fetchCounts = async () => {
+            const counts: number[] = []
+            for (let i = 0; i < pollOptions.length; i++) {
+                try {
+                    const result = await publicClient.readContract({
+                        address: pollAddress as `0x${string}`,
+                        abi: ZKVotingABI.abi,
+                        functionName: 'voteCounts',
+                        args: [BigInt(i)],
+                    })
+                    counts.push(Number(result))
+                } catch {
+                    counts.push(0)
+                }
+            }
+            setVoteCounts(counts)
+        }
+        fetchCounts()
+        const interval = setInterval(fetchCounts, 3000)
+        return () => clearInterval(interval)
+    }, [pollAddress, pollOptions.length, publicClient])
+
+    const totalVotes = voteCounts.reduce((s, c) => s + c, 0)
+
+    const syncGroupState = async () => {
+        if (!pollAddress || !publicClient || isGroupSynced || contractGroupId === undefined || contractGroupId === null) return;
+        setIsSyncing(true);
+        setStatusMsg("Syncing voting group from blockchain...");
+        try {
+            group = new Group();
+            const logs = await publicClient.getLogs({
+                address: pollAddress as `0x${string}`,
+                event: parseAbiItem('event VoterRegistered(uint256 identityCommitment)'),
+                fromBlock: 0n,
+            });
+            logs.forEach(log => {
+                try {
+                    if (log.args.identityCommitment && group) {
+                        group.addMember(BigInt(log.args.identityCommitment.toString()));
+                    }
+                } catch (e: any) {
+                    if (!e.message?.includes('already')) console.warn(e.message);
+                }
+            });
+            isGroupSynced = true;
+            setStatusMsg("Voting group synced. You can now vote.");
+        } catch (e) {
+            console.error("Failed to sync group", e);
+            setStatusMsg("Failed to sync voting group. Proof might fail.");
+        } finally {
+            setIsSyncing(false);
+        }
+    }
 
     const loadIdentityFromToken = () => {
         if (!inviteToken) return;
         try {
             const newId = new Identity(inviteToken);
-            localStorage.setItem('semaphore-identity', newId.privateKey.toString());
+            localStorage.setItem(`semaphore-identity-${pollAddress}`, newId.privateKey.toString());
             setLocalIdentity(newId);
             setStatusMsg("Identity loaded successfully from Invite Token.");
         } catch {
@@ -89,31 +156,79 @@ export default function Poll() {
         }
     }
 
-    const handleRegister = async () => {
-        if (!localIdentity || !pollAddress) return
+    // --- Admin: Generate Tokens & Auto-Register ---
+    const handleGenerateTokens = async () => {
+        if (!pollAddress) return;
         try {
-            setStatusMsg("Confirming registration transaction...")
+            setStatusMsg(`Generating ${tokenCount} vote tokens...`)
+            const tokens: string[] = []
+            const commitments: bigint[] = []
+
+            for (let i = 0; i < tokenCount; i++) {
+                const privateKeyBytes = new Uint8Array(32)
+                crypto.getRandomValues(privateKeyBytes)
+                const privateKeyHex = Array.from(privateKeyBytes).map(b => b.toString(16).padStart(2, '0')).join('')
+                const identity = new Identity(privateKeyHex)
+                tokens.push(privateKeyHex)
+                commitments.push(identity.commitment)
+            }
+
+            setStatusMsg(`Registering ${tokenCount} commitments on-chain...`)
             await writeContractAsync({
                 address: pollAddress as `0x${string}`,
                 abi: ZKVotingABI.abi,
-                functionName: 'registerVoter',
-                args: [localIdentity.commitment],
+                functionName: 'registerVoters',
+                args: [commitments],
+                gas: 15000000n,
             })
-            group.addMember(localIdentity.commitment)
+
+            setGeneratedTokens(tokens)
+            isGroupSynced = false; // force re-sync
+            setStatusMsg(`✅ ${tokenCount} tokens generated and registered on-chain! Distribute them to voters.`)
         } catch (e: unknown) {
             console.error(e)
             const err = e as { shortMessage?: string; message?: string }
-            setStatusMsg(`Registration Error: ${err.shortMessage ?? err.message ?? String(e)}`)
+            setStatusMsg(`Token Gen Error: ${err.shortMessage ?? err.message ?? String(e)}`)
         }
     }
 
-    const handleVote = async () => {
-        if (!localIdentity || !pollAddress) return
+    // --- Admin: Add Option ---
+    const handleAddOption = async () => {
+        if (!pollAddress || !newOptionLabel.trim()) return;
         try {
+            setStatusMsg("Adding option on-chain...")
+            await writeContractAsync({
+                address: pollAddress as `0x${string}`,
+                abi: ZKVotingABI.abi,
+                functionName: 'addOption',
+                args: [newOptionLabel.trim()],
+            })
+            setNewOptionLabel("")
+            refetchOptions()
+            setStatusMsg("Option added successfully!")
+        } catch (e: unknown) {
+            console.error(e)
+            const err = e as { shortMessage?: string; message?: string }
+            setStatusMsg(`Add Option Error: ${err.shortMessage ?? err.message ?? String(e)}`)
+        }
+    }
+
+    // --- Voter: Cast Vote ---
+    const handleVote = async () => {
+        if (!localIdentity || !pollAddress || contractGroupId === undefined) return
+        try {
+            await syncGroupState();
+            if (!group) throw new Error("Group not initialized");
+
             setStatusMsg("Generating Zero-Knowledge Proof... (Heavy computation)")
 
             const scope = pollAddress as `0x${string}`
-            const fullProof = await generateProof(localIdentity, group, candidate, scope)
+
+            if (group.indexOf(BigInt(localIdentity.commitment.toString())) === -1) {
+                throw new Error("Your identity is not registered in this poll's on-chain group. Did you receive a valid invite token?");
+            }
+
+            const fullProof = await generateProof(localIdentity, group, selectedOption, scope)
 
             const proofStruct = {
                 merkleTreeDepth: fullProof.merkleTreeDepth,
@@ -129,35 +244,16 @@ export default function Poll() {
                 address: pollAddress as `0x${string}`,
                 abi: ZKVotingABI.abi,
                 functionName: 'castVote',
-                args: [candidate, proofStruct],
+                args: [selectedOption, proofStruct],
+                gas: 5000000n,
             })
 
             localStorage.setItem('my-nullifier', fullProof.nullifier.toString())
-            setStatusMsg("Voted Successfully! Your anonymity is guaranteed.")
+            setStatusMsg("✅ Voted Successfully! Your anonymity is guaranteed.")
         } catch (e: unknown) {
             console.error(e)
             const err = e as { shortMessage?: string; message?: string }
             setStatusMsg(`Voting Error: ${err.shortMessage ?? err.message ?? String(e)}`)
-        }
-    }
-
-    const handleBatchRegister = async () => {
-        if (!pollAddress) return;
-        try {
-            setStatusMsg("Confirming batch registration transaction...")
-            const commitments = JSON.parse(adminTokens)
-            await writeContractAsync({
-                address: pollAddress as `0x${string}`,
-                abi: ZKVotingABI.abi,
-                functionName: 'registerVoters',
-                args: [commitments],
-            })
-            commitments.forEach((c: string) => group.addMember(c))
-            setStatusMsg("Batch registration submitted successfully.")
-        } catch (e: unknown) {
-            console.error(e)
-            const err = e as { shortMessage?: string; message?: string }
-            setStatusMsg(`Batch Register Error: ${err.shortMessage ?? err.message ?? String(e)}`)
         }
     }
 
@@ -175,6 +271,12 @@ export default function Poll() {
             await writeContractAsync({ address: pollAddress as `0x${string}`, abi: ZKVotingABI.abi, functionName: 'endVoting' })
         } catch (e) { console.error(e) }
     }
+
+    const optionColors = [
+        'bg-blue-500', 'bg-indigo-400', 'bg-emerald-500', 'bg-amber-500',
+        'bg-rose-500', 'bg-purple-500', 'bg-teal-500', 'bg-orange-500',
+        'bg-cyan-500', 'bg-pink-500',
+    ]
 
     return (
         <div className="space-y-8">
@@ -206,9 +308,14 @@ export default function Poll() {
                             <h3 className="text-sm font-medium text-slate-900 mb-2">1. Identity (Zero-Knowledge)</h3>
                             <p className="text-xs text-slate-500 mb-4">Your private key stays strictly in your browser. It is mathematically impossible to link your identity to your vote.</p>
                             {localIdentity ? (
-                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-medium">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                    Identity Ready
+                                <div className="flex items-center gap-3">
+                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-medium">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                        Identity Ready
+                                    </div>
+                                    <button onClick={() => { localStorage.removeItem(`semaphore-identity-${pollAddress}`); setLocalIdentity(null); setStatusMsg("Identity cleared.") }} className="text-xs text-slate-400 hover:text-rose-500 transition-colors">
+                                        Clear
+                                    </button>
                                 </div>
                             ) : (
                                 <div className="flex flex-col sm:flex-row gap-3">
@@ -220,25 +327,27 @@ export default function Poll() {
                             )}
                         </div>
 
-                        {localIdentity && currentPollState === 0 && (
+                        {localIdentity && currentPollState === 1 && (
                             <div className="pt-6 border-t border-slate-100">
-                                <h3 className="text-sm font-medium text-slate-900 mb-3">2. Register to Vote</h3>
-                                <button onClick={handleRegister} disabled={!isConnected || isWrongNetwork} className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white transition-colors rounded-xl text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                                    {isWrongNetwork ? 'Switch Network First' : !isConnected ? 'Connect Wallet First' : 'Submit Commitment On-chain'}
+                                <h3 className="text-sm font-medium text-slate-900 mb-3">2. Cast Vote Anonymously</h3>
+                                <div className="flex flex-col gap-2 mb-5">
+                                    {pollOptions.map((opt, i) => (
+                                        <button key={i} onClick={() => setSelectedOption(i)} className={`w-full py-3 px-4 rounded-xl border-2 transition-all text-left ${selectedOption === i ? 'border-blue-600 bg-blue-50 text-blue-700 font-semibold' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}>
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                                <button onClick={() => startTransition(async () => await handleVote())} disabled={!isConnected || isWrongNetwork || isSyncing || isTxConfirming || isPending} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white transition-colors rounded-xl text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                                    {isWrongNetwork ? 'Switch Network First' : !isConnected ? 'Connect Wallet First' : isSyncing ? 'Syncing...' : isPending ? 'Processing...' : 'Generate ZK Proof & Vote'}
                                 </button>
                             </div>
                         )}
 
-                        {localIdentity && currentPollState === 1 && (
+                        {currentPollState === 0 && localIdentity && (
                             <div className="pt-6 border-t border-slate-100">
-                                <h3 className="text-sm font-medium text-slate-900 mb-3">3. Cast Vote Anonymously</h3>
-                                <div className="flex gap-3 mb-5">
-                                    <button onClick={() => setCandidate(1)} className={`flex-1 py-3 rounded-xl border-2 transition-all ${candidate === 1 ? 'border-blue-600 bg-blue-50 text-blue-700 font-semibold' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}>Candidate A</button>
-                                    <button onClick={() => setCandidate(2)} className={`flex-1 py-3 rounded-xl border-2 transition-all ${candidate === 2 ? 'border-blue-600 bg-blue-50 text-blue-700 font-semibold' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}>Candidate B</button>
+                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-sm font-medium">
+                                    ⏳ Registration Phase — Voting has not started yet
                                 </div>
-                                <button onClick={handleVote} disabled={!isConnected || isWrongNetwork} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white transition-colors rounded-xl text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                                    {isWrongNetwork ? 'Switch Network First' : !isConnected ? 'Connect Wallet First' : 'Generate ZK Proof & Vote'}
-                                </button>
                             </div>
                         )}
 
@@ -265,27 +374,34 @@ export default function Poll() {
                             <div className={`flex-1 py-2 text-center rounded-lg text-xs font-medium transition-colors ${currentPollState === 2 ? 'bg-white shadow-sm text-blue-600 border border-slate-200' : 'text-slate-500'}`}>Closed</div>
                         </div>
 
-                        <div className="space-y-6">
-                            <div>
-                                <div className="flex justify-between items-end mb-2">
-                                    <span className="text-slate-700 font-medium text-sm">Candidate A</span>
-                                    <span className="text-2xl font-bold text-slate-900">{voteCountA !== undefined ? Number(voteCountA) : '-'}</span>
-                                </div>
-                                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                    <div className="bg-blue-500 h-2 rounded-full transition-all duration-500" style={{ width: `${voteCountA ? Math.min((Number(voteCountA) / (Number(voteCountA) + Number(voteCountB) + 0.01)) * 100, 100) : 0}%` }}></div>
-                                </div>
+                        {/* Dynamic Options + Counts */}
+                        {pollOptions.length > 0 && (
+                            <div className="space-y-5">
+                                {pollOptions.map((opt, i) => {
+                                    const count = voteCounts[i] || 0
+                                    const pct = totalVotes > 0 ? (count / totalVotes) * 100 : 0
+                                    const color = optionColors[i % optionColors.length]
+                                    return (
+                                        <div key={i}>
+                                            <div className="flex justify-between items-end mb-2">
+                                                <span className="text-slate-700 font-medium text-sm">{opt}</span>
+                                                <span className="text-2xl font-bold text-slate-900">{count}</span>
+                                            </div>
+                                            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                                <div className={`${color} h-2 rounded-full transition-all duration-500`} style={{ width: `${pct}%` }}></div>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                                {totalVotes > 0 && (
+                                    <p className="text-xs text-slate-400 mt-2">Total votes: {totalVotes}</p>
+                                )}
                             </div>
+                        )}
 
-                            <div>
-                                <div className="flex justify-between items-end mb-2">
-                                    <span className="text-slate-700 font-medium text-sm">Candidate B</span>
-                                    <span className="text-2xl font-bold text-slate-900">{voteCountB !== undefined ? Number(voteCountB) : '-'}</span>
-                                </div>
-                                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                    <div className="bg-indigo-400 h-2 rounded-full transition-all duration-500" style={{ width: `${voteCountB ? Math.min((Number(voteCountB) / (Number(voteCountA) + Number(voteCountB) + 0.01)) * 100, 100) : 0}%` }}></div>
-                                </div>
-                            </div>
-                        </div>
+                        {pollOptions.length === 0 && (
+                            <p className="text-sm text-slate-400">No options configured yet.</p>
+                        )}
                     </div>
 
                     {/* ADMIN CONTROLS (CONDITIONAL) */}
@@ -295,7 +411,9 @@ export default function Poll() {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                 Admin Organizer
                             </h2>
-                            <div className="flex flex-col sm:flex-row gap-3 mb-5">
+
+                            {/* Poll Lifecycle */}
+                            <div className="flex flex-col sm:flex-row gap-3 mb-6">
                                 <button onClick={handleStartVoting} disabled={currentPollState !== 0 || !isConnected || isWrongNetwork} className="flex-1 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 transition border border-rose-200 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
                                     Start Voting
                                 </button>
@@ -303,10 +421,61 @@ export default function Poll() {
                                     Close Poll
                                 </button>
                             </div>
-                            <textarea placeholder="Paste JSON array of commitments to batch register" value={adminTokens} onChange={e => setAdminTokens(e.target.value)} className="w-full h-24 bg-slate-50 border border-rose-200 rounded-xl p-3 text-xs text-slate-600 mb-3 focus:outline-none focus:ring-2 focus:ring-rose-500 font-mono resize-none transition-shadow" />
-                            <button onClick={handleBatchRegister} disabled={currentPollState !== 0 || !isConnected || isWrongNetwork} className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white transition rounded-xl text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                                Batch Register Commitments
-                            </button>
+
+                            {/* Manage Options (Registration only) */}
+                            {currentPollState === 0 && (
+                                <div className="mb-6 border-t border-rose-100 pt-5">
+                                    <h3 className="text-sm font-semibold text-rose-700 mb-3">Manage Options</h3>
+                                    <div className="mb-3 space-y-1">
+                                        {pollOptions.map((opt, i) => (
+                                            <div key={i} className="flex items-center gap-2 px-3 py-2 bg-rose-50 rounded-lg text-sm text-rose-800 border border-rose-100">
+                                                <span className="w-5 h-5 rounded-full bg-rose-200 text-rose-700 text-xs flex items-center justify-center font-bold">{i + 1}</span>
+                                                {opt}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <input type="text" placeholder="New option label" value={newOptionLabel} onChange={e => setNewOptionLabel(e.target.value)} className="flex-1 bg-white border border-rose-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" />
+                                        <button onClick={() => startTransition(async () => await handleAddOption())} disabled={!newOptionLabel.trim() || !isConnected || isWrongNetwork || isPending} className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                            {isPending ? '...' : '+ Add'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Generate Tokens (Registration only) */}
+                            {currentPollState === 0 && (
+                                <div className="border-t border-rose-100 pt-5">
+                                    <h3 className="text-sm font-semibold text-rose-700 mb-3">Generate Vote Tokens</h3>
+                                    <p className="text-xs text-rose-400 mb-3">Create anonymous invite tokens and auto-register them on-chain. Distribute token strings privately to voters.</p>
+                                    <div className="flex gap-2 mb-4">
+                                        <input type="number" min={1} max={50} value={tokenCount} onChange={e => setTokenCount(Number(e.target.value))} className="w-20 bg-white border border-rose-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 text-center" />
+                                        <button onClick={() => startTransition(async () => await handleGenerateTokens())} disabled={!isConnected || isWrongNetwork || isPending} className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                            {isPending ? 'Generating...' : `Generate ${tokenCount} Tokens`}
+                                        </button>
+                                    </div>
+
+                                    {generatedTokens.length > 0 && (
+                                        <div className="bg-slate-900 rounded-xl p-4 max-h-60 overflow-y-auto">
+                                            <div className="flex justify-between items-center mb-3">
+                                                <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">🔑 Invite Tokens (distribute privately)</span>
+                                                <button
+                                                    onClick={() => { navigator.clipboard.writeText(generatedTokens.join('\n')); setStatusMsg("All tokens copied to clipboard!") }}
+                                                    className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1 rounded-lg transition-colors"
+                                                >
+                                                    Copy All
+                                                </button>
+                                            </div>
+                                            {generatedTokens.map((t, i) => (
+                                                <div key={i} className="flex items-center gap-2 mb-1">
+                                                    <span className="text-xs text-slate-500 w-6">{i + 1}.</span>
+                                                    <code className="text-xs text-emerald-400 font-mono break-all">{t}</code>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
                 </section>

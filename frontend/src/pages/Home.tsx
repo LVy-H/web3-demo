@@ -7,6 +7,7 @@ import ZKVotingFactoryABI from '../ZkVotingFactory.json'
 export default function Home() {
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
+    const [options, setOptions] = useState<string[]>(['', ''])
 
     interface PollData {
         pollAddress: string;
@@ -26,19 +27,37 @@ export default function Home() {
 
     const handleCreatePoll = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!title || !description) return
+        const validOptions = options.filter(o => o.trim() !== '')
+        if (!title || !description || validOptions.length < 2) return
         try {
             await writeContractAsync({
                 address: FACTORY_ADDRESS as `0x${string}`,
                 abi: ZKVotingFactoryABI.abi,
                 functionName: 'createPoll',
-                args: [title, description],
+                args: [title, description, validOptions],
+                gas: 8000000n,
             })
             setTitle('')
             setDescription('')
+            setOptions(['', ''])
         } catch (err) {
             console.error(err)
         }
+    }
+
+    const updateOption = (index: number, value: string) => {
+        const updated = [...options]
+        updated[index] = value
+        setOptions(updated)
+    }
+
+    const addOption = () => {
+        setOptions([...options, ''])
+    }
+
+    const removeOption = (index: number) => {
+        if (options.length <= 2) return
+        setOptions(options.filter((_, i) => i !== index))
     }
 
     const pollsArray = (polls as PollData[]) || []
@@ -52,24 +71,53 @@ export default function Home() {
                 {isTxConfirming && <p className="text-amber-600 text-sm font-medium mb-4 animate-pulse">Creating poll transaction pending...</p>}
                 {isTxSuccess && <p className="text-emerald-600 text-sm font-medium mb-4">Poll created successfully!</p>}
 
-                <form onSubmit={handleCreatePoll} className="flex flex-col sm:flex-row gap-4">
-                    <input
-                        type="text"
-                        placeholder="Poll Title (e.g., Q3 Board Election)"
-                        value={title}
-                        onChange={e => setTitle(e.target.value)}
-                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                    />
-                    <input
-                        type="text"
-                        placeholder="Description..."
-                        value={description}
-                        onChange={e => setDescription(e.target.value)}
-                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                    />
-                    <button type="submit" className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white transition-colors rounded-xl text-sm font-medium shadow-sm whitespace-nowrap">
+                <form onSubmit={handleCreatePoll} className="space-y-5">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <input
+                            type="text"
+                            placeholder="Poll Title (e.g., Q3 Board Election)"
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
+                            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                        <input
+                            type="text"
+                            placeholder="Description..."
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <h3 className="text-sm font-medium text-slate-900 mb-3">Poll Options (min 2)</h3>
+                        <div className="space-y-2">
+                            {options.map((opt, i) => (
+                                <div key={i} className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        placeholder={`Option ${i + 1}`}
+                                        value={opt}
+                                        onChange={e => updateOption(i, e.target.value)}
+                                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        required
+                                    />
+                                    {options.length > 2 && (
+                                        <button type="button" onClick={() => removeOption(i)} className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-sm transition-colors">
+                                            ✕
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <button type="button" onClick={addOption} className="mt-3 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-sm font-medium transition-colors">
+                            + Add Option
+                        </button>
+                    </div>
+
+                    <button type="submit" className="w-full sm:w-auto px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white transition-colors rounded-xl text-sm font-medium shadow-sm whitespace-nowrap">
                         Create Poll
                     </button>
                 </form>

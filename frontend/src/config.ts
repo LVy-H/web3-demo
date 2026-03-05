@@ -3,6 +3,8 @@ import { hardhat, localhost } from 'wagmi/chains'
 import { metaMask, mock } from 'wagmi/connectors'
 import deployedAddresses from './deployed-addresses.json'
 
+const RPC_URL = import.meta.env.VITE_RPC_URL || 'http://127.0.0.1:8545'
+
 export const config = createConfig({
     chains: [hardhat, localhost],
     connectors: [
@@ -14,11 +16,12 @@ export const config = createConfig({
         }),
     ],
     transports: {
-        [hardhat.id]: http('http://127.0.0.1:8545'),
-        [localhost.id]: http('http://127.0.0.1:8545'),
+        [hardhat.id]: http(RPC_URL),
+        [localhost.id]: http(RPC_URL),
     },
 })
 
 // Contract details dynamically set
 export const FACTORY_ADDRESS = deployedAddresses.FACTORY_ADDRESS as `0x${string}`;
 export const AIRDROP_ADDRESS = deployedAddresses.AIRDROP_ADDRESS as `0x${string}`;
+
