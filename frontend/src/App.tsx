@@ -21,7 +21,7 @@ export default function App() {
           <header className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-6 gap-4">
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-                ZK Voting Hub
+                Voting Hub
               </h1>
               <p className="text-slate-500 mt-1 text-sm font-medium">Anonymous, provable, and secure multi-poll platform.</p>
             </div>

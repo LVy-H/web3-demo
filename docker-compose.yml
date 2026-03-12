@@ -18,9 +18,18 @@ services:
       - "5173:5173"
     environment:
       - VITE_HOST=0.0.0.0
-      - VITE_RPC_URL=http://slzsl-42-119-228-206.a.free.pinggy.link:34125
+      - VITE_RPC_URL=https://bike-knife-jewelry-collaborative.trycloudflare.com
     depends_on:
       - contracts
     volumes:
       - ./frontend:/app
       - /app/node_modules
+
+  explorer:
+    image: alethio/ethereum-lite-explorer
+    ports:
+      - "3728:80"
+    environment:
+      - APP_NODE_URL=http://localhost:8545
+    depends_on:
+      - contracts
