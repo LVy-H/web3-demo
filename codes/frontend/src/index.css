@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/* ── Design Tokens ─────────────────────────────────────────────── */
+@theme {
+  /* Semantic colors (extend Tailwind's palette) */
+  --color-surface: oklch(0.98 0.005 260);       /* slate-50 */
+  --color-card: oklch(1 0 0);                    /* white */
+  --color-brand: oklch(0.15 0.02 260);           /* near slate-950 */
+  --color-accent: oklch(0.55 0.22 260);          /* blue-600 */
+
+  /* Spacing */
+  --spacing-section: 2rem;                       /* 32px between sections */
+  --spacing-card: 1.5rem;                        /* 24px card padding */
+
+  /* Easing */
+  --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* ── Base ──────────────────────────────────────────────────────── */
+:root {
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #0f172a;
+  background-color: #f8fafc;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+/* ── Focus indicators (WCAG 2.1 AA) ──────────────────────────── */
+:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+/* Prevent iOS Safari zoom on input focus */
+input, select, textarea {
+  font-size: 16px;
+}
+
+/* ── Reduced motion ───────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Selection ────────────────────────────────────────────────── */
+::selection {
+  background-color: #bfdbfe;
+  color: #1e3a5f;
+}
