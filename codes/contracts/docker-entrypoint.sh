@@ -2,7 +2,7 @@
 set -e
 
 echo "Starting hardhat node locally..."
-npx hardhat node > hardhat-node.log 2>&1 &
+npx hardhat node --hostname 0.0.0.0 > hardhat-node.log 2>&1 &
 NODE_PID=$!
 
 echo "Waiting for Hardhat node to be ready..."
