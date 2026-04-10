@@ -290,7 +290,44 @@ Each phase has a **stability gate** that must pass before the next begins.
 
 ---
 
-## 9. Open Questions & Future Work
+## 9. UX Simplification Plan
+
+### Problem
+The current PoC requires 9 manual steps before a voter can cast a single vote: install MetaMask, manually add Hardhat network, import a funded account, open app, connect wallet, generate identity, submit commitment, wait for admin, then vote. This is unacceptable for classmates and third-party integrators.
+
+### Improvements (phased)
+
+| Improvement | What It Eliminates | Complexity | Target Phase |
+|-------------|-------------------|-----------|--------------|
+| **Auto-add network** via `wallet_addEthereumChain` | Manual network config (RPC, Chain ID, etc.) | Low | 0 |
+| **Invite link flow** | Manual identity + registration. Creator generates link, voter clicks, app handles setup in one action | Medium | 1 |
+| **Embedded wallet** (Privy / Web3Auth) | MetaMask entirely. User logs in with email/Google, wallet created behind the scenes | Medium | 2 |
+| **Relayer pays gas** (EIP-2771) | Need for funded account. Voter has zero Web3 prerequisites | High | 5+ |
+| **Account abstraction (ERC-4337)** | Seed phrases, gas management, wallet UX | High | Future |
+
+### Target UX per Phase
+
+**Phase 0-1 (M1 stabilization):**
+- Voter clicks invite link → MetaMask prompts network add (auto) → identity generated automatically → one "Register & Connect" button → ready to vote
+- Steps reduced from 9 to ~3
+
+**Phase 2 (M2 with embedded wallet):**
+- Voter clicks invite link → logs in with email → ready to vote
+- Steps reduced to ~2 (click link, log in, vote)
+
+**Phase 5+ (gasless):**
+- Voter clicks invite link → votes
+- Steps: 1
+
+### Live Demo Environment
+- Development served via containerized stack (podman-compose)
+- Hardhat node + contract deployment + Vite frontend in a single `podman-compose up`
+- Hot-reload enabled for iterative development while demo stays live
+- Accessible at `http://localhost:5173` (frontend) and `http://localhost:8545` (RPC)
+
+---
+
+## 10. Open Questions & Future Work
 
 - **M2a crypto complexity:** Full homomorphic ElGamal may be too complex for course timeline. Decision point: evaluate during Phase 2 whether to use simplified approach.
 - **Relayer network for gasless:** Deferred. Would upgrade M1 from "pseudonymous" to truly "permissionless anonymous." Tracked as future phase.
