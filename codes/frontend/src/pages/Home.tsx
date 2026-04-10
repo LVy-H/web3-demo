@@ -6,6 +6,9 @@ import { SEMAPHORE_ADDRESS } from '../config'
 import { useAllPolls, useCreatePoll } from '../hooks/useRegistry'
 import type { PollInfo } from '../hooks/useRegistry'
 import ZkAnonVotingABI from '../abi/ZkAnonVoting.json'
+import ZkBlindVotingABI from '../abi/ZkBlindVoting.json'
+
+type PollType = 'anon-vote' | 'blind-vote'
 
 /* ── Feedback message component ───────────────────────────────── */
 function FeedbackMessage({ type, children }: { type: 'success' | 'error' | 'pending'; children: React.ReactNode }) {
@@ -48,6 +51,8 @@ export default function Home() {
     const [options, setOptions] = useState<string[]>(['', ''])
     const [formOpen, setFormOpen] = useState(false)
     const [errorMsg, setErrorMsg] = useState('')
+    const [pollType, setPollType] = useState<PollType>('anon-vote')
+    const [revealDuration, setRevealDuration] = useState(3600)
     const formRef = useRef<HTMLDivElement>(null)
 
     const { data: polls } = useAllPolls()
@@ -67,13 +72,22 @@ export default function Home() {
         }
 
         try {
-            const initData = encodeFunctionData({
-                abi: ZkAnonVotingABI.abi,
-                functionName: 'initialize',
-                args: [SEMAPHORE_ADDRESS, address, validOptions],
-            })
+            let initData: `0x${string}`
+            if (pollType === 'blind-vote') {
+                initData = encodeFunctionData({
+                    abi: ZkBlindVotingABI.abi,
+                    functionName: 'initialize',
+                    args: [address, validOptions, BigInt(revealDuration)],
+                }) as `0x${string}`
+            } else {
+                initData = encodeFunctionData({
+                    abi: ZkAnonVotingABI.abi,
+                    functionName: 'initialize',
+                    args: [SEMAPHORE_ADDRESS, address, validOptions],
+                }) as `0x${string}`
+            }
 
-            await createPoll('anon-vote', title, description, initData as `0x${string}`)
+            await createPoll(pollType, title, description, initData)
             setTitle('')
             setDescription('')
             setOptions(['', ''])
@@ -255,6 +269,61 @@ export default function Home() {
                                     className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
                                 />
                             </div>
+
+                            {/* Poll Type Selector */}
+                            <div className="flex flex-col gap-2">
+                                <span className="text-sm font-semibold text-slate-700">Poll Type</span>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPollType('anon-vote')}
+                                        className={`flex flex-col items-start gap-1 px-4 py-3 rounded-xl border-2 transition-all text-left cursor-pointer ${
+                                            pollType === 'anon-vote'
+                                                ? 'border-blue-600 bg-blue-50 text-blue-800'
+                                                : 'border-slate-200 hover:border-slate-300 text-slate-600'
+                                        }`}
+                                    >
+                                        <span className="text-sm font-semibold">Anonymous (ZK)</span>
+                                        <span className="text-xs font-normal opacity-75">
+                                            Zero-knowledge proofs. No one can link your identity to your vote.
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPollType('blind-vote')}
+                                        className={`flex flex-col items-start gap-1 px-4 py-3 rounded-xl border-2 transition-all text-left cursor-pointer ${
+                                            pollType === 'blind-vote'
+                                                ? 'border-blue-600 bg-blue-50 text-blue-800'
+                                                : 'border-slate-200 hover:border-slate-300 text-slate-600'
+                                        }`}
+                                    >
+                                        <span className="text-sm font-semibold">Blind (Commit-Reveal)</span>
+                                        <span className="text-xs font-normal opacity-75">
+                                            Votes are hidden until the reveal phase. Address-based registration.
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Reveal Duration (blind-vote only) */}
+                            {pollType === 'blind-vote' && (
+                                <div className="flex flex-col gap-2">
+                                    <label htmlFor="reveal-duration" className="text-sm font-semibold text-slate-700">
+                                        Reveal Window (seconds)
+                                    </label>
+                                    <p className="text-xs text-slate-400">
+                                        How long voters have to reveal their vote after voting ends. Default: 3600 (1 hour).
+                                    </p>
+                                    <input
+                                        id="reveal-duration"
+                                        type="number"
+                                        min={60}
+                                        value={revealDuration}
+                                        onChange={e => setRevealDuration(Number(e.target.value))}
+                                        className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[44px]"
+                                    />
+                                </div>
+                            )}
 
                             {/* Options */}
                             <fieldset className="flex flex-col gap-3">

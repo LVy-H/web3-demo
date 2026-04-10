@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from 'wagmi'
 import { hardhat, localhost } from 'wagmi/chains'
 import Home from './pages/Home'
-import Poll from './pages/Poll'
+import PollRouter from './pages/PollRouter'
 
 const RPC_URL = import.meta.env.VITE_RPC_URL || 'http://127.0.0.1:8545'
 
@@ -124,7 +124,7 @@ export default function App() {
         <main className="flex-1 max-w-6xl w-full mx-auto px-6 py-8 md:px-8 md:py-12">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/poll/:address" element={<Poll />} />
+            <Route path="/poll/:address" element={<PollRouter />} />
           </Routes>
         </main>
 
