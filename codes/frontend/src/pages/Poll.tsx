@@ -40,21 +40,30 @@ function StateProgress({ current }: { current: number }) {
             {steps.map((step, i) => (
                 <Fragment key={i}>
                     {i > 0 && (
-                        <div className={`flex-1 h-0.5 ${i <= current ? 'bg-blue-500' : 'bg-slate-200'}`} />
+                        <div className={`flex-1 h-1 rounded-full transition-all duration-500 ${
+                            i <= current
+                                ? 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                                : 'bg-slate-200'
+                        }`} />
                     )}
-                    <div className="flex flex-col items-center gap-1">
-                        <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold
-                                ${i < current
-                                    ? 'bg-emerald-500 text-white'
-                                    : i === current
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-slate-200 text-slate-400'
-                                }`}
-                        >
-                            {i < current ? '\u2713' : i + 1}
+                    <div className="flex flex-col items-center gap-1.5">
+                        <div className="relative">
+                            <div
+                                className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300
+                                    ${i < current
+                                        ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md shadow-emerald-200'
+                                        : i === current
+                                            ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-300/50'
+                                            : 'bg-slate-200 text-slate-400'
+                                    }`}
+                            >
+                                {i < current ? '\u2713' : i + 1}
+                            </div>
+                            {i === current && (
+                                <span className="absolute inset-0 rounded-full animate-ping bg-blue-400 opacity-20" />
+                            )}
                         </div>
-                        <span className={`text-xs ${i === current ? 'text-blue-700 font-semibold' : 'text-slate-400'}`}>
+                        <span className={`text-xs font-medium ${i === current ? 'text-blue-700 font-semibold' : i < current ? 'text-emerald-600' : 'text-slate-400'}`}>
                             {step}
                         </span>
                     </div>
@@ -68,15 +77,17 @@ function StateProgress({ current }: { current: number }) {
 
 function PrivacyReceipt() {
     return (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 p-6">
             <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                </div>
                 Privacy Receipt
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
+                <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100/60">
                     <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-2">Recorded on-chain</p>
                     <ul className="space-y-1.5 text-sm text-slate-600">
                         <li className="flex items-start gap-2">
@@ -93,7 +104,7 @@ function PrivacyReceipt() {
                         </li>
                     </ul>
                 </div>
-                <div>
+                <div className="bg-rose-50/50 rounded-xl p-4 border border-rose-100/60">
                     <p className="text-xs font-semibold text-rose-500 uppercase tracking-wide mb-2">Never recorded</p>
                     <ul className="space-y-1.5 text-sm text-slate-600">
                         <li className="flex items-start gap-2">
@@ -133,10 +144,23 @@ function loadSavedIdentity(pollAddr: string | undefined): Identity | null {
 
 /* ─── Option Colors ─────────────────────────────────────────────────────── */
 
-const OPTION_COLORS = [
-    'bg-blue-500', 'bg-indigo-400', 'bg-emerald-500', 'bg-amber-500',
-    'bg-rose-500', 'bg-purple-500', 'bg-teal-500', 'bg-orange-500',
-    'bg-cyan-500', 'bg-pink-500',
+const OPTION_GRADIENT_COLORS = [
+    'from-blue-500 to-indigo-500',
+    'from-indigo-400 to-purple-500',
+    'from-emerald-500 to-teal-500',
+    'from-amber-500 to-orange-500',
+    'from-rose-500 to-pink-500',
+    'from-purple-500 to-violet-500',
+    'from-teal-500 to-cyan-500',
+    'from-orange-500 to-red-500',
+    'from-cyan-500 to-blue-500',
+    'from-pink-500 to-rose-500',
+]
+
+const OPTION_GLOW = [
+    'glow-blue', 'glow-indigo', 'glow-emerald', 'glow-amber',
+    'glow-rose', 'glow-indigo', 'glow-blue', 'glow-amber',
+    'glow-blue', 'glow-rose',
 ]
 
 /* ─── Main Component ────────────────────────────────────────────────────── */
@@ -173,6 +197,7 @@ export default function Poll() {
     const [tokenCount, setTokenCount] = useState<number>(5)
     const [generatedTokens, setGeneratedTokens] = useState<string[]>([])
     const [newOptionLabel, setNewOptionLabel] = useState<string>("")
+    const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
 
     // Use hooks from usePoll
     const { data: pollOwner } = usePollOwner(typedPollAddr)
@@ -383,6 +408,13 @@ export default function Poll() {
         }
     }
 
+    /* ─── Copy token helper ──────────────────────────────────────────── */
+    const copyToken = (token: string, index: number) => {
+        navigator.clipboard.writeText(token)
+        setCopiedIndex(index)
+        setTimeout(() => setCopiedIndex(null), 1500)
+    }
+
     /* ─── Vote button label ──────────────────────────────────────────── */
     function voteButtonLabel(): string {
         if (isWrongNetwork) return 'Switch Network First'
@@ -399,33 +431,40 @@ export default function Poll() {
     return (
         <div className="space-y-6">
             {/* ── Header ─────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between animate-fade-in-up">
                 <Link
                     to="/"
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-lg px-1 py-0.5"
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-lg px-2 py-1 hover:bg-blue-50/50 transition-colors"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
                     Back to Polls
                 </Link>
-                <span className="text-xs font-mono text-slate-400 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200">
-                    {pollAddress?.slice(0, 6)}...{pollAddress?.slice(-4)}
-                </span>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full uppercase tracking-wide">
+                        ZK Anonymous
+                    </span>
+                    <span className="text-xs font-mono text-slate-400 bg-slate-50/80 px-2 py-1 rounded-lg border border-slate-200/60">
+                        {pollAddress?.slice(0, 6)}...{pollAddress?.slice(-4)}
+                    </span>
+                </div>
             </div>
 
             {/* ── State Progression ──────────────────────────────────── */}
             {currentPollState >= 0 && (
-                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-6 py-4">
+                <div className="animate-fade-in-up animate-fade-in-up-1 bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 px-6 py-5">
                     <StateProgress current={currentPollState} />
                 </div>
             )}
 
             {/* ── Trust Signal: Encryption ───────────────────────────── */}
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex items-center gap-3">
-                <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
+            <div className="animate-fade-in-up animate-fade-in-up-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100/80 rounded-2xl px-5 py-4 flex items-center gap-3 shadow-sm">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-md">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
                 <p className="text-sm text-blue-800 font-medium">
                     Your vote is encrypted end-to-end. Zero-knowledge proofs ensure no one can link your identity to your vote.
                 </p>
@@ -434,17 +473,17 @@ export default function Poll() {
             {/* ── Status Banner ───────────────────────────────────────── */}
             {statusMsg && (
                 <div
-                    className={`px-4 py-3 rounded-2xl flex items-start gap-3 text-sm font-medium shadow-sm border ${
+                    className={`px-5 py-4 rounded-2xl flex items-start gap-3 text-sm font-medium shadow-sm border backdrop-blur-sm ${
                         statusType === 'success'
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                            ? 'bg-emerald-50/80 border-emerald-200/60 text-emerald-800'
                             : statusType === 'error'
-                                ? 'bg-rose-50 border-rose-200 text-rose-800'
-                                : 'bg-blue-50 border-blue-100 text-blue-800'
+                                ? 'bg-rose-50/80 border-rose-200/60 text-rose-800'
+                                : 'bg-blue-50/80 border-blue-100/60 text-blue-800'
                     }`}
                     role="status"
                     aria-live="polite"
                 >
-                    <div className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${
+                    <div className={`mt-0.5 h-2.5 w-2.5 rounded-full flex-shrink-0 ${
                         statusType === 'success'
                             ? 'bg-emerald-500'
                             : statusType === 'error'
@@ -467,7 +506,7 @@ export default function Poll() {
                 {/* ════════ LEFT COLUMN: Voter Panel ════════ */}
                 <section className="space-y-6">
                     {/* ── Identity Card ───────────────────────────────── */}
-                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                    <div className="animate-fade-in-up animate-fade-in-up-3 bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 p-6">
                         <h2 className="text-base font-semibold text-slate-900 mb-1">Identity</h2>
                         <p className="text-xs text-slate-500 mb-4">
                             Your private key stays in your browser. It is mathematically impossible to link your identity to your vote.
@@ -475,7 +514,7 @@ export default function Poll() {
 
                         {localIdentity ? (
                             <div className="flex items-center justify-between">
-                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-medium">
+                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/60 text-emerald-700 rounded-xl text-sm font-medium shadow-sm">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                     </svg>
@@ -500,12 +539,12 @@ export default function Poll() {
                                     placeholder="Paste your invite token"
                                     value={inviteToken}
                                     onChange={e => setInviteToken(e.target.value)}
-                                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="flex-1 bg-slate-50/80 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                                     aria-label="Invite token"
                                 />
                                 <button
                                     onClick={loadIdentityFromToken}
-                                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white transition-colors rounded-xl text-sm font-medium shadow-sm whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                                    className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white transition-all rounded-xl text-sm font-medium shadow-md shadow-blue-200/50 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                                 >
                                     Load Identity
                                 </button>
@@ -515,7 +554,7 @@ export default function Poll() {
 
                     {/* ── Cast Vote Card ──────────────────────────────── */}
                     {localIdentity && currentPollState === 1 && !hasVoted && (
-                        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                        <div className="animate-fade-in-up bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 p-6">
                             <h2 className="text-base font-semibold text-slate-900 mb-4">Cast Your Vote</h2>
 
                             {pollOptions.length === 0 ? (
@@ -530,16 +569,16 @@ export default function Poll() {
                                                 onClick={() => setSelectedOption(i)}
                                                 role="radio"
                                                 aria-checked={selectedOption === i}
-                                                className={`w-full min-h-[48px] py-3 px-4 rounded-xl border-2 transition-all text-left flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                                                className={`w-full min-h-[48px] py-3 px-4 rounded-xl border-2 transition-all duration-200 text-left flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
                                                     selectedOption === i
-                                                        ? 'border-l-[3px] border-blue-600 bg-blue-50 text-blue-800 font-semibold'
-                                                        : 'border-slate-200 hover:border-slate-300 text-slate-700'
+                                                        ? 'border-l-4 border-blue-500 bg-gradient-to-r from-blue-50 to-transparent text-blue-800 font-semibold shadow-sm'
+                                                        : 'border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/50 text-slate-700'
                                                 }`}
                                             >
                                                 {/* Radio indicator */}
-                                                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
                                                     selectedOption === i
-                                                        ? 'border-blue-600 bg-blue-600'
+                                                        ? 'border-blue-600 bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm'
                                                         : 'border-slate-300'
                                                 }`}>
                                                     {selectedOption === i && (
@@ -557,7 +596,7 @@ export default function Poll() {
                                     <button
                                         onClick={() => startTransition(async () => await handleVote())}
                                         disabled={voteDisabled}
-                                        className="w-full py-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white transition-colors rounded-2xl text-base font-bold shadow-md disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                                        className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 active:to-indigo-700 text-white transition-all rounded-2xl text-base font-bold shadow-lg shadow-blue-500/25 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                                     >
                                         {voteButtonLabel()}
                                     </button>
@@ -571,10 +610,10 @@ export default function Poll() {
 
                     {/* ── Phase-specific empty states ─────────────────── */}
                     {currentPollState === 0 && localIdentity && (
-                        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                        <div className="animate-fade-in-up bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 p-6">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </div>
@@ -589,9 +628,9 @@ export default function Poll() {
                     )}
 
                     {currentPollState === 0 && !localIdentity && (
-                        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                        <div className="animate-fade-in-up bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 p-6">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
                                     <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                                     </svg>
@@ -607,10 +646,10 @@ export default function Poll() {
                     )}
 
                     {currentPollState === 1 && !localIdentity && (
-                        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                        <div className="animate-fade-in-up bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 p-6">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-md">
+                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                                     </svg>
                                 </div>
@@ -625,10 +664,10 @@ export default function Poll() {
                     )}
 
                     {currentPollState === 2 && (
-                        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                        <div className="animate-fade-in-up bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 p-6">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </div>
@@ -646,36 +685,37 @@ export default function Poll() {
                 {/* ════════ RIGHT COLUMN: Info Panel ════════ */}
                 <section className="space-y-6">
                     {/* ── Live Results Card ───────────────────────────── */}
-                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-                        <div className="flex items-center justify-between mb-4">
+                    <div className="animate-fade-in-up animate-fade-in-up-4 bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 p-6">
+                        <div className="flex items-center justify-between mb-5">
                             <h2 className="text-base font-semibold text-slate-900">Live Results</h2>
                             {totalVotes > 0 && (
-                                <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">
+                                <span className="text-xs font-semibold text-slate-500 bg-slate-100/80 px-3 py-1 rounded-full font-mono tabular-nums">
                                     {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
                                 </span>
                             )}
                         </div>
 
                         {pollOptions.length > 0 ? (
-                            <div className="space-y-4">
+                            <div className="space-y-5">
                                 {pollOptions.map((opt, i) => {
                                     const count = voteCounts[i] || 0
                                     const pct = totalVotes > 0 ? (count / totalVotes) * 100 : 0
-                                    const color = OPTION_COLORS[i % OPTION_COLORS.length]
+                                    const gradientColor = OPTION_GRADIENT_COLORS[i % OPTION_GRADIENT_COLORS.length]
+                                    const glow = OPTION_GLOW[i % OPTION_GLOW.length]
                                     return (
                                         <div key={i}>
-                                            <div className="flex justify-between items-baseline mb-1.5">
+                                            <div className="flex justify-between items-baseline mb-2">
                                                 <span className="text-sm font-medium text-slate-700">{opt}</span>
-                                                <div className="flex items-baseline gap-1.5">
-                                                    <span className="text-xs text-slate-400">
-                                                        {totalVotes > 0 ? `${pct.toFixed(0)}%` : '--'}
+                                                <div className="flex items-baseline gap-2">
+                                                    <span className="text-xs text-slate-400 font-mono tabular-nums">
+                                                        {totalVotes > 0 ? `${pct.toFixed(1)}%` : '--'}
                                                     </span>
-                                                    <span className="text-lg font-bold text-slate-900 tabular-nums">{count}</span>
+                                                    <span className="text-xl font-bold text-slate-900 font-mono tabular-nums">{count}</span>
                                                 </div>
                                             </div>
-                                            <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                            <div className="w-full bg-slate-100/80 rounded-full h-3 overflow-hidden">
                                                 <div
-                                                    className={`${color} h-2.5 rounded-full transition-all duration-700 ease-out`}
+                                                    className={`bg-gradient-to-r ${gradientColor} h-3 rounded-full transition-all duration-700 ease-out ${pct > 0 ? glow : ''}`}
                                                     style={{ width: `${pct}%` }}
                                                 />
                                             </div>
@@ -698,16 +738,18 @@ export default function Poll() {
 
                     {/* ── Admin Panel ─────────────────────────────────── */}
                     {isAdmin && (
-                        <div className="bg-white border-2 border-rose-200 rounded-2xl shadow-sm p-6 relative">
-                            {/* Rose tint overlay for distinction */}
-                            <div className="absolute inset-0 bg-rose-50/30 rounded-2xl pointer-events-none" />
+                        <div className="animate-fade-in-up animate-fade-in-up-5 bg-gradient-to-br from-white to-rose-50/30 border-2 border-rose-200/60 rounded-2xl shadow-lg shadow-rose-100/30 p-6 relative overflow-hidden">
+                            {/* Decorative gradient */}
+                            <div className="absolute -top-12 -right-12 w-32 h-32 bg-rose-200/20 rounded-full blur-2xl pointer-events-none" />
 
                             <div className="relative">
                                 <h2 className="text-xs font-bold text-rose-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
+                                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-rose-400 to-rose-600 flex items-center justify-center">
+                                        <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                    </div>
                                     Admin Panel
                                 </h2>
 
@@ -716,14 +758,14 @@ export default function Poll() {
                                     <button
                                         onClick={handleStartVoting}
                                         disabled={currentPollState !== 0 || !isConnected || isWrongNetwork}
-                                        className="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 transition border border-rose-200 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                                        className="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 transition-all border border-rose-200 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
                                     >
                                         Start Voting
                                     </button>
                                     <button
                                         onClick={handleEndVoting}
                                         disabled={currentPollState !== 1 || !isConnected || isWrongNetwork}
-                                        className="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 transition border border-rose-200 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                                        className="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 transition-all border border-rose-200 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
                                     >
                                         Close Poll
                                     </button>
@@ -736,8 +778,8 @@ export default function Poll() {
                                         {pollOptions.length > 0 && (
                                             <div className="mb-3 space-y-1">
                                                 {pollOptions.map((opt, i) => (
-                                                    <div key={i} className="flex items-center gap-2 px-3 py-2 bg-rose-50 rounded-lg text-sm text-rose-800 border border-rose-100">
-                                                        <span className="w-5 h-5 rounded-full bg-rose-200 text-rose-700 text-xs flex items-center justify-center font-bold">{i + 1}</span>
+                                                    <div key={i} className="flex items-center gap-2 px-3 py-2 bg-rose-50/80 rounded-lg text-sm text-rose-800 border border-rose-100">
+                                                        <span className="w-5 h-5 rounded-full bg-gradient-to-br from-rose-300 to-rose-500 text-white text-xs flex items-center justify-center font-bold">{i + 1}</span>
                                                         {opt}
                                                     </div>
                                                 ))}
@@ -749,13 +791,13 @@ export default function Poll() {
                                                 placeholder="New option label"
                                                 value={newOptionLabel}
                                                 onChange={e => setNewOptionLabel(e.target.value)}
-                                                className="flex-1 bg-white border border-rose-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400"
+                                                className="flex-1 bg-white border border-rose-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition-all"
                                                 aria-label="New option label"
                                             />
                                             <button
                                                 onClick={() => startTransition(async () => await handleAddOption())}
                                                 disabled={!newOptionLabel.trim() || !isConnected || isWrongNetwork || isPending}
-                                                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                                                className="px-4 py-2 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 text-white rounded-xl text-sm font-medium transition-all shadow-md shadow-rose-200/50 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
                                             >
                                                 {isPending ? '...' : '+ Add'}
                                             </button>
@@ -777,20 +819,20 @@ export default function Poll() {
                                                 max={50}
                                                 value={tokenCount}
                                                 onChange={e => setTokenCount(Number(e.target.value))}
-                                                className="w-20 bg-white border border-rose-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 text-center"
+                                                className="w-20 bg-white border border-rose-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 text-center transition-all"
                                                 aria-label="Number of tokens to generate"
                                             />
                                             <button
                                                 onClick={() => startTransition(async () => await handleGenerateTokens())}
                                                 disabled={!isConnected || isWrongNetwork || isPending}
-                                                className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                                                className="flex-1 py-2 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 text-white rounded-xl text-sm font-medium transition-all shadow-md shadow-rose-200/50 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
                                             >
                                                 {isPending ? 'Generating...' : `Generate ${tokenCount} Tokens`}
                                             </button>
                                         </div>
 
                                         {generatedTokens.length > 0 && (
-                                            <div className="bg-slate-900 rounded-xl p-4 max-h-60 overflow-y-auto">
+                                            <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-4 max-h-60 overflow-y-auto shadow-inner">
                                                 <div className="flex justify-between items-center mb-3">
                                                     <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">
                                                         Invite Tokens (distribute privately)
@@ -806,9 +848,22 @@ export default function Poll() {
                                                     </button>
                                                 </div>
                                                 {generatedTokens.map((t, i) => (
-                                                    <div key={i} className="flex items-center gap-2 mb-1">
-                                                        <span className="text-xs text-slate-500 w-6">{i + 1}.</span>
-                                                        <code className="text-xs text-emerald-400 font-mono break-all">{t}</code>
+                                                    <div
+                                                        key={i}
+                                                        onClick={() => copyToken(t, i)}
+                                                        className={`flex items-center gap-2 mb-1 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-all ${
+                                                            copiedIndex === i ? 'bg-emerald-900/30' : ''
+                                                        }`}
+                                                    >
+                                                        <span className="text-xs text-slate-500 w-6 font-mono">{i + 1}.</span>
+                                                        <code className="text-xs text-emerald-400 font-mono break-all flex-1">{t}</code>
+                                                        {copiedIndex === i ? (
+                                                            <span className="text-xs text-emerald-400 font-medium shrink-0">Copied!</span>
+                                                        ) : (
+                                                            <svg className="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                            </svg>
+                                                        )}
                                                     </div>
                                                 ))}
                                             </div>

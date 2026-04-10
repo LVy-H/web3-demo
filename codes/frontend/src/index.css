@@ -61,3 +61,90 @@ input, select, textarea {
   background-color: #bfdbfe;
   color: #1e3a5f;
 }
+
+/* ── Animations ───────────────────────────────────────────────── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.animate-fade-in-up-1 { animation-delay: 0.05s; }
+.animate-fade-in-up-2 { animation-delay: 0.1s; }
+.animate-fade-in-up-3 { animation-delay: 0.15s; }
+.animate-fade-in-up-4 { animation-delay: 0.2s; }
+.animate-fade-in-up-5 { animation-delay: 0.25s; }
+.animate-fade-in-up-6 { animation-delay: 0.3s; }
+.animate-fade-in-up-7 { animation-delay: 0.35s; }
+.animate-fade-in-up-8 { animation-delay: 0.4s; }
+
+.animate-count-up {
+  animation: count-up 0.6s cubic-bezier(0.2, 0, 0, 1) both;
+  animation-delay: 0.3s;
+}
+
+/* ── Gradient text ────────────────────────────────────────────── */
+.text-gradient {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Glow effects for progress bars ───────────────────────────── */
+.glow-blue { box-shadow: 0 0 8px rgba(59, 130, 246, 0.3); }
+.glow-indigo { box-shadow: 0 0 8px rgba(99, 102, 241, 0.3); }
+.glow-emerald { box-shadow: 0 0 8px rgba(16, 185, 129, 0.3); }
+.glow-amber { box-shadow: 0 0 8px rgba(245, 158, 11, 0.3); }
+.glow-rose { box-shadow: 0 0 8px rgba(244, 63, 94, 0.3); }
+
+/* ── Pulse ring animation for active state indicator ──────────── */
+.pulse-ring {
+  position: relative;
+}
+.pulse-ring::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  animation: pulse-ring 1.5s ease-out infinite;
+  background: currentColor;
+  opacity: 0.3;
+}
+
+/* ── Card glass surface ───────────────────────────────────────── */
+.card-glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 10px 15px -3px rgba(203, 213, 225, 0.5),
+              0 4px 6px -4px rgba(203, 213, 225, 0.5);
+}
+
+/* ── Token copy flash ─────────────────────────────────────────── */
+@keyframes copy-flash {
+  0% { background-color: rgba(16, 185, 129, 0.2); }
+  100% { background-color: transparent; }
+}
+.copy-flash {
+  animation: copy-flash 0.6s ease-out;
+}

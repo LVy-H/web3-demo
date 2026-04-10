@@ -53,21 +53,30 @@ function StateProgress({ current }: { current: number }) {
             {steps.map((step, i) => (
                 <Fragment key={i}>
                     {i > 0 && (
-                        <div className={`flex-1 h-0.5 ${i <= current ? 'bg-blue-500' : 'bg-slate-200'}`} />
+                        <div className={`flex-1 h-1 rounded-full transition-all duration-500 ${
+                            i <= current
+                                ? 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                                : 'bg-slate-200'
+                        }`} />
                     )}
-                    <div className="flex flex-col items-center gap-1">
-                        <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold
-                                ${i < current
-                                    ? 'bg-emerald-500 text-white'
-                                    : i === current
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-slate-200 text-slate-400'
-                                }`}
-                        >
-                            {i < current ? '\u2713' : i + 1}
+                    <div className="flex flex-col items-center gap-1.5">
+                        <div className="relative">
+                            <div
+                                className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300
+                                    ${i < current
+                                        ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md shadow-emerald-200'
+                                        : i === current
+                                            ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-300/50'
+                                            : 'bg-slate-200 text-slate-400'
+                                    }`}
+                            >
+                                {i < current ? '\u2713' : i + 1}
+                            </div>
+                            {i === current && (
+                                <span className="absolute inset-0 rounded-full animate-ping bg-blue-400 opacity-20" />
+                            )}
                         </div>
-                        <span className={`text-xs ${i === current ? 'text-blue-700 font-semibold' : 'text-slate-400'}`}>
+                        <span className={`text-xs font-medium ${i === current ? 'text-blue-700 font-semibold' : i < current ? 'text-emerald-600' : 'text-slate-400'}`}>
                             {step}
                         </span>
                     </div>
@@ -88,14 +97,14 @@ function Countdown({ deadline }: { deadline: number }) {
     }, [])
 
     const remaining = deadline - now
-    if (remaining <= 0) return <span className="text-rose-600 font-semibold">Deadline passed</span>
+    if (remaining <= 0) return <span className="text-rose-600 font-bold">Deadline passed</span>
 
     const hrs = Math.floor(remaining / 3600)
     const mins = Math.floor((remaining % 3600) / 60)
     const secs = remaining % 60
 
     return (
-        <span className="font-mono font-semibold text-amber-700">
+        <span className="font-mono font-bold text-2xl tabular-nums text-amber-700">
             {hrs.toString().padStart(2, '0')}:{mins.toString().padStart(2, '0')}:{secs.toString().padStart(2, '0')}
         </span>
     )
@@ -103,10 +112,23 @@ function Countdown({ deadline }: { deadline: number }) {
 
 /* ---- Option Colors ---------------------------------------------------- */
 
-const OPTION_COLORS = [
-    'bg-blue-500', 'bg-indigo-400', 'bg-emerald-500', 'bg-amber-500',
-    'bg-rose-500', 'bg-purple-500', 'bg-teal-500', 'bg-orange-500',
-    'bg-cyan-500', 'bg-pink-500',
+const OPTION_GRADIENT_COLORS = [
+    'from-blue-500 to-indigo-500',
+    'from-indigo-400 to-purple-500',
+    'from-emerald-500 to-teal-500',
+    'from-amber-500 to-orange-500',
+    'from-rose-500 to-pink-500',
+    'from-purple-500 to-violet-500',
+    'from-teal-500 to-cyan-500',
+    'from-orange-500 to-red-500',
+    'from-cyan-500 to-blue-500',
+    'from-pink-500 to-rose-500',
+]
+
+const OPTION_GLOW = [
+    'glow-blue', 'glow-indigo', 'glow-emerald', 'glow-amber',
+    'glow-rose', 'glow-indigo', 'glow-blue', 'glow-amber',
+    'glow-blue', 'glow-rose',
 ]
 
 /* ---- Main Component --------------------------------------------------- */
@@ -312,10 +334,10 @@ export default function BlindPoll() {
     return (
         <div className="space-y-6">
             {/* ---- Header ------------------------------------------------ */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between animate-fade-in-up">
                 <Link
                     to="/"
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-lg px-1 py-0.5"
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-lg px-2 py-1 hover:bg-blue-50/50 transition-colors"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -323,10 +345,10 @@ export default function BlindPoll() {
                     Back to Polls
                 </Link>
                 <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full uppercase tracking-wide">
+                    <span className="text-xs font-semibold px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full uppercase tracking-wide">
                         Blind Vote
                     </span>
-                    <span className="text-xs font-mono text-slate-400 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200">
+                    <span className="text-xs font-mono text-slate-400 bg-slate-50/80 px-2 py-1 rounded-lg border border-slate-200/60">
                         {pollAddress?.slice(0, 6)}...{pollAddress?.slice(-4)}
                     </span>
                 </div>
@@ -334,16 +356,18 @@ export default function BlindPoll() {
 
             {/* ---- State Progression ------------------------------------- */}
             {currentPollState >= 0 && (
-                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-6 py-4">
+                <div className="animate-fade-in-up animate-fade-in-up-1 bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 px-6 py-5">
                     <StateProgress current={currentPollState} />
                 </div>
             )}
 
             {/* ---- Trust Signal ------------------------------------------ */}
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-3">
-                <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
+            <div className="animate-fade-in-up animate-fade-in-up-2 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100/80 rounded-2xl px-5 py-4 flex items-center gap-3 shadow-sm">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
                 <p className="text-sm text-amber-800 font-medium">
                     Your vote is sealed with a cryptographic commitment. No one can see your choice until the reveal phase.
                 </p>
@@ -352,17 +376,17 @@ export default function BlindPoll() {
             {/* ---- Status Banner ----------------------------------------- */}
             {statusMsg && (
                 <div
-                    className={`px-4 py-3 rounded-2xl flex items-start gap-3 text-sm font-medium shadow-sm border ${
+                    className={`px-5 py-4 rounded-2xl flex items-start gap-3 text-sm font-medium shadow-sm border backdrop-blur-sm ${
                         statusType === 'success'
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                            ? 'bg-emerald-50/80 border-emerald-200/60 text-emerald-800'
                             : statusType === 'error'
-                                ? 'bg-rose-50 border-rose-200 text-rose-800'
-                                : 'bg-blue-50 border-blue-100 text-blue-800'
+                                ? 'bg-rose-50/80 border-rose-200/60 text-rose-800'
+                                : 'bg-blue-50/80 border-blue-100/60 text-blue-800'
                     }`}
                     role="status"
                     aria-live="polite"
                 >
-                    <div className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${
+                    <div className={`mt-0.5 h-2.5 w-2.5 rounded-full flex-shrink-0 ${
                         statusType === 'success'
                             ? 'bg-emerald-500'
                             : statusType === 'error'
@@ -386,20 +410,21 @@ export default function BlindPoll() {
                 <section className="space-y-6">
                     {/* ---- Registration Phase ----------------------------- */}
                     {currentPollState === 0 && (
-                        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                        <div className="animate-fade-in-up animate-fade-in-up-3 bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 p-6">
                             <h2 className="text-base font-semibold text-slate-900 mb-1">Register to Vote</h2>
                             <p className="text-xs text-slate-500 mb-4">
                                 Connect your wallet and register. Your address will be added to the voter list.
                             </p>
                             <div className="flex items-center gap-3">
-                                <span className="text-sm text-slate-600">
-                                    {participantCount} voter{participantCount !== 1 ? 's' : ''} registered
+                                <span className="text-sm text-slate-600 font-mono tabular-nums">
+                                    <span className="text-lg font-bold text-slate-900">{participantCount}</span>{' '}
+                                    voter{participantCount !== 1 ? 's' : ''} registered
                                 </span>
                             </div>
                             <button
                                 onClick={() => startTransition(async () => await handleRegister())}
                                 disabled={voteDisabled}
-                                className="mt-4 w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white transition-colors rounded-xl text-sm font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                                className="mt-4 w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 active:to-indigo-700 text-white transition-all rounded-xl text-sm font-bold shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                             >
                                 {!isConnected ? 'Connect Wallet First' : isPending || isTxConfirming ? 'Processing...' : 'Register to Vote'}
                             </button>
@@ -408,7 +433,7 @@ export default function BlindPoll() {
 
                     {/* ---- Voting Phase: Commit ------------------------------ */}
                     {currentPollState === 1 && !hasCommitted && (
-                        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                        <div className="animate-fade-in-up bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 p-6">
                             <h2 className="text-base font-semibold text-slate-900 mb-4">Cast Your Vote</h2>
 
                             {pollOptions.length === 0 ? (
@@ -423,15 +448,15 @@ export default function BlindPoll() {
                                                 onClick={() => setSelectedOption(i)}
                                                 role="radio"
                                                 aria-checked={selectedOption === i}
-                                                className={`w-full min-h-[48px] py-3 px-4 rounded-xl border-2 transition-all text-left flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                                                className={`w-full min-h-[48px] py-3 px-4 rounded-xl border-2 transition-all duration-200 text-left flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
                                                     selectedOption === i
-                                                        ? 'border-l-[3px] border-blue-600 bg-blue-50 text-blue-800 font-semibold'
-                                                        : 'border-slate-200 hover:border-slate-300 text-slate-700'
+                                                        ? 'border-l-4 border-blue-500 bg-gradient-to-r from-blue-50 to-transparent text-blue-800 font-semibold shadow-sm'
+                                                        : 'border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/50 text-slate-700'
                                                 }`}
                                             >
-                                                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
                                                     selectedOption === i
-                                                        ? 'border-blue-600 bg-blue-600'
+                                                        ? 'border-blue-600 bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm'
                                                         : 'border-slate-300'
                                                 }`}>
                                                     {selectedOption === i && (
@@ -448,7 +473,7 @@ export default function BlindPoll() {
                                     <button
                                         onClick={() => startTransition(async () => await handleCommitVote())}
                                         disabled={voteDisabled}
-                                        className="w-full py-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white transition-colors rounded-2xl text-base font-bold shadow-md disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                                        className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 active:to-indigo-700 text-white transition-all rounded-2xl text-base font-bold shadow-lg shadow-blue-500/25 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                                     >
                                         {!isConnected ? 'Connect Wallet First' : isPending || isTxConfirming ? 'Processing...' : 'Commit Vote'}
                                     </button>
@@ -459,10 +484,10 @@ export default function BlindPoll() {
 
                     {/* ---- Voting Phase: Already Committed ------------------- */}
                     {currentPollState === 1 && hasCommitted && (
-                        <div className="bg-white border border-emerald-200 rounded-2xl shadow-sm p-6">
+                        <div className="animate-fade-in-up bg-white/80 backdrop-blur-sm border border-emerald-200/60 rounded-2xl shadow-lg shadow-emerald-100/30 p-6">
                             <div className="flex items-center gap-3 mb-3">
-                                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center flex-shrink-0 shadow-md">
+                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                     </svg>
                                 </div>
@@ -474,7 +499,7 @@ export default function BlindPoll() {
                                 </div>
                             </div>
                             {hasSavedCommit && (
-                                <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 mt-2">
+                                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100/60 rounded-xl px-3 py-2 mt-2">
                                     <p className="text-xs text-emerald-700 font-medium">
                                         Reveal data is saved in this browser. Do not clear your browser data before revealing.
                                     </p>
@@ -485,18 +510,21 @@ export default function BlindPoll() {
 
                     {/* ---- Ended Phase: Reveal Window ----------------------- */}
                     {currentPollState === 2 && !finalized && (
-                        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                        <div className="animate-fade-in-up bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 p-6">
                             <h2 className="text-base font-semibold text-slate-900 mb-1">Reveal Phase</h2>
                             <p className="text-xs text-slate-500 mb-4">
                                 Voting has ended. Reveal your vote before the deadline to have it counted.
                             </p>
 
                             {revealDeadline > 0 && (
-                                <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
-                                    <svg className="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    <span className="text-sm text-amber-800">Reveal deadline: <Countdown deadline={revealDeadline} /></span>
+                                <div className="flex flex-col items-center gap-2 mb-5 px-4 py-4 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl shadow-sm">
+                                    <div className="flex items-center gap-2">
+                                        <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Reveal Deadline</span>
+                                    </div>
+                                    <Countdown deadline={revealDeadline} />
                                 </div>
                             )}
 
@@ -504,12 +532,12 @@ export default function BlindPoll() {
                                 <button
                                     onClick={() => startTransition(async () => await handleRevealVote())}
                                     disabled={voteDisabled}
-                                    className="w-full py-4 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white transition-colors rounded-2xl text-base font-bold shadow-md disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+                                    className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 active:from-amber-600 active:to-orange-600 text-white transition-all rounded-2xl text-base font-bold shadow-lg shadow-amber-300/30 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
                                 >
                                     {isPending || isTxConfirming ? 'Processing...' : 'Reveal Vote'}
                                 </button>
                             ) : hasRevealed ? (
-                                <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-medium">
+                                <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/60 text-emerald-700 rounded-xl text-sm font-medium shadow-sm">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                     </svg>
@@ -523,10 +551,10 @@ export default function BlindPoll() {
 
                     {/* ---- Finalized State ---------------------------------- */}
                     {currentPollState === 2 && finalized && (
-                        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                        <div className="animate-fade-in-up bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 p-6">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </div>
@@ -542,9 +570,9 @@ export default function BlindPoll() {
 
                     {/* ---- Not connected info -------------------------------- */}
                     {!isConnected && currentPollState >= 0 && (
-                        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                        <div className="animate-fade-in-up bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 p-6">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
                                     <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                                     </svg>
@@ -563,38 +591,39 @@ export default function BlindPoll() {
                 {/* ======== RIGHT COLUMN: Info Panel ======== */}
                 <section className="space-y-6">
                     {/* ---- Live Results Card ------------------------------ */}
-                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-                        <div className="flex items-center justify-between mb-4">
+                    <div className="animate-fade-in-up animate-fade-in-up-4 bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 p-6">
+                        <div className="flex items-center justify-between mb-5">
                             <h2 className="text-base font-semibold text-slate-900">
                                 {finalized ? 'Final Results' : currentPollState === 2 ? 'Results (updating as reveals come in)' : 'Options'}
                             </h2>
                             {totalVotes > 0 && (
-                                <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">
+                                <span className="text-xs font-semibold text-slate-500 bg-slate-100/80 px-3 py-1 rounded-full font-mono tabular-nums">
                                     {totalVotes} revealed
                                 </span>
                             )}
                         </div>
 
                         {pollOptions.length > 0 ? (
-                            <div className="space-y-4">
+                            <div className="space-y-5">
                                 {pollOptions.map((opt, i) => {
                                     const count = voteCounts[i] || 0
                                     const pct = totalVotes > 0 ? (count / totalVotes) * 100 : 0
-                                    const color = OPTION_COLORS[i % OPTION_COLORS.length]
+                                    const gradientColor = OPTION_GRADIENT_COLORS[i % OPTION_GRADIENT_COLORS.length]
+                                    const glow = OPTION_GLOW[i % OPTION_GLOW.length]
                                     return (
                                         <div key={i}>
-                                            <div className="flex justify-between items-baseline mb-1.5">
+                                            <div className="flex justify-between items-baseline mb-2">
                                                 <span className="text-sm font-medium text-slate-700">{opt}</span>
-                                                <div className="flex items-baseline gap-1.5">
-                                                    <span className="text-xs text-slate-400">
-                                                        {totalVotes > 0 ? `${pct.toFixed(0)}%` : '--'}
+                                                <div className="flex items-baseline gap-2">
+                                                    <span className="text-xs text-slate-400 font-mono tabular-nums">
+                                                        {totalVotes > 0 ? `${pct.toFixed(1)}%` : '--'}
                                                     </span>
-                                                    <span className="text-lg font-bold text-slate-900 tabular-nums">{count}</span>
+                                                    <span className="text-xl font-bold text-slate-900 font-mono tabular-nums">{count}</span>
                                                 </div>
                                             </div>
-                                            <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                            <div className="w-full bg-slate-100/80 rounded-full h-3 overflow-hidden">
                                                 <div
-                                                    className={`${color} h-2.5 rounded-full transition-all duration-700 ease-out`}
+                                                    className={`bg-gradient-to-r ${gradientColor} h-3 rounded-full transition-all duration-700 ease-out ${pct > 0 ? glow : ''}`}
                                                     style={{ width: `${pct}%` }}
                                                 />
                                             </div>
@@ -612,22 +641,26 @@ export default function BlindPoll() {
                         )}
 
                         {/* Participant info */}
-                        <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-400">
-                            {participantCount} registered voter{participantCount !== 1 ? 's' : ''}
+                        <div className="mt-4 pt-4 border-t border-slate-100/80 flex items-center gap-2 text-xs text-slate-400">
+                            <span className="font-mono tabular-nums text-sm font-bold text-slate-600">{participantCount}</span>
+                            registered voter{participantCount !== 1 ? 's' : ''}
                         </div>
                     </div>
 
                     {/* ---- Admin Panel ------------------------------------ */}
                     {isAdmin && (
-                        <div className="bg-white border-2 border-rose-200 rounded-2xl shadow-sm p-6 relative">
-                            <div className="absolute inset-0 bg-rose-50/30 rounded-2xl pointer-events-none" />
+                        <div className="animate-fade-in-up animate-fade-in-up-5 bg-gradient-to-br from-white to-rose-50/30 border-2 border-rose-200/60 rounded-2xl shadow-lg shadow-rose-100/30 p-6 relative overflow-hidden">
+                            {/* Decorative gradient */}
+                            <div className="absolute -top-12 -right-12 w-32 h-32 bg-rose-200/20 rounded-full blur-2xl pointer-events-none" />
 
                             <div className="relative">
                                 <h2 className="text-xs font-bold text-rose-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
+                                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-rose-400 to-rose-600 flex items-center justify-center">
+                                        <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                    </div>
                                     Admin Panel
                                 </h2>
 
@@ -636,21 +669,21 @@ export default function BlindPoll() {
                                     <button
                                         onClick={handleStartVoting}
                                         disabled={currentPollState !== 0 || !isConnected || isWrongNetwork}
-                                        className="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 transition border border-rose-200 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                                        className="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 transition-all border border-rose-200 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
                                     >
                                         Start Voting
                                     </button>
                                     <button
                                         onClick={handleEndVoting}
                                         disabled={currentPollState !== 1 || !isConnected || isWrongNetwork}
-                                        className="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 transition border border-rose-200 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                                        className="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 transition-all border border-rose-200 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
                                     >
                                         End Voting
                                     </button>
                                     <button
                                         onClick={handleFinalizeResults}
                                         disabled={currentPollState !== 2 || finalized || !isConnected || isWrongNetwork}
-                                        className="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 transition border border-rose-200 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                                        className="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 transition-all border border-rose-200 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
                                     >
                                         Finalize Results
                                     </button>
@@ -663,8 +696,8 @@ export default function BlindPoll() {
                                         {pollOptions.length > 0 && (
                                             <div className="mb-3 space-y-1">
                                                 {pollOptions.map((opt, i) => (
-                                                    <div key={i} className="flex items-center gap-2 px-3 py-2 bg-rose-50 rounded-lg text-sm text-rose-800 border border-rose-100">
-                                                        <span className="w-5 h-5 rounded-full bg-rose-200 text-rose-700 text-xs flex items-center justify-center font-bold">{i + 1}</span>
+                                                    <div key={i} className="flex items-center gap-2 px-3 py-2 bg-rose-50/80 rounded-lg text-sm text-rose-800 border border-rose-100">
+                                                        <span className="w-5 h-5 rounded-full bg-gradient-to-br from-rose-300 to-rose-500 text-white text-xs flex items-center justify-center font-bold">{i + 1}</span>
                                                         {opt}
                                                     </div>
                                                 ))}
@@ -676,13 +709,13 @@ export default function BlindPoll() {
                                                 placeholder="New option label"
                                                 value={newOptionLabel}
                                                 onChange={e => setNewOptionLabel(e.target.value)}
-                                                className="flex-1 bg-white border border-rose-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400"
+                                                className="flex-1 bg-white border border-rose-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition-all"
                                                 aria-label="New option label"
                                             />
                                             <button
                                                 onClick={() => startTransition(async () => await handleAddOption())}
                                                 disabled={!newOptionLabel.trim() || !isConnected || isWrongNetwork || isPending}
-                                                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                                                className="px-4 py-2 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 text-white rounded-xl text-sm font-medium transition-all shadow-md shadow-rose-200/50 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
                                             >
                                                 {isPending ? '...' : '+ Add'}
                                             </button>
