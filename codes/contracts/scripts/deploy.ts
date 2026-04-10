@@ -51,6 +51,18 @@ async function main() {
     await regTx.wait();
     console.log('Registered "anon-vote" module in PollRegistry');
 
+    // ── 6b. Deploy ZkBlindVoting implementation (bare, uninitialized) ─
+    const ZkBlindVotingFactory = await ethers.getContractFactory("ZkBlindVoting");
+    const zkBlindVotingImpl = await ZkBlindVotingFactory.deploy();
+    await zkBlindVotingImpl.waitForDeployment();
+    const blindVotingImplAddress = await zkBlindVotingImpl.getAddress();
+    console.log("ZkBlindVoting (impl) deployed to:", blindVotingImplAddress);
+
+    // ── 6c. Register "blind-vote" module in PollRegistry ────────────
+    const regBlindTx = await pollRegistry.registerModule("blind-vote", blindVotingImplAddress);
+    await regBlindTx.wait();
+    console.log('Registered "blind-vote" module in PollRegistry');
+
     console.log("\n==============================================");
 
     // ── 7. Deploy ZkAirdrop (unchanged) ─────────────────────────────
@@ -76,6 +88,7 @@ async function main() {
         REGISTRY_ADDRESS: registryAddress,
         SEMAPHORE_ADDRESS: semaphoreAddress,
         ANON_VOTING_IMPL: anonVotingImplAddress,
+        BLIND_VOTING_IMPL: blindVotingImplAddress,
         AIRDROP_ADDRESS: airdropAddress,
     };
 

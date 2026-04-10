@@ -16,6 +16,7 @@ const CONTRACTS: Record<string, string> = {
     "IZkPoll.json": "interfaces/IZkPoll.sol/IZkPoll.json",
     "PollRegistry.json": "PollRegistry.sol/PollRegistry.json",
     "ZkAnonVoting.json": "ZkAnonVoting.sol/ZkAnonVoting.json",
+    "ZkBlindVoting.json": "ZkBlindVoting.sol/ZkBlindVoting.json",
 };
 
 function main() {
