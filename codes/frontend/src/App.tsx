@@ -36,24 +36,24 @@ export default function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 text-slate-900 font-sans selection:bg-blue-200 flex flex-col">
+      <div className="min-h-screen bg-[#FAFAF9] dot-grid-bg text-stone-900 font-sans flex flex-col">
 
         {/* ── Header ─────────────────────────────────────────── */}
-        <header className="sticky top-0 z-40 bg-white/70 backdrop-blur-xl border-b border-slate-200/60 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)]">
+        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-stone-200 shadow-[0_1px_2px_0_rgba(0,0,0,0.03)]">
           <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4 md:px-8">
             {/* Left: logo + title */}
             <a href="/" className="flex items-center gap-3 no-underline group">
-              {/* Shield-check icon */}
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-900 to-blue-900 flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
+              {/* Shield icon — inline SVG, teal accent */}
+              <div className="w-9 h-9 rounded-xl bg-stone-900 flex items-center justify-center group-hover:bg-stone-800 transition-colors">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
                 </svg>
               </div>
               <div>
-                <span className="text-lg font-extrabold tracking-tight text-slate-900">
+                <span className="text-lg font-extrabold tracking-tight text-stone-900">
                   Voting Hub
                 </span>
-                <span className="hidden sm:block text-xs font-normal text-slate-500">
+                <span className="hidden sm:block text-xs font-normal text-stone-500">
                   Anonymous &amp; Provable
                 </span>
               </div>
@@ -67,7 +67,7 @@ export default function App() {
                     await addHardhatNetwork()
                     if (metaMaskConnector) connect({ connector: metaMaskConnector })
                   }}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 active:from-slate-950 active:to-slate-900 text-white rounded-xl text-sm font-semibold shadow-md shadow-slate-300/50 hover:shadow-lg transition-all min-h-[44px] cursor-pointer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white rounded-xl text-sm font-semibold transition-colors min-h-[44px] cursor-pointer"
                 >
                   {/* Wallet icon */}
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
@@ -78,17 +78,17 @@ export default function App() {
               ) : (
                 <>
                   {/* Address badge */}
-                  <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl text-sm text-slate-700 font-mono min-h-[44px] shadow-sm">
+                  <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-700 font-mono min-h-[44px]">
                     <span className="relative flex items-center justify-center w-2.5 h-2.5">
-                      <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75 animate-ping" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500" />
                     </span>
                     {address?.slice(0, 6)}...{address?.slice(-4)}
                   </div>
                   {/* Disconnect */}
                   <button
                     onClick={() => disconnect()}
-                    className="px-3 py-2 bg-white/80 backdrop-blur-sm border border-slate-200/60 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-500 rounded-xl text-sm font-normal transition-all min-h-[44px] cursor-pointer shadow-sm"
+                    className="px-3 py-2 bg-white border border-stone-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-stone-500 rounded-xl text-sm font-normal transition-all min-h-[44px] cursor-pointer"
                     aria-label="Disconnect wallet"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
@@ -102,7 +102,7 @@ export default function App() {
 
           {/* ── Wrong-network banner ─────────────────────────── */}
           {isWrongNetwork && (
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-t border-amber-200/80">
+            <div className="bg-amber-50 border-t border-amber-200">
               <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-3 md:px-8">
                 <p className="flex items-center gap-2 text-sm font-semibold text-amber-800">
                   {/* Warning icon */}
@@ -116,7 +116,7 @@ export default function App() {
                     await addHardhatNetwork()
                     switchChain({ chainId: hardhat.id })
                   }}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-amber-200/50 min-h-[44px] cursor-pointer whitespace-nowrap"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold transition-colors min-h-[44px] cursor-pointer whitespace-nowrap"
                 >
                   Switch to Hardhat Network
                 </button>
@@ -134,8 +134,8 @@ export default function App() {
         </main>
 
         {/* ── Footer ─────────────────────────────────────────── */}
-        <footer className="border-t border-slate-200/60 bg-white/50 backdrop-blur-sm">
-          <div className="max-w-6xl mx-auto px-6 py-6 md:px-8 flex items-center justify-center gap-2 text-slate-400 text-xs">
+        <footer className="border-t border-stone-200 bg-stone-50">
+          <div className="max-w-6xl mx-auto px-6 py-6 md:px-8 flex items-center justify-center gap-2 text-stone-400 text-xs">
             {/* Lock icon */}
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
