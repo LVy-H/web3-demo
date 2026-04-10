@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* ── Tailwind v4: class-based dark mode ──────────────────────────────── */
+@variant dark (&:where(.dark, .dark *));
+
 /* ── Design Tokens ─────────────────────────────────────────────── */
 @theme {
   /* Semantic colors — warm neutrals with teal accent */
@@ -29,6 +32,17 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Dark mode base ──────────────────────────────────────────── */
+.dark {
+  color-scheme: dark;
+}
+
+.dark:root,
+:root.dark {
+  color: #e7e5e4;           /* stone-200 */
+  background-color: #0c0a09; /* stone-950 */
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -38,6 +52,11 @@ body {
 /* ── Dot grid background texture ─────────────────────────────── */
 .dot-grid-bg {
   background-image: radial-gradient(circle, #d6d3d1 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.dark .dot-grid-bg {
+  background-image: radial-gradient(circle, #292524 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -66,6 +85,11 @@ input, select, textarea {
 ::selection {
   background-color: #99f6e4; /* teal-200 */
   color: #134e4a;            /* teal-900 */
+}
+
+.dark ::selection {
+  background-color: #115e59; /* teal-800 */
+  color: #ccfbf1;            /* teal-100 */
 }
 
 /* ── Animations ───────────────────────────────────────────────── */
