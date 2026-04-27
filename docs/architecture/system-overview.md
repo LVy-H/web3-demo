@@ -66,6 +66,9 @@ PoseidonT3 (library)
 Verifier slot:
     - Local dev:    MockSemaphoreVerifier  (always returns true — no SNARK artifacts needed)
     - Production:   SemaphoreVerifier      (real Groth16; requires SNARK artifact CDN at runtime)
+
+    Toggle via env var: USE_REAL_VERIFIER=true npm run deploy:local
+    (default = mock; deploy script prints a loud banner when the mock is wired)
 ```
 
 ## Upgrades & Immutability
