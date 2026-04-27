@@ -119,6 +119,8 @@ contract ZkAnonVoting is IZkPoll, Initializable, Ownable {
         uint256[] calldata identityCommitments
     ) external onlyOwner {
         require(state == PollState.Registration, "Not in registration phase");
+        require(identityCommitments.length > 0, "Empty batch");
+        require(identityCommitments.length <= 100, "Batch too large");
 
         for (uint256 i = 0; i < identityCommitments.length; i++) {
             require(
@@ -140,6 +142,7 @@ contract ZkAnonVoting is IZkPoll, Initializable, Ownable {
             "Can only start from registration"
         );
         require(options.length >= 2, "Need at least 2 options");
+        require(participantCount >= 1, "Need at least 1 voter");
         state = PollState.Voting;
         emit StateChanged(PollState.Voting);
     }

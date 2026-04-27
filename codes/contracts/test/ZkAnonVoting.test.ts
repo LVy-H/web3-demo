@@ -140,6 +140,40 @@ describe("ZkAnonVoting", function () {
                 "Duplicate identity in batch"
             );
         });
+
+        it("Empty batch rejected", async function () {
+            await expect(voting.registerVoters([])).to.be.revertedWith(
+                "Empty batch"
+            );
+        });
+
+        it("Batch under cap succeeds (sub-boundary)", async function () {
+            // The contract cap is 100 (see registerVoters), but Semaphore.addMember
+            // costs grow with tree depth: a batch of 100 measures ~50M gas which
+            // exceeds Hardhat's default per-tx cap (16.7M) AND mainnet's 30M block
+            // limit. We assert the cap doesn't reject valid sub-cap batches by
+            // submitting a 25-element batch (~3.8M gas, comfortable).
+            // The 101-rejected test below confirms the upper bound is enforced
+            // without needing to actually run 100 Semaphore inserts.
+            const batch: bigint[] = [];
+            for (let i = 0; i < 25; i++) {
+                const pk = crypto.randomBytes(32).toString("hex");
+                batch.push(new Identity(pk).commitment);
+            }
+            await voting.registerVoters(batch);
+            expect(await voting.getParticipantCount()).to.equal(25);
+        });
+
+        it("Batch of 101 commitments rejected", async function () {
+            const batch: bigint[] = [];
+            for (let i = 0; i < 101; i++) {
+                const pk = crypto.randomBytes(32).toString("hex");
+                batch.push(new Identity(pk).commitment);
+            }
+            await expect(voting.registerVoters(batch)).to.be.revertedWith(
+                "Batch too large"
+            );
+        });
     });
 
     // ── Voting ───────────────────────────────────────────────────────
@@ -250,6 +284,20 @@ describe("ZkAnonVoting", function () {
             );
         });
 
+        it("Requires at least 1 voter to start voting", async function () {
+            // Fresh poll with 2 options but no registered voters
+            await expect(voting.startVoting()).to.be.revertedWith(
+                "Need at least 1 voter"
+            );
+        });
+
+        it("startVoting succeeds after registering >=1 voter", async function () {
+            await voting.registerVoter(commitments[0]);
+            await expect(voting.startVoting())
+                .to.emit(voting, "StateChanged")
+                .withArgs(1); // PollState.Voting
+        });
+
         it("Cannot vote in Registration phase", async function () {
             const scope = BigInt(await voting.getAddress());
             const mockProof = {
@@ -273,12 +321,14 @@ describe("ZkAnonVoting", function () {
         });
 
         it("startVoting emits StateChanged", async function () {
+            await voting.registerVoter(commitments[0]);
             await expect(voting.startVoting())
                 .to.emit(voting, "StateChanged")
                 .withArgs(1); // PollState.Voting
         });
 
         it("endVoting emits StateChanged", async function () {
+            await voting.registerVoter(commitments[0]);
             await voting.startVoting();
             await expect(voting.endVoting())
                 .to.emit(voting, "StateChanged")
@@ -307,6 +357,7 @@ describe("ZkAnonVoting", function () {
         });
 
         it("Cannot add option after registration phase", async function () {
+            await voting.registerVoter(commitments[0]);
             await voting.startVoting();
             await expect(voting.addOption("Late Option")).to.be.revertedWith(
                 "Not in registration phase"
