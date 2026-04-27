@@ -345,4 +345,94 @@ describe("ZkAirdrop", function () {
             ).to.be.revertedWithCustomError(airdrop, "AirdropAlreadyClaimed");
         });
     });
+
+    // ── 7. Owner escape hatch (P1-9) ─────────────────────────────────
+
+    describe("Owner escape hatch", function () {
+        it("endClaiming reverts before startAirdrop (state = Registration)", async function () {
+            await expect(airdrop.endClaiming()).to.be.revertedWithCustomError(
+                airdrop,
+                "NotInClaiming"
+            );
+        });
+
+        it("endClaiming is owner-only", async function () {
+            await airdrop.startAirdrop();
+            await expect(
+                airdrop.connect(nonOwner).endClaiming()
+            ).to.be.revertedWithCustomError(airdrop, "OwnableUnauthorizedAccount")
+                .withArgs(nonOwner.address);
+        });
+
+        it("endClaiming transitions Claiming -> Ended and emits ClaimingEnded", async function () {
+            await airdrop.startAirdrop();
+            await expect(airdrop.endClaiming()).to.emit(airdrop, "ClaimingEnded");
+            expect(await airdrop.state()).to.equal(2); // Ended
+        });
+
+        it("withdrawUnclaimed reverts before endClaiming", async function () {
+            await airdrop.startAirdrop();
+            await expect(
+                airdrop.withdrawUnclaimed(owner.address)
+            ).to.be.revertedWithCustomError(airdrop, "ClaimingNotEnded");
+        });
+
+        it("withdrawUnclaimed is owner-only", async function () {
+            await airdrop.startAirdrop();
+            await airdrop.endClaiming();
+            await expect(
+                airdrop.connect(nonOwner).withdrawUnclaimed(nonOwner.address)
+            ).to.be.revertedWithCustomError(airdrop, "OwnableUnauthorizedAccount")
+                .withArgs(nonOwner.address);
+        });
+
+        it("withdrawUnclaimed reverts on zero recipient", async function () {
+            await airdrop.startAirdrop();
+            await airdrop.endClaiming();
+            await expect(
+                airdrop.withdrawUnclaimed(ethers.ZeroAddress)
+            ).to.be.revertedWithCustomError(airdrop, "ZeroRecipient");
+        });
+
+        it("withdrawUnclaimed reverts when balance is 0", async function () {
+            // No funding in this test
+            await airdrop.startAirdrop();
+            await airdrop.endClaiming();
+            await expect(
+                airdrop.withdrawUnclaimed(owner.address)
+            ).to.be.revertedWithCustomError(airdrop, "NothingToWithdraw");
+        });
+
+        it("withdrawUnclaimed transfers full balance and emits UnclaimedWithdrawn", async function () {
+            // Fund the airdrop
+            await owner.sendTransaction({
+                to: airdropAddress,
+                value: ethers.parseEther("3.5"),
+            });
+            await airdrop.startAirdrop();
+            await airdrop.endClaiming();
+
+            const recipientBalanceBefore = await ethers.provider.getBalance(
+                receiver.address
+            );
+
+            const tx = await airdrop.withdrawUnclaimed(receiver.address);
+            await expect(tx)
+                .to.emit(airdrop, "UnclaimedWithdrawn")
+                .withArgs(receiver.address, ethers.parseEther("3.5"));
+
+            const recipientBalanceAfter = await ethers.provider.getBalance(
+                receiver.address
+            );
+            expect(recipientBalanceAfter - recipientBalanceBefore).to.equal(
+                ethers.parseEther("3.5")
+            );
+            expect(await ethers.provider.getBalance(airdropAddress)).to.equal(0);
+        });
+
+        // claimAirdrop's first guard is `state == Claiming`; the existing
+        // 'claim before startAirdrop' test in section 6 already covers the
+        // not-in-claiming revert path, which trips identically when state is
+        // either Registration or Ended. Skipping a duplicate here.
+    });
 });

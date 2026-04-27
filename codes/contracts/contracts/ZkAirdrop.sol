@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import "@semaphore-protocol/contracts/interfaces/ISemaphore.sol";
 import "@semaphore-protocol/contracts/Semaphore.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @notice Errors for {ZkAirdrop}.
 /// @dev OZ-provided errors (OwnableUnauthorizedAccount) cover access-control reverts;
@@ -16,14 +17,19 @@ error InvalidClaimScope();
 error ReceiverMismatch();
 error InvalidClaimProof();
 error EthTransferFailed();
+error ClaimingNotEnded();
+error ZeroRecipient();
+error NothingToWithdraw();
+error WithdrawFailed();
 
-contract ZkAirdrop is Ownable {
+contract ZkAirdrop is Ownable, ReentrancyGuard {
     ISemaphore public semaphore;
     uint256 public groupId;
 
     enum AirdropState {
         Registration,
-        Claiming
+        Claiming,
+        Ended
     }
     AirdropState public state;
 
@@ -35,6 +41,8 @@ contract ZkAirdrop is Ownable {
     event MemberRegistered(uint256 identityCommitment);
     event AirdropClaimed(address indexed receiver, uint256 nullifier);
     event AirdropStarted();
+    event ClaimingEnded();
+    event UnclaimedWithdrawn(address indexed to, uint256 amount);
 
     constructor(
         address _semaphoreAddress,
@@ -66,7 +74,7 @@ contract ZkAirdrop is Ownable {
     function claimAirdrop(
         address receiver,
         ISemaphore.SemaphoreProof calldata proof
-    ) external {
+    ) external nonReentrant {
         if (state != AirdropState.Claiming) revert NotInClaiming();
         if (isNullifierUsed[proof.nullifier]) revert AirdropAlreadyClaimed();
 
@@ -84,6 +92,28 @@ contract ZkAirdrop is Ownable {
         // Try to send the ETH
         (bool success, ) = receiver.call{value: airdropAmount}("");
         if (!success) revert EthTransferFailed();
+    }
+
+    /// @notice Owner closes the claiming phase. After this no further claims
+    ///         are accepted and unclaimed ETH can be recovered via
+    ///         {withdrawUnclaimed}.
+    function endClaiming() external onlyOwner {
+        if (state != AirdropState.Claiming) revert NotInClaiming();
+        state = AirdropState.Ended;
+        emit ClaimingEnded();
+    }
+
+    /// @notice Owner-only escape hatch: drain remaining ETH after claiming
+    ///         has ended. Can only be called once the state is Ended (set
+    ///         via {endClaiming}).
+    function withdrawUnclaimed(address to) external onlyOwner {
+        if (state != AirdropState.Ended) revert ClaimingNotEnded();
+        if (to == address(0)) revert ZeroRecipient();
+        uint256 balance = address(this).balance;
+        if (balance == 0) revert NothingToWithdraw();
+        (bool success, ) = to.call{value: balance}("");
+        if (!success) revert WithdrawFailed();
+        emit UnclaimedWithdrawn(to, balance);
     }
 
     // Allow owner or anyone to deposit ETH to fund the airdrop pool
