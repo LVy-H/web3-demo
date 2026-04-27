@@ -5,6 +5,27 @@ import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IZkPoll.sol";
 
+/// @notice Errors for {ZkBlindVoting}.
+/// @dev OZ-provided errors (OwnableUnauthorizedAccount, InvalidInitialization, etc.)
+///      cover access-control / lifecycle reverts; these are the module's local errors.
+error NotInRegistration();
+error NotInVoting();
+error NotInEnded();
+error CanOnlyStartFromRegistration();
+error NeedAtLeastTwoOptions();
+error NeedAtLeastOneVoter();
+error AlreadyRegistered();
+error NotRegistered();
+error AlreadyCommitted();
+error EmptyCommitHash();
+error NoCommitFound();
+error AlreadyRevealed();
+error InvalidOptionIndex();
+error HashMismatch();
+error RevealDeadlinePassed();
+error RevealDeadlineNotPassed();
+error AlreadyFinalized();
+
 /// @title ZkBlindVoting (M2)
 /// @notice Commit-reveal blind voting module implementing IZkPoll.
 ///         Voter identity (address) is public, but vote content is hidden
@@ -129,7 +150,7 @@ contract ZkBlindVoting is IZkPoll, Initializable, Ownable {
     // ── Admin: Manage Options (Registration phase only) ─────────────
 
     function addOption(string calldata label) external onlyOwner {
-        require(state == PollState.Registration, "Not in registration phase");
+        if (state != PollState.Registration) revert NotInRegistration();
         options.push(label);
         emit OptionAdded(label);
     }
@@ -138,8 +159,8 @@ contract ZkBlindVoting is IZkPoll, Initializable, Ownable {
 
     /// @notice Register msg.sender as a voter. Only during Registration.
     function register() external {
-        require(state == PollState.Registration, "Not in registration phase");
-        require(!isRegistered[msg.sender], "Already registered");
+        if (state != PollState.Registration) revert NotInRegistration();
+        if (isRegistered[msg.sender]) revert AlreadyRegistered();
 
         isRegistered[msg.sender] = true;
         voters.push(msg.sender);
@@ -152,12 +173,9 @@ contract ZkBlindVoting is IZkPoll, Initializable, Ownable {
 
     /// @notice Transition Registration → Voting. Requires >= 2 options and >= 1 voter.
     function startVoting() external onlyOwner {
-        require(
-            state == PollState.Registration,
-            "Can only start from registration"
-        );
-        require(options.length >= 2, "Need at least 2 options");
-        require(participantCount >= 1, "Need at least 1 voter");
+        if (state != PollState.Registration) revert CanOnlyStartFromRegistration();
+        if (options.length < 2) revert NeedAtLeastTwoOptions();
+        if (participantCount < 1) revert NeedAtLeastOneVoter();
 
         state = PollState.Voting;
         emit StateChanged(PollState.Voting);
@@ -165,7 +183,7 @@ contract ZkBlindVoting is IZkPoll, Initializable, Ownable {
 
     /// @notice Transition Voting → Ended. Sets revealDeadline.
     function endVoting() external onlyOwner {
-        require(state == PollState.Voting, "Not in voting phase");
+        if (state != PollState.Voting) revert NotInVoting();
 
         state = PollState.Ended;
         revealDeadline = block.timestamp + revealDuration;
@@ -178,13 +196,10 @@ contract ZkBlindVoting is IZkPoll, Initializable, Ownable {
     /// @notice Commit a vote hash. During Voting only. Voter must be registered.
     /// @param commitHash  keccak256(abi.encodePacked(optionIndex, salt))
     function commitVote(bytes32 commitHash) external {
-        require(state == PollState.Voting, "Not in voting phase");
-        require(isRegistered[msg.sender], "Not registered");
-        require(
-            commits[msg.sender].commitHash == bytes32(0),
-            "Already committed"
-        );
-        require(commitHash != bytes32(0), "Empty commit hash");
+        if (state != PollState.Voting) revert NotInVoting();
+        if (!isRegistered[msg.sender]) revert NotRegistered();
+        if (commits[msg.sender].commitHash != bytes32(0)) revert AlreadyCommitted();
+        if (commitHash == bytes32(0)) revert EmptyCommitHash();
 
         commits[msg.sender] = VoteCommit({
             commitHash: commitHash,
@@ -202,23 +217,17 @@ contract ZkBlindVoting is IZkPoll, Initializable, Ownable {
     /// @param optionIndex  The option index that was committed
     /// @param salt         The salt used in the commitment
     function revealVote(uint256 optionIndex, bytes32 salt) external {
-        require(state == PollState.Ended, "Not in ended phase");
-        require(block.timestamp <= revealDeadline, "Reveal deadline passed");
-        require(!resultsFinalized, "Results already finalized");
-        require(
-            commits[msg.sender].commitHash != bytes32(0),
-            "No commit found"
-        );
-        require(!commits[msg.sender].revealed, "Already revealed");
-        require(optionIndex < options.length, "Invalid option index");
+        if (state != PollState.Ended) revert NotInEnded();
+        if (block.timestamp > revealDeadline) revert RevealDeadlinePassed();
+        if (resultsFinalized) revert AlreadyFinalized();
+        if (commits[msg.sender].commitHash == bytes32(0)) revert NoCommitFound();
+        if (commits[msg.sender].revealed) revert AlreadyRevealed();
+        if (optionIndex >= options.length) revert InvalidOptionIndex();
 
         bytes32 expectedHash = keccak256(
             abi.encodePacked(optionIndex, salt)
         );
-        require(
-            expectedHash == commits[msg.sender].commitHash,
-            "Hash mismatch"
-        );
+        if (expectedHash != commits[msg.sender].commitHash) revert HashMismatch();
 
         commits[msg.sender].revealed = true;
         commits[msg.sender].revealedOption = optionIndex;
@@ -231,12 +240,9 @@ contract ZkBlindVoting is IZkPoll, Initializable, Ownable {
 
     /// @notice Finalize results after reveal deadline. Unrevealed votes are excluded.
     function finalizeResults() external onlyOwner {
-        require(state == PollState.Ended, "Not in ended phase");
-        require(
-            block.timestamp > revealDeadline,
-            "Reveal deadline not passed"
-        );
-        require(!resultsFinalized, "Already finalized");
+        if (state != PollState.Ended) revert NotInEnded();
+        if (block.timestamp <= revealDeadline) revert RevealDeadlineNotPassed();
+        if (resultsFinalized) revert AlreadyFinalized();
 
         resultsFinalized = true;
         emit ResultsFinalized();
