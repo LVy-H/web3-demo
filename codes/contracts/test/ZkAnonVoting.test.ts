@@ -122,7 +122,9 @@ describe("ZkAnonVoting", function () {
         it("Non-owner cannot register", async function () {
             await expect(
                 voting.connect(nonOwner).registerVoter(commitments[0])
-            ).to.be.revertedWith("Not owner");
+            )
+                .to.be.revertedWithCustomError(voting, "OwnableUnauthorizedAccount")
+                .withArgs(nonOwner.address);
         });
 
         it("Duplicate commitment rejected", async function () {
@@ -314,7 +316,9 @@ describe("ZkAnonVoting", function () {
         it("Non-owner cannot add option", async function () {
             await expect(
                 voting.connect(nonOwner).addOption("Unauthorized")
-            ).to.be.revertedWith("Not owner");
+            )
+                .to.be.revertedWithCustomError(voting, "OwnableUnauthorizedAccount")
+                .withArgs(nonOwner.address);
         });
     });
 });

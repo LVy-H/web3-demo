@@ -54,7 +54,9 @@ describe("PollRegistry", function () {
                 registry
                     .connect(nonOwner)
                     .registerModule("zk-anon-voting", await zkAnonVotingImpl.getAddress())
-            ).to.be.revertedWith("Not owner");
+            )
+                .to.be.revertedWithCustomError(registry, "OwnableUnauthorizedAccount")
+                .withArgs(nonOwner.address);
         });
 
         it("Zero address is rejected", async function () {

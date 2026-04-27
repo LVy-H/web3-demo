@@ -3,8 +3,9 @@ pragma solidity 0.8.28;
 
 import "@semaphore-protocol/contracts/interfaces/ISemaphore.sol";
 import "@semaphore-protocol/contracts/Semaphore.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract ZkAirdrop {
+contract ZkAirdrop is Ownable {
     ISemaphore public semaphore;
     uint256 public groupId;
 
@@ -13,8 +14,6 @@ contract ZkAirdrop {
         Claiming
     }
     AirdropState public state;
-
-    address public owner;
 
     // Tracking used nullifiers to ensure each user claims only once
     mapping(uint256 => bool) public isNullifierUsed;
@@ -25,14 +24,11 @@ contract ZkAirdrop {
     event AirdropClaimed(address indexed receiver, uint256 nullifier);
     event AirdropStarted();
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Not owner");
-        _;
-    }
-
-    constructor(address _semaphoreAddress, uint256 _airdropAmount) {
+    constructor(
+        address _semaphoreAddress,
+        uint256 _airdropAmount
+    ) Ownable(msg.sender) {
         semaphore = ISemaphore(_semaphoreAddress);
-        owner = msg.sender;
         airdropAmount = _airdropAmount;
         state = AirdropState.Registration;
 

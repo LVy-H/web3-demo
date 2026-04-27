@@ -3,17 +3,17 @@ pragma solidity 0.8.28;
 
 import "@semaphore-protocol/contracts/interfaces/ISemaphore.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IZkPoll.sol";
 
 /// @title ZkAnonVoting (M1)
 /// @notice Anonymous voting module implementing IZkPoll.
 ///         Uses initialize() instead of constructor for EIP-1167 minimal proxy compatibility.
-contract ZkAnonVoting is IZkPoll, Initializable {
+contract ZkAnonVoting is IZkPoll, Initializable, Ownable {
     ISemaphore public semaphore;
     uint256 public groupId;
 
     PollState public state;
-    address public override owner;
 
     string[] public options;
 
@@ -28,13 +28,8 @@ contract ZkAnonVoting is IZkPoll, Initializable {
     event PollClosed();
     event OptionAdded(string label);
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Not owner");
-        _;
-    }
-
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
+    constructor() Ownable(msg.sender) {
         _disableInitializers();
     }
 
@@ -48,7 +43,7 @@ contract ZkAnonVoting is IZkPoll, Initializable {
         string[] calldata _initialOptions
     ) external initializer {
         semaphore = ISemaphore(_semaphoreAddress);
-        owner = _owner;
+        _transferOwnership(_owner);
         state = PollState.Registration;
 
         groupId = semaphore.createGroup(address(this));
@@ -60,6 +55,11 @@ contract ZkAnonVoting is IZkPoll, Initializable {
     }
 
     // ── IZkPoll views ───────────────────────────────────────────────
+
+    /// @dev Resolves diamond inheritance between IZkPoll.owner() and Ownable.owner().
+    function owner() public view override(IZkPoll, Ownable) returns (address) {
+        return Ownable.owner();
+    }
 
     function getState() external view override returns (PollState) {
         return state;

@@ -266,7 +266,9 @@ describe("ZkBlindVoting", function () {
             await voting.connect(voter1).register();
             await expect(
                 voting.connect(voter1).startVoting()
-            ).to.be.revertedWith("Not owner");
+            )
+                .to.be.revertedWithCustomError(voting, "OwnableUnauthorizedAccount")
+                .withArgs(voter1.address);
         });
 
         it("Only owner can endVoting", async function () {
@@ -274,7 +276,9 @@ describe("ZkBlindVoting", function () {
             await voting.startVoting();
             await expect(
                 voting.connect(voter1).endVoting()
-            ).to.be.revertedWith("Not owner");
+            )
+                .to.be.revertedWithCustomError(voting, "OwnableUnauthorizedAccount")
+                .withArgs(voter1.address);
         });
 
         it("Prevents double initialization", async function () {
@@ -437,7 +441,9 @@ describe("ZkBlindVoting", function () {
             await time.increase(REVEAL_DURATION + 1);
             await expect(
                 voting.connect(voter1).finalizeResults()
-            ).to.be.revertedWith("Not owner");
+            )
+                .to.be.revertedWithCustomError(voting, "OwnableUnauthorizedAccount")
+                .withArgs(voter1.address);
         });
 
         it("Results match revealed votes, unrevealed excluded", async function () {
@@ -549,7 +555,9 @@ describe("ZkBlindVoting", function () {
         it("Non-owner cannot add option", async function () {
             await expect(
                 voting.connect(nonVoter).addOption("Unauthorized")
-            ).to.be.revertedWith("Not owner");
+            )
+                .to.be.revertedWithCustomError(voting, "OwnableUnauthorizedAccount")
+                .withArgs(nonVoter.address);
         });
 
         it("getOptionCount returns correct count", async function () {
