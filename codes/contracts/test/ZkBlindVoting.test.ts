@@ -12,17 +12,47 @@ describe("ZkBlindVoting", function () {
 
     const REVEAL_DURATION = 3600; // 1 hour
 
-    /** Helper: deploy a fresh ZkBlindVoting instance */
+    /** Helper: deploy a fresh ZkBlindVoting clone via PollRegistry. The bare
+     *  implementation has _disableInitializers() so it can never be initialized
+     *  directly — only clones produced by the registry are usable. */
+    async function deployBlindVotingClone(
+        initialOptions: string[],
+        revealDuration: number
+    ): Promise<any> {
+        const ZkBlindVoting = await ethers.getContractFactory("ZkBlindVoting");
+        const impl = await ZkBlindVoting.deploy();
+
+        const PollRegistry = await ethers.getContractFactory("PollRegistry");
+        const registry = await PollRegistry.deploy();
+
+        await registry.registerModule("zk-blind-voting", await impl.getAddress());
+
+        const initData = impl.interface.encodeFunctionData("initialize", [
+            owner.address,
+            initialOptions,
+            revealDuration,
+        ]);
+
+        const tx = await registry.createPoll(
+            "zk-blind-voting",
+            "Test",
+            "Test poll",
+            initData
+        );
+        const receipt = await tx.wait();
+
+        // Locate clone address via the PollCreated event
+        const cloneAddress = (await registry.getAllPolls())[0].pollAddress;
+        return ethers.getContractAt("ZkBlindVoting", cloneAddress);
+    }
+
+    /** Helper: deploy + initialize default ZkBlindVoting fixture for beforeEach */
     async function deployVoting(
         initialOptions: string[] = ["Option A", "Option B", "Option C"],
         revealDuration: number = REVEAL_DURATION
     ) {
         [owner, voter1, voter2, voter3, nonVoter] = await ethers.getSigners();
-
-        const ZkBlindVoting = await ethers.getContractFactory("ZkBlindVoting");
-        voting = await ZkBlindVoting.deploy();
-
-        await voting.initialize(owner.address, initialOptions, revealDuration);
+        voting = await deployBlindVotingClone(initialOptions, revealDuration);
     }
 
     /** Helper: compute commit hash matching the contract's keccak256(abi.encodePacked(optionIndex, salt)) */
@@ -151,9 +181,7 @@ describe("ZkBlindVoting", function () {
 
         it("Rejects commit in Registration phase", async function () {
             // Deploy a new instance that stays in Registration
-            const ZkBlindVoting = await ethers.getContractFactory("ZkBlindVoting");
-            const fresh = await ZkBlindVoting.deploy();
-            await fresh.initialize(owner.address, ["A", "B"], REVEAL_DURATION);
+            const fresh = await deployBlindVotingClone(["A", "B"], REVEAL_DURATION);
 
             const salt = randomSalt();
             const hash = computeCommitHash(0, salt);
@@ -188,9 +216,7 @@ describe("ZkBlindVoting", function () {
 
     describe("State transitions", function () {
         it("startVoting requires >= 2 options", async function () {
-            const ZkBlindVoting = await ethers.getContractFactory("ZkBlindVoting");
-            const sparse = await ZkBlindVoting.deploy();
-            await sparse.initialize(owner.address, ["Only Option"], REVEAL_DURATION);
+            const sparse = await deployBlindVotingClone(["Only Option"], REVEAL_DURATION);
             // Need a voter
             await sparse.connect(voter1).register();
             await expect(sparse.startVoting()).to.be.revertedWith(
@@ -240,7 +266,9 @@ describe("ZkBlindVoting", function () {
             await voting.connect(voter1).register();
             await expect(
                 voting.connect(voter1).startVoting()
-            ).to.be.revertedWith("Not owner");
+            )
+                .to.be.revertedWithCustomError(voting, "OwnableUnauthorizedAccount")
+                .withArgs(voter1.address);
         });
 
         it("Only owner can endVoting", async function () {
@@ -248,13 +276,15 @@ describe("ZkBlindVoting", function () {
             await voting.startVoting();
             await expect(
                 voting.connect(voter1).endVoting()
-            ).to.be.revertedWith("Not owner");
+            )
+                .to.be.revertedWithCustomError(voting, "OwnableUnauthorizedAccount")
+                .withArgs(voter1.address);
         });
 
         it("Prevents double initialization", async function () {
             await expect(
                 voting.initialize(owner.address, ["X", "Y"], 100)
-            ).to.be.revertedWith("Already initialized");
+            ).to.be.revertedWithCustomError(voting, "InvalidInitialization");
         });
     });
 
@@ -339,9 +369,7 @@ describe("ZkBlindVoting", function () {
 
         it("Reveal during Voting phase reverts", async function () {
             // Deploy fresh instance, keep in Voting
-            const ZkBlindVoting = await ethers.getContractFactory("ZkBlindVoting");
-            const fresh = await ZkBlindVoting.deploy();
-            await fresh.initialize(owner.address, ["A", "B"], REVEAL_DURATION);
+            const fresh = await deployBlindVotingClone(["A", "B"], REVEAL_DURATION);
             await fresh.connect(voter1).register();
             await fresh.startVoting();
             const salt = randomSalt();
@@ -413,7 +441,9 @@ describe("ZkBlindVoting", function () {
             await time.increase(REVEAL_DURATION + 1);
             await expect(
                 voting.connect(voter1).finalizeResults()
-            ).to.be.revertedWith("Not owner");
+            )
+                .to.be.revertedWithCustomError(voting, "OwnableUnauthorizedAccount")
+                .withArgs(voter1.address);
         });
 
         it("Results match revealed votes, unrevealed excluded", async function () {
@@ -525,7 +555,9 @@ describe("ZkBlindVoting", function () {
         it("Non-owner cannot add option", async function () {
             await expect(
                 voting.connect(nonVoter).addOption("Unauthorized")
-            ).to.be.revertedWith("Not owner");
+            )
+                .to.be.revertedWithCustomError(voting, "OwnableUnauthorizedAccount")
+                .withArgs(nonVoter.address);
         });
 
         it("getOptionCount returns correct count", async function () {

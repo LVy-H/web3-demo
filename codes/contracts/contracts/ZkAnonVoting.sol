@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.28;
 
 import "@semaphore-protocol/contracts/interfaces/ISemaphore.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IZkPoll.sol";
 
 /// @title ZkAnonVoting (M1)
 /// @notice Anonymous voting module implementing IZkPoll.
 ///         Uses initialize() instead of constructor for EIP-1167 minimal proxy compatibility.
-contract ZkAnonVoting is IZkPoll {
+contract ZkAnonVoting is IZkPoll, Initializable, Ownable {
     ISemaphore public semaphore;
     uint256 public groupId;
 
     PollState public state;
-    address public override owner;
-
-    bool private _initialized;
 
     string[] public options;
 
@@ -29,9 +28,9 @@ contract ZkAnonVoting is IZkPoll {
     event PollClosed();
     event OptionAdded(string label);
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Not owner");
-        _;
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() Ownable(msg.sender) {
+        _disableInitializers();
     }
 
     /// @notice Initialize the clone (replaces constructor)
@@ -42,12 +41,9 @@ contract ZkAnonVoting is IZkPoll {
         address _semaphoreAddress,
         address _owner,
         string[] calldata _initialOptions
-    ) external {
-        require(!_initialized, "Already initialized");
-        _initialized = true;
-
+    ) external initializer {
         semaphore = ISemaphore(_semaphoreAddress);
-        owner = _owner;
+        _transferOwnership(_owner);
         state = PollState.Registration;
 
         groupId = semaphore.createGroup(address(this));
@@ -59,6 +55,11 @@ contract ZkAnonVoting is IZkPoll {
     }
 
     // ── IZkPoll views ───────────────────────────────────────────────
+
+    /// @dev Resolves diamond inheritance between IZkPoll.owner() and Ownable.owner().
+    function owner() public view override(IZkPoll, Ownable) returns (address) {
+        return Ownable.owner();
+    }
 
     function getState() external view override returns (PollState) {
         return state;

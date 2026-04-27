@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.28;
 
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IZkPoll.sol";
 
 /// @title ZkBlindVoting (M2)
@@ -10,7 +12,7 @@ import "./interfaces/IZkPoll.sol";
 ///         Uses initialize() instead of constructor for EIP-1167 minimal proxy compatibility.
 ///
 ///         Flow: Registration → Voting (commit) → Ended (reveal window → finalize)
-contract ZkBlindVoting is IZkPoll {
+contract ZkBlindVoting is IZkPoll, Initializable, Ownable {
     struct VoteCommit {
         bytes32 commitHash; // keccak256(abi.encodePacked(optionIndex, salt))
         bool revealed;
@@ -18,9 +20,6 @@ contract ZkBlindVoting is IZkPoll {
     }
 
     PollState public state;
-    address public override owner;
-
-    bool private _initialized;
 
     string[] public options;
 
@@ -41,9 +40,9 @@ contract ZkBlindVoting is IZkPoll {
     event ResultsFinalized();
     event OptionAdded(string label);
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Not owner");
-        _;
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() Ownable(msg.sender) {
+        _disableInitializers();
     }
 
     /// @notice Initialize the clone (replaces constructor)
@@ -54,11 +53,8 @@ contract ZkBlindVoting is IZkPoll {
         address _owner,
         string[] calldata _initialOptions,
         uint256 _revealDuration
-    ) external {
-        require(!_initialized, "Already initialized");
-        _initialized = true;
-
-        owner = _owner;
+    ) external initializer {
+        _transferOwnership(_owner);
         state = PollState.Registration;
         revealDuration = _revealDuration;
 
@@ -69,6 +65,11 @@ contract ZkBlindVoting is IZkPoll {
     }
 
     // ── IZkPoll views ───────────────────────────────────────────────
+
+    /// @dev Resolves diamond inheritance between IZkPoll.owner() and Ownable.owner().
+    function owner() public view override(IZkPoll, Ownable) returns (address) {
+        return Ownable.owner();
+    }
 
     function getState() external view override returns (PollState) {
         return state;

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 
-contract PollRegistry {
+contract PollRegistry is Ownable2Step {
     using Clones for address;
 
     struct PollInfo {
@@ -15,7 +16,6 @@ contract PollRegistry {
         uint256 createdAt;
     }
 
-    address public owner;
     mapping(string => address) public modules;
     PollInfo[] public polls;
 
@@ -27,14 +27,7 @@ contract PollRegistry {
         address creator
     );
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Not owner");
-        _;
-    }
-
-    constructor() {
-        owner = msg.sender;
-    }
+    constructor() Ownable(msg.sender) {}
 
     /// @notice Register (or update) a module implementation address
     function registerModule(
