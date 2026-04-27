@@ -4,6 +4,13 @@ pragma solidity 0.8.28;
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 
+/// @notice Errors for {PollRegistry}.
+/// @dev OZ-provided errors (OwnableUnauthorizedAccount, OwnableInvalidOwner) cover
+///      the access-control reverts; these are the registry's local errors.
+error ZeroAddress();
+error ModuleNotRegistered(string moduleType);
+error InitFailed();
+
 contract PollRegistry is Ownable2Step {
     using Clones for address;
 
@@ -34,7 +41,7 @@ contract PollRegistry is Ownable2Step {
         string calldata moduleType,
         address implementation
     ) external onlyOwner {
-        require(implementation != address(0), "Zero address");
+        if (implementation == address(0)) revert ZeroAddress();
         modules[moduleType] = implementation;
         emit ModuleRegistered(moduleType, implementation);
     }
@@ -51,13 +58,13 @@ contract PollRegistry is Ownable2Step {
         bytes calldata initData
     ) external returns (address) {
         address impl = modules[moduleType];
-        require(impl != address(0), "Module not registered");
+        if (impl == address(0)) revert ModuleNotRegistered(moduleType);
 
         address clone = impl.clone();
 
         // Initialize the clone
         (bool ok, ) = clone.call(initData);
-        require(ok, "Init failed");
+        if (!ok) revert InitFailed();
 
         polls.push(
             PollInfo({
