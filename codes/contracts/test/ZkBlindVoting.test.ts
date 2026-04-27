@@ -121,7 +121,7 @@ describe("ZkBlindVoting", function () {
             await voting.connect(voter1).register();
             await expect(
                 voting.connect(voter1).register()
-            ).to.be.revertedWith("Already registered");
+            ).to.be.revertedWithCustomError(voting, "AlreadyRegistered");
         });
 
         it("Rejects registration after voting starts", async function () {
@@ -129,7 +129,7 @@ describe("ZkBlindVoting", function () {
             await voting.startVoting();
             await expect(
                 voting.connect(voter2).register()
-            ).to.be.revertedWith("Not in registration phase");
+            ).to.be.revertedWithCustomError(voting, "NotInRegistration");
         });
 
         it("Multiple voters can register", async function () {
@@ -167,7 +167,7 @@ describe("ZkBlindVoting", function () {
             const hash = computeCommitHash(0, salt);
             await expect(
                 voting.connect(nonVoter).commitVote(hash)
-            ).to.be.revertedWith("Not registered");
+            ).to.be.revertedWithCustomError(voting, "NotRegistered");
         });
 
         it("Rejects double commit", async function () {
@@ -176,7 +176,7 @@ describe("ZkBlindVoting", function () {
             const hash2 = computeCommitHash(1, salt2);
             await expect(
                 voting.connect(voter1).commitVote(hash2)
-            ).to.be.revertedWith("Already committed");
+            ).to.be.revertedWithCustomError(voting, "AlreadyCommitted");
         });
 
         it("Rejects commit in Registration phase", async function () {
@@ -187,7 +187,7 @@ describe("ZkBlindVoting", function () {
             const hash = computeCommitHash(0, salt);
             await expect(
                 fresh.connect(voter1).commitVote(hash)
-            ).to.be.revertedWith("Not in voting phase");
+            ).to.be.revertedWithCustomError(fresh, "NotInVoting");
         });
 
         it("Rejects commit in Ended phase", async function () {
@@ -196,13 +196,13 @@ describe("ZkBlindVoting", function () {
             const hash = computeCommitHash(0, salt);
             await expect(
                 voting.connect(voter1).commitVote(hash)
-            ).to.be.revertedWith("Not in voting phase");
+            ).to.be.revertedWithCustomError(voting, "NotInVoting");
         });
 
         it("Rejects empty commit hash", async function () {
             await expect(
                 voting.connect(voter1).commitVote(ethers.ZeroHash)
-            ).to.be.revertedWith("Empty commit hash");
+            ).to.be.revertedWithCustomError(voting, "EmptyCommitHash");
         });
 
         it("verifyParticipation returns true after commit", async function () {
@@ -219,15 +219,15 @@ describe("ZkBlindVoting", function () {
             const sparse = await deployBlindVotingClone(["Only Option"], REVEAL_DURATION);
             // Need a voter
             await sparse.connect(voter1).register();
-            await expect(sparse.startVoting()).to.be.revertedWith(
-                "Need at least 2 options"
-            );
+            await expect(
+                sparse.startVoting()
+            ).to.be.revertedWithCustomError(sparse, "NeedAtLeastTwoOptions");
         });
 
         it("startVoting requires >= 1 voter", async function () {
-            await expect(voting.startVoting()).to.be.revertedWith(
-                "Need at least 1 voter"
-            );
+            await expect(
+                voting.startVoting()
+            ).to.be.revertedWithCustomError(voting, "NeedAtLeastOneVoter");
         });
 
         it("startVoting emits StateChanged", async function () {
@@ -257,9 +257,9 @@ describe("ZkBlindVoting", function () {
         });
 
         it("Cannot end voting from Registration phase", async function () {
-            await expect(voting.endVoting()).to.be.revertedWith(
-                "Not in voting phase"
-            );
+            await expect(
+                voting.endVoting()
+            ).to.be.revertedWithCustomError(voting, "NotInVoting");
         });
 
         it("Only owner can startVoting", async function () {
@@ -329,27 +329,27 @@ describe("ZkBlindVoting", function () {
             const wrongSalt = randomSalt();
             await expect(
                 voting.connect(voter1).revealVote(0, wrongSalt)
-            ).to.be.revertedWith("Hash mismatch");
+            ).to.be.revertedWithCustomError(voting, "HashMismatch");
         });
 
         it("Reveal with wrong option index reverts", async function () {
             await expect(
                 voting.connect(voter1).revealVote(1, salt1)
-            ).to.be.revertedWith("Hash mismatch");
+            ).to.be.revertedWithCustomError(voting, "HashMismatch");
         });
 
         it("Reveal after deadline reverts", async function () {
             await time.increase(REVEAL_DURATION + 1);
             await expect(
                 voting.connect(voter1).revealVote(0, salt1)
-            ).to.be.revertedWith("Reveal deadline passed");
+            ).to.be.revertedWithCustomError(voting, "RevealDeadlinePassed");
         });
 
         it("Double reveal reverts", async function () {
             await voting.connect(voter1).revealVote(0, salt1);
             await expect(
                 voting.connect(voter1).revealVote(0, salt1)
-            ).to.be.revertedWith("Already revealed");
+            ).to.be.revertedWithCustomError(voting, "AlreadyRevealed");
         });
 
         it("Reveal with invalid option index reverts", async function () {
@@ -358,13 +358,13 @@ describe("ZkBlindVoting", function () {
             // Actually, voter1 committed for index 0, so trying index 99 gives hash mismatch
             await expect(
                 voting.connect(voter1).revealVote(99, salt1)
-            ).to.be.revertedWith("Invalid option index");
+            ).to.be.revertedWithCustomError(voting, "InvalidOptionIndex");
         });
 
         it("Reveal by non-committer reverts", async function () {
             await expect(
                 voting.connect(nonVoter).revealVote(0, salt1)
-            ).to.be.revertedWith("No commit found");
+            ).to.be.revertedWithCustomError(voting, "NoCommitFound");
         });
 
         it("Reveal during Voting phase reverts", async function () {
@@ -378,7 +378,7 @@ describe("ZkBlindVoting", function () {
 
             await expect(
                 fresh.connect(voter1).revealVote(0, salt)
-            ).to.be.revertedWith("Not in ended phase");
+            ).to.be.revertedWithCustomError(fresh, "NotInEnded");
         });
     });
 
@@ -424,17 +424,17 @@ describe("ZkBlindVoting", function () {
         });
 
         it("Cannot finalize before deadline", async function () {
-            await expect(voting.finalizeResults()).to.be.revertedWith(
-                "Reveal deadline not passed"
-            );
+            await expect(
+                voting.finalizeResults()
+            ).to.be.revertedWithCustomError(voting, "RevealDeadlineNotPassed");
         });
 
         it("Cannot finalize twice", async function () {
             await time.increase(REVEAL_DURATION + 1);
             await voting.finalizeResults();
-            await expect(voting.finalizeResults()).to.be.revertedWith(
-                "Already finalized"
-            );
+            await expect(
+                voting.finalizeResults()
+            ).to.be.revertedWithCustomError(voting, "AlreadyFinalized");
         });
 
         it("Only owner can finalize", async function () {
@@ -468,7 +468,7 @@ describe("ZkBlindVoting", function () {
             // Even though voter1 hasn't revealed, finalization blocks it
             await expect(
                 voting.connect(voter1).revealVote(0, salt1)
-            ).to.be.revertedWith("Reveal deadline passed");
+            ).to.be.revertedWithCustomError(voting, "RevealDeadlinePassed");
         });
     });
 
@@ -547,9 +547,9 @@ describe("ZkBlindVoting", function () {
         it("Cannot add option after registration phase", async function () {
             await voting.connect(voter1).register();
             await voting.startVoting();
-            await expect(voting.addOption("Late Option")).to.be.revertedWith(
-                "Not in registration phase"
-            );
+            await expect(
+                voting.addOption("Late Option")
+            ).to.be.revertedWithCustomError(voting, "NotInRegistration");
         });
 
         it("Non-owner cannot add option", async function () {

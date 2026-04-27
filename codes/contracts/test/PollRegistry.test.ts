@@ -62,7 +62,7 @@ describe("PollRegistry", function () {
         it("Zero address is rejected", async function () {
             await expect(
                 registry.registerModule("zk-anon-voting", ethers.ZeroAddress)
-            ).to.be.revertedWith("Zero address");
+            ).to.be.revertedWithCustomError(registry, "ZeroAddress");
         });
     });
 
@@ -116,7 +116,9 @@ describe("PollRegistry", function () {
         it("Rejects unregistered module type", async function () {
             await expect(
                 registry.createPoll("nonexistent", "X", "Y", "0x")
-            ).to.be.revertedWith("Module not registered");
+            )
+                .to.be.revertedWithCustomError(registry, "ModuleNotRegistered")
+                .withArgs("nonexistent");
         });
 
         it("Lists all polls", async function () {

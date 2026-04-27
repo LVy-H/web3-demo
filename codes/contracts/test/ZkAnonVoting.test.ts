@@ -131,19 +131,20 @@ describe("ZkAnonVoting", function () {
             await voting.registerVoter(commitments[0]);
             await expect(
                 voting.registerVoter(commitments[0])
-            ).to.be.revertedWith("This identity is already registered");
+            ).to.be.revertedWithCustomError(voting, "AlreadyRegistered");
         });
 
         it("Duplicate in batch rejected", async function () {
             const dupes = [commitments[0], commitments[0]];
-            await expect(voting.registerVoters(dupes)).to.be.revertedWith(
-                "Duplicate identity in batch"
-            );
+            await expect(
+                voting.registerVoters(dupes)
+            ).to.be.revertedWithCustomError(voting, "DuplicateInBatch");
         });
 
         it("Empty batch rejected", async function () {
-            await expect(voting.registerVoters([])).to.be.revertedWith(
-                "Empty batch"
+            await expect(voting.registerVoters([])).to.be.revertedWithCustomError(
+                voting,
+                "EmptyBatch"
             );
         });
 
@@ -170,8 +171,9 @@ describe("ZkAnonVoting", function () {
                 const pk = crypto.randomBytes(32).toString("hex");
                 batch.push(new Identity(pk).commitment);
             }
-            await expect(voting.registerVoters(batch)).to.be.revertedWith(
-                "Batch too large"
+            await expect(voting.registerVoters(batch)).to.be.revertedWithCustomError(
+                voting,
+                "BatchTooLarge"
             );
         });
     });
@@ -221,9 +223,9 @@ describe("ZkAnonVoting", function () {
             };
 
             await voting.castVote(0n, mockProof);
-            await expect(voting.castVote(0n, mockProof)).to.be.revertedWith(
-                "You have already voted"
-            );
+            await expect(
+                voting.castVote(0n, mockProof)
+            ).to.be.revertedWithCustomError(voting, "AlreadyVoted");
         });
 
         it("Invalid option index rejected", async function () {
@@ -237,9 +239,9 @@ describe("ZkAnonVoting", function () {
                 points: [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n],
             };
 
-            await expect(voting.castVote(99n, mockProof)).to.be.revertedWith(
-                "Invalid option index"
-            );
+            await expect(
+                voting.castVote(99n, mockProof)
+            ).to.be.revertedWithCustomError(voting, "InvalidOptionIndex");
         });
     });
 
@@ -279,15 +281,16 @@ describe("ZkAnonVoting", function () {
             // Deploy with only 1 option
             const sparse = await deployAnonVotingClone(["Only Option"]);
 
-            await expect(sparse.startVoting()).to.be.revertedWith(
-                "Need at least 2 options"
-            );
+            await expect(
+                sparse.startVoting()
+            ).to.be.revertedWithCustomError(sparse, "NeedAtLeastTwoOptions");
         });
 
         it("Requires at least 1 voter to start voting", async function () {
             // Fresh poll with 2 options but no registered voters
-            await expect(voting.startVoting()).to.be.revertedWith(
-                "Need at least 1 voter"
+            await expect(voting.startVoting()).to.be.revertedWithCustomError(
+                voting,
+                "NeedAtLeastOneVoter"
             );
         });
 
@@ -309,15 +312,15 @@ describe("ZkAnonVoting", function () {
                 points: [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n],
             };
 
-            await expect(voting.castVote(0n, mockProof)).to.be.revertedWith(
-                "Not in voting phase"
-            );
+            await expect(
+                voting.castVote(0n, mockProof)
+            ).to.be.revertedWithCustomError(voting, "NotInVoting");
         });
 
         it("Cannot end voting from Registration phase", async function () {
-            await expect(voting.endVoting()).to.be.revertedWith(
-                "Not in voting phase"
-            );
+            await expect(
+                voting.endVoting()
+            ).to.be.revertedWithCustomError(voting, "NotInVoting");
         });
 
         it("startVoting emits StateChanged", async function () {
@@ -359,9 +362,9 @@ describe("ZkAnonVoting", function () {
         it("Cannot add option after registration phase", async function () {
             await voting.registerVoter(commitments[0]);
             await voting.startVoting();
-            await expect(voting.addOption("Late Option")).to.be.revertedWith(
-                "Not in registration phase"
-            );
+            await expect(
+                voting.addOption("Late Option")
+            ).to.be.revertedWithCustomError(voting, "NotInRegistration");
         });
 
         it("Non-owner cannot add option", async function () {

@@ -182,7 +182,7 @@ describe("ZkAirdrop", function () {
             const id2 = new Identity(crypto.randomBytes(32).toString("hex"));
             await expect(
                 airdrop.registerMember(id2.commitment)
-            ).to.be.revertedWith("Not in registration phase");
+            ).to.be.revertedWithCustomError(airdrop, "NotInRegistration");
         });
     });
 
@@ -192,7 +192,8 @@ describe("ZkAirdrop", function () {
         it("non-owner cannot startAirdrop ('Not owner')", async function () {
             await expect(
                 airdrop.connect(nonOwner).startAirdrop()
-            ).to.be.revertedWith("Not owner");
+            ).to.be.revertedWithCustomError(airdrop, "OwnableUnauthorizedAccount")
+                .withArgs(nonOwner.address);
         });
 
         it("owner transitions Registration -> Claiming and emits AirdropStarted", async function () {
@@ -205,8 +206,9 @@ describe("ZkAirdrop", function () {
 
         it("second startAirdrop reverts with 'Can only start from registration'", async function () {
             await airdrop.startAirdrop();
-            await expect(airdrop.startAirdrop()).to.be.revertedWith(
-                "Can only start from registration"
+            await expect(airdrop.startAirdrop()).to.be.revertedWithCustomError(
+                airdrop,
+                "CanOnlyStartFromRegistration"
             );
         });
     });
@@ -295,7 +297,7 @@ describe("ZkAirdrop", function () {
             });
             await expect(
                 airdrop.claimAirdrop(receiver.address, proof)
-            ).to.be.revertedWith("Not in claiming phase");
+            ).to.be.revertedWithCustomError(airdrop, "NotInClaiming");
         });
 
         it("wrong scope reverts with 'Invalid claim scope'", async function () {
@@ -308,7 +310,7 @@ describe("ZkAirdrop", function () {
             });
             await expect(
                 airdrop.claimAirdrop(receiver.address, proof)
-            ).to.be.revertedWith("Invalid claim scope");
+            ).to.be.revertedWithCustomError(airdrop, "InvalidClaimScope");
         });
 
         it("wrong receiver in message reverts with 'Receiver mismatch'", async function () {
@@ -321,7 +323,7 @@ describe("ZkAirdrop", function () {
             });
             await expect(
                 airdrop.claimAirdrop(receiver.address, proof)
-            ).to.be.revertedWith("Receiver mismatch");
+            ).to.be.revertedWithCustomError(airdrop, "ReceiverMismatch");
         });
 
         it("reused nullifier reverts with 'Airdrop already claimed by this identity'", async function () {
@@ -340,7 +342,7 @@ describe("ZkAirdrop", function () {
             // Second claim with the same nullifier reverts
             await expect(
                 airdrop.claimAirdrop(receiver.address, proof)
-            ).to.be.revertedWith("Airdrop already claimed by this identity");
+            ).to.be.revertedWithCustomError(airdrop, "AirdropAlreadyClaimed");
         });
     });
 });
