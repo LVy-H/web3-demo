@@ -8,7 +8,10 @@
     "compile": "hardhat compile",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
     "copy-abis": "ts-node scripts/copyAbis.ts",
-    "node": "hardhat node"
+    "node": "hardhat node",
+    "lint": "solhint 'contracts/**/*.sol'",
+    "format": "prettier --write 'contracts/**/*.sol'",
+    "format:check": "prettier --check 'contracts/**/*.sol'"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +22,9 @@
     "@semaphore-protocol/identity": "^4.14.2",
     "@semaphore-protocol/proof": "^4.14.2",
     "hardhat": "^2.28.6",
+    "prettier": "^3.8.3",
+    "prettier-plugin-solidity": "^2.3.1",
+    "solhint": "^6.2.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },
