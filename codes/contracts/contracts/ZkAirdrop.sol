@@ -5,6 +5,18 @@ import "@semaphore-protocol/contracts/interfaces/ISemaphore.sol";
 import "@semaphore-protocol/contracts/Semaphore.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+/// @notice Errors for {ZkAirdrop}.
+/// @dev OZ-provided errors (OwnableUnauthorizedAccount) cover access-control reverts;
+///      these are the contract's local errors.
+error NotInRegistration();
+error NotInClaiming();
+error CanOnlyStartFromRegistration();
+error AirdropAlreadyClaimed();
+error InvalidClaimScope();
+error ReceiverMismatch();
+error InvalidClaimProof();
+error EthTransferFailed();
+
 contract ZkAirdrop is Ownable {
     ISemaphore public semaphore;
     uint256 public groupId;
@@ -36,10 +48,7 @@ contract ZkAirdrop is Ownable {
     }
 
     function registerMember(uint256 identityCommitment) external {
-        require(
-            state == AirdropState.Registration,
-            "Not in registration phase"
-        );
+        if (state != AirdropState.Registration) revert NotInRegistration();
 
         semaphore.addMember(groupId, identityCommitment);
 
@@ -47,10 +56,7 @@ contract ZkAirdrop is Ownable {
     }
 
     function startAirdrop() external onlyOwner {
-        require(
-            state == AirdropState.Registration,
-            "Can only start from registration"
-        );
+        if (state != AirdropState.Registration) revert CanOnlyStartFromRegistration();
         state = AirdropState.Claiming;
 
         emit AirdropStarted();
@@ -61,24 +67,15 @@ contract ZkAirdrop is Ownable {
         address receiver,
         ISemaphore.SemaphoreProof calldata proof
     ) external {
-        require(state == AirdropState.Claiming, "Not in claiming phase");
-        require(
-            !isNullifierUsed[proof.nullifier],
-            "Airdrop already claimed by this identity"
-        );
+        if (state != AirdropState.Claiming) revert NotInClaiming();
+        if (isNullifierUsed[proof.nullifier]) revert AirdropAlreadyClaimed();
 
         // Scope to this specific airdrop contract to prevent replay attacks
-        require(
-            proof.scope == uint256(uint160(address(this))),
-            "Invalid claim scope"
-        );
-        require(
-            proof.message == uint256(uint160(receiver)),
-            "Receiver mismatch"
-        );
+        if (proof.scope != uint256(uint160(address(this)))) revert InvalidClaimScope();
+        if (proof.message != uint256(uint160(receiver))) revert ReceiverMismatch();
 
         bool isValid = semaphore.verifyProof(groupId, proof);
-        require(isValid, "Invalid claim proof");
+        if (!isValid) revert InvalidClaimProof();
 
         isNullifierUsed[proof.nullifier] = true;
 
@@ -86,7 +83,7 @@ contract ZkAirdrop is Ownable {
 
         // Try to send the ETH
         (bool success, ) = receiver.call{value: airdropAmount}("");
-        require(success, "Failed to send ETH");
+        if (!success) revert EthTransferFailed();
     }
 
     // Allow owner or anyone to deposit ETH to fund the airdrop pool
