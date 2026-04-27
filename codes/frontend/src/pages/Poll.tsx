@@ -181,9 +181,10 @@ export default function Poll() {
     useEffect(() => {
         setLocalIdentity(loadSavedIdentity(pollAddress))
         isGroupSynced = false
-        // Restore voted state from localStorage
-        const nullifier = localStorage.getItem('my-nullifier')
+        // Restore voted state from localStorage (scoped per poll)
+        const nullifier = localStorage.getItem('my-nullifier-' + pollAddress)
         if (nullifier) setHasVoted(true)
+        else setHasVoted(false)
     }, [pollAddress])
 
     const [selectedOption, setSelectedOption] = useState<number>(0)
@@ -374,7 +375,7 @@ export default function Poll() {
                 gas: 5000000n,
             })
 
-            localStorage.setItem('my-nullifier', fullProof.nullifier.toString())
+            localStorage.setItem('my-nullifier-' + pollAddress, fullProof.nullifier.toString())
             setHasVoted(true)
             setStatus("Vote cast successfully! Your anonymity is guaranteed by zero-knowledge cryptography.", 'success')
         } catch (e: unknown) {
@@ -515,6 +516,7 @@ export default function Poll() {
                                 <button
                                     onClick={() => {
                                         localStorage.removeItem(`semaphore-identity-${pollAddress}`)
+                                        localStorage.removeItem('my-nullifier-' + pollAddress)
                                         setLocalIdentity(null)
                                         setHasVoted(false)
                                         setStatus("Identity cleared.", 'info')
