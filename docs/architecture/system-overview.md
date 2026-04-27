@@ -68,6 +68,41 @@ Verifier slot:
     - Production:   SemaphoreVerifier      (real Groth16; requires SNARK artifact CDN at runtime)
 ```
 
+## Upgrades & Immutability
+
+This system has **no upgrade pattern**. None of the contracts sit behind a UUPS / Transparent / Beacon proxy. The choices below are deliberate; do not try to retrofit an upgrade slot onto modules without redesigning the registry.
+
+### Per-poll clones are immutable
+
+Every poll created via `PollRegistry.createPoll()` is an EIP-1167 minimal proxy (~45 bytes) whose bytecode hard-codes the implementation address it delegates to. There is no admin slot, no `upgradeTo`, no beacon lookup. A poll's behavior is fixed at creation time to whatever implementation was registered for its module type at that moment.
+
+### `registerModule` swaps don't migrate existing polls
+
+The registry owner can call `registerModule("anon-vote", newImpl)` to point future clones at a new implementation. **Existing clones are unaffected.** Each clone's delegate target is baked into its own bytecode at deploy time — the registry's mapping is only consulted by `createPoll()`. A swap therefore only changes which implementation new polls are cloned from; every poll that already exists keeps running against the implementation it was originally cloned from, forever.
+
+### "Upgrading" a module = ship a new module, create new polls
+
+If a bug is found in `ZkAnonVoting`:
+
+1. Deploy a fixed implementation.
+2. Call `registerModule("anon-vote", fixedImpl)` (or register under a new module type, e.g. `"anon-vote-v2"`).
+3. Direct users to create new polls. Old polls keep their old (buggy) behavior until they end naturally.
+
+There is no in-place migration path for state already held in a clone. Treat each poll as a single-use, immutable instance.
+
+### `ZkAirdrop` is standalone, not a clone
+
+`ZkAirdrop` is deployed once with a real constructor and is **not** managed by `PollRegistry`. It has no clone factory, no upgrade hook, and a fixed address. To "upgrade" the airdrop, deploy a fresh `ZkAirdrop` contract and point users (and the frontend's `deployed-addresses.json`) at the new address. The old contract remains live at its original address and cannot be patched.
+
+### The Registry itself is permanent
+
+`PollRegistry` is also deployed without a proxy. Its address is permanent for the lifetime of the deployment. The only mutable registry state is:
+
+- `registerModule(moduleType, impl)` — owner adds or replaces module entries (affects future `createPoll` calls only).
+- `transferOwnership(newOwner)` — standard `Ownable` (or `Ownable2Step`'s 2-step variant once P1-6 lands) ownership handoff.
+
+If the registry itself needs to change shape, the migration is: deploy a new `PollRegistry`, re-register modules on it, and switch the frontend over. Polls created against the old registry keep working — they don't depend on it after construction — but they will no longer appear in `getAllPolls()` of the new registry.
+
 ## Container Architecture
 
 ```
