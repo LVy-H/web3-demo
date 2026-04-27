@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "./interfaces/IZkPoll.sol";
 
 /// @title ZkBlindVoting (M2)
@@ -10,7 +11,7 @@ import "./interfaces/IZkPoll.sol";
 ///         Uses initialize() instead of constructor for EIP-1167 minimal proxy compatibility.
 ///
 ///         Flow: Registration → Voting (commit) → Ended (reveal window → finalize)
-contract ZkBlindVoting is IZkPoll {
+contract ZkBlindVoting is IZkPoll, Initializable {
     struct VoteCommit {
         bytes32 commitHash; // keccak256(abi.encodePacked(optionIndex, salt))
         bool revealed;
@@ -19,8 +20,6 @@ contract ZkBlindVoting is IZkPoll {
 
     PollState public state;
     address public override owner;
-
-    bool private _initialized;
 
     string[] public options;
 
@@ -46,6 +45,11 @@ contract ZkBlindVoting is IZkPoll {
         _;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /// @notice Initialize the clone (replaces constructor)
     /// @param _owner           Poll owner / admin
     /// @param _initialOptions  Initial set of voting options
@@ -54,10 +58,7 @@ contract ZkBlindVoting is IZkPoll {
         address _owner,
         string[] calldata _initialOptions,
         uint256 _revealDuration
-    ) external {
-        require(!_initialized, "Already initialized");
-        _initialized = true;
-
+    ) external initializer {
         owner = _owner;
         state = PollState.Registration;
         revealDuration = _revealDuration;

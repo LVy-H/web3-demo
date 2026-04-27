@@ -2,19 +2,18 @@
 pragma solidity 0.8.28;
 
 import "@semaphore-protocol/contracts/interfaces/ISemaphore.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "./interfaces/IZkPoll.sol";
 
 /// @title ZkAnonVoting (M1)
 /// @notice Anonymous voting module implementing IZkPoll.
 ///         Uses initialize() instead of constructor for EIP-1167 minimal proxy compatibility.
-contract ZkAnonVoting is IZkPoll {
+contract ZkAnonVoting is IZkPoll, Initializable {
     ISemaphore public semaphore;
     uint256 public groupId;
 
     PollState public state;
     address public override owner;
-
-    bool private _initialized;
 
     string[] public options;
 
@@ -34,6 +33,11 @@ contract ZkAnonVoting is IZkPoll {
         _;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /// @notice Initialize the clone (replaces constructor)
     /// @param _semaphoreAddress  Address of the Semaphore contract
     /// @param _owner             Poll owner / admin
@@ -42,10 +46,7 @@ contract ZkAnonVoting is IZkPoll {
         address _semaphoreAddress,
         address _owner,
         string[] calldata _initialOptions
-    ) external {
-        require(!_initialized, "Already initialized");
-        _initialized = true;
-
+    ) external initializer {
         semaphore = ISemaphore(_semaphoreAddress);
         owner = _owner;
         state = PollState.Registration;

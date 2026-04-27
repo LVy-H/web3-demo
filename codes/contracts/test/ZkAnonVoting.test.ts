@@ -12,7 +12,36 @@ describe("ZkAnonVoting", function () {
     let tokens: string[] = [];
     let commitments: bigint[] = [];
 
-    /** Helper: deploy Semaphore stack + a fresh ZkAnonVoting clone via initialize() */
+    /** Helper: deploy a fresh ZkAnonVoting clone via PollRegistry. The bare
+     *  implementation has _disableInitializers() so it can never be initialized
+     *  directly — only clones produced by the registry are usable. */
+    async function deployAnonVotingClone(initialOptions: string[]): Promise<any> {
+        const ZkAnonVoting = await ethers.getContractFactory("ZkAnonVoting");
+        const impl = await ZkAnonVoting.deploy();
+
+        const PollRegistry = await ethers.getContractFactory("PollRegistry");
+        const registry = await PollRegistry.deploy();
+
+        await registry.registerModule("zk-anon-voting", await impl.getAddress());
+
+        const initData = impl.interface.encodeFunctionData("initialize", [
+            await semaphore.getAddress(),
+            owner.address,
+            initialOptions,
+        ]);
+
+        await registry.createPoll(
+            "zk-anon-voting",
+            "Test",
+            "Test poll",
+            initData
+        );
+
+        const cloneAddress = (await registry.getAllPolls())[0].pollAddress;
+        return ethers.getContractAt("ZkAnonVoting", cloneAddress);
+    }
+
+    /** Helper: deploy Semaphore stack + default ZkAnonVoting clone for beforeEach */
     async function deployVoting(initialOptions: string[] = ["Option A", "Option B", "Option C"]) {
         [owner, nonOwner] = await ethers.getSigners();
 
@@ -29,15 +58,7 @@ describe("ZkAnonVoting", function () {
         });
         semaphore = await Semaphore.deploy(await verifier.getAddress());
 
-        const ZkAnonVoting = await ethers.getContractFactory("ZkAnonVoting");
-        voting = await ZkAnonVoting.deploy();
-
-        // Initialize (simulates what PollRegistry.createPoll would do on the clone)
-        await voting.initialize(
-            await semaphore.getAddress(),
-            owner.address,
-            initialOptions
-        );
+        voting = await deployAnonVotingClone(initialOptions);
 
         // Generate 3 voter identities
         tokens = [];
@@ -220,13 +241,7 @@ describe("ZkAnonVoting", function () {
     describe("State transitions", function () {
         it("Requires at least 2 options to start voting", async function () {
             // Deploy with only 1 option
-            const ZkAnonVoting = await ethers.getContractFactory("ZkAnonVoting");
-            const sparse = await ZkAnonVoting.deploy();
-            await sparse.initialize(
-                await semaphore.getAddress(),
-                owner.address,
-                ["Only Option"]
-            );
+            const sparse = await deployAnonVotingClone(["Only Option"]);
 
             await expect(sparse.startVoting()).to.be.revertedWith(
                 "Need at least 2 options"
@@ -275,7 +290,7 @@ describe("ZkAnonVoting", function () {
                     owner.address,
                     ["X", "Y"]
                 )
-            ).to.be.revertedWith("Already initialized");
+            ).to.be.revertedWithCustomError(voting, "InvalidInitialization");
         });
     });
 
