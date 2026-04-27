@@ -311,6 +311,30 @@ Replace lines 137-138 + the inline `syncGroupState` function with consumption of
 1. `scripts/deploy.ts` — when wiring `MockSemaphoreVerifier`, log a multi-line warning so future-you doesn't get fooled into thinking ZK proofs are being verified.
 2. New `scripts/deploy-real.ts` (or environment variable in the existing script) that wires the real `SemaphoreVerifier`. Add `npm run deploy:real-verifier`. Document SNARK artifact requirement.
 
+### P3-20 — Parallel agents need git worktree isolation {#p3-20}
+
+**Priority:** P3 — **Status:** Open — **Owner:** —
+
+**Where:** Orchestrator dispatch flow (no specific file — process change).
+
+**Observed:** Sprint 1 dispatched three implementer agents in parallel (background mode) sharing a single working directory. They raced on `git checkout` operations. Concrete damage observed:
+- Agent A2's first commit `feff735 test(contracts): add ZkAirdrop test suite` landed on A1's branch `imp/P0-1-P0-2-poll-page-state-fixes` instead of A2's intended `imp/P0-3-airdrop-tests`. Recovery: `git rebase --onto 5bdc1e0 feff735 imp/P0-1-P0-2-poll-page-state-fixes` to drop the rogue commit, then A2 cherry-picked the same content onto its correct branch (final clean commit `4673bf9`).
+- Agent A3 stashed A1's WIP edits to `Poll.tsx` when it switched branches. Stash entry "P0-1-P0-2 wip before P0-3" later dropped as race-residue.
+- All three agents reported confusion about "the orchestrator changed HEAD out from under me" — they were observing each other's `git checkout` calls.
+
+**Why it matters:** Race-condition cleanup is manual and risky. A `git rebase --onto` on the wrong branch loses commits silently. As sprints scale (P1 has 8 items, P4 has 5), the chance of a destructive race compounds.
+
+**Fix:** Use the `isolation: "worktree"` option on the Agent tool when dispatching parallel implementer agents. Each agent gets its own git worktree (separate working directory, shared `.git/`), so per-agent `git checkout` operations don't race. Branches are still mergeable back into `main` from the lead worktree.
+
+**Acceptance:**
+- Future Sprint dispatches that fire ≥2 implementer agents in parallel use `isolation: "worktree"`.
+- Document the orchestrator pattern in `docs/improvements/README.md` (or a new `docs/project/ORCHESTRATION.md` if the section grows): "for parallel dispatch ≥2 agents, always use worktree isolation".
+- One serial sprint (after this fix lands) verifies no race-residue stashes appear.
+
+**Notes:**
+- Single-agent dispatch (e.g. one implementer fixing one item) does NOT need worktree isolation — overhead not worth it.
+- Worktrees may interact awkwardly with the `codes/` reorganization that's still in working tree. Test on a clean repo first.
+
 ---
 
 ## P4 — Production readiness

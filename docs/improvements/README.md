@@ -35,12 +35,12 @@ Source of truth lives in `findings.md` — this table is a snapshot. If they dis
 
 ### P0 — Bugs (4)
 
-| ID | Title | Owner | Status |
-|----|-------|-------|--------|
-| P0-1 | `localStorage['my-nullifier']` is global, not per-poll | — | Open |
-| P0-2 | Module-scope `let group` / `let isGroupSynced` in `Poll.tsx` | — | Open |
-| P0-3 | `ZkAirdrop` has no test file | — | Open |
-| P0-4 | Top-level docs describe the old `ZkVotingLottery` design | — | Open |
+| ID | Title | Owner | Status | Branch |
+|----|-------|-------|--------|--------|
+| P0-1 | `localStorage['my-nullifier']` is global, not per-poll | — | In Progress | `imp/P0-1-P0-2-poll-page-state-fixes` |
+| P0-2 | Module-scope `let group` / `let isGroupSynced` in `Poll.tsx` | — | In Progress | `imp/P0-1-P0-2-poll-page-state-fixes` |
+| P0-3 | `ZkAirdrop` has no test file | — | In Progress | `imp/P0-3-airdrop-tests` |
+| P0-4 | Top-level docs describe the old `ZkVotingLottery` design | — | In Progress | `imp/P0-4-readme-cleanup` |
 
 ### P1 — Contract security (8)
 
@@ -62,7 +62,7 @@ Source of truth lives in `findings.md` — this table is a snapshot. If they dis
 | P2-13 | Split `Poll.tsx` (855 LOC) into composed components + hooks | — | Open |
 | P2-14 | Split `BlindPoll.tsx` (710 LOC) into composed components + hooks | — | Open |
 
-### P3 — DX & CI (5)
+### P3 — DX & CI (6)
 
 | ID | Title | Owner | Status |
 |----|-------|-------|--------|
@@ -71,6 +71,7 @@ Source of truth lives in `findings.md` — this table is a snapshot. If they dis
 | P3-17 | Untrack `accounts.txt`, `hardhat-node.log` | — | Open |
 | P3-18 | Remove committed binaries (`web3-demo.zip`, `system-description.pdf/.txt`) | — | Open |
 | P3-19 | Loud banner when deploying with `MockSemaphoreVerifier` + a real-verifier deploy variant | — | Open |
+| P3-20 | Parallel agents need git worktree isolation | — | Open |
 
 ### P4 — Production readiness (5)
 
@@ -89,3 +90,4 @@ When you find a new issue mid-task, append a one-liner here with date + ID, then
 | Date | ID | Found by | Note |
 |------|-----|----------|------|
 | 2026-04-27 | P0-1..P4-24 | Initial codebase audit | Seed entries from first read-through |
+| 2026-04-27 | P3-20 | Sprint 1 dispatch retrospective | Parallel agents sharing one working tree caused branch-checkout races; A2's commit briefly landed on A1's branch (recovered via `git rebase --onto`). Future sprints must use `isolation: "worktree"` per agent. |
