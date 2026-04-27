@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.28;
 
 import "@semaphore-protocol/contracts/interfaces/ISemaphore.sol";
 import "./interfaces/IZkPoll.sol";
