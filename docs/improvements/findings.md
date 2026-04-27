@@ -311,6 +311,40 @@ Replace lines 137-138 + the inline `syncGroupState` function with consumption of
 1. `scripts/deploy.ts` — when wiring `MockSemaphoreVerifier`, log a multi-line warning so future-you doesn't get fooled into thinking ZK proofs are being verified.
 2. New `scripts/deploy-real.ts` (or environment variable in the existing script) that wires the real `SemaphoreVerifier`. Add `npm run deploy:real-verifier`. Document SNARK artifact requirement.
 
+### P1-13 — `registerVoters` batch cap of 100 exceeds mainnet block gas {#p1-13}
+
+**Priority:** P1 — **Status:** Open — **Owner:** —
+
+**Where:** `codes/contracts/contracts/ZkAnonVoting.sol` — the `registerVoters` cap introduced in P1-12.
+
+**Observed:** A7 empirically measured gas during the P1-12 implementation:
+- 25-element batch: ~3.8M gas
+- 50-element batch: ~24.5M gas (estimateGas)
+- 100-element batch: ~50M gas
+
+Mainnet block gas limit: 30M. Hardhat's default per-tx cap: 16.7M. **A 100-element batch fits in neither.** The P1-12 cap of 100 is therefore unreachable in practice — an honest owner who tries to register 100 commitments in one call gets a transaction-too-big revert. The cap as a *security control* (preventing accidental OOM by a careless owner) still works, but the value is not a useful operating bound.
+
+**Why it matters:** A frontend that chunks at 100 (the documented cap) hits gas limits before the cap fires. Users see opaque transaction failures.
+
+**Fix — pick one:**
+
+**Option A:** Lower the cap to a value that fits a single mainnet block. ~50 (`~24.5M gas`) is the highest n that fits 30M comfortably. Recommend 50.
+
+**Option B:** Lower further to ~25 to also fit Hardhat's default tx cap (testability). Cheaper but more frontend chunking.
+
+**Option C:** Make the cap a configurable parameter set at `initialize` time, defaulting to 50. Lets each poll tune to its target chain's block gas limit.
+
+**Acceptance:**
+- New cap value documented in code comment + `architecture/module-m1-anon-voting.md` Known Limitations.
+- Test boundary updated (existing P1-12 tests use 25 for the success-case, 101 for revert; refactor to use the new cap value -1 for success and cap+1 for revert).
+- Frontend should also be updated to chunk at the new value (separate finding if frontend doesn't currently chunk).
+
+**Notes:**
+- Gas costs scale roughly linearly with batch size due to `addMember` Merkle insertion cost dominating the loop. Different Semaphore depths or Poseidon implementations could shift the breakpoint.
+- Discovered during Sprint 2 P1-12 implementation; the original P1-12 spec claimed "100 fits comfortably under 30M" — that claim was wrong. Lesson: gas claims in spec docs should be empirically verified before they're load-bearing.
+
+---
+
 ### P3-20 — Parallel agents need git worktree isolation {#p3-20}
 
 **Priority:** P3 — **Status:** Open — **Owner:** —

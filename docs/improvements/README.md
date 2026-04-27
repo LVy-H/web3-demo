@@ -42,18 +42,19 @@ Source of truth lives in `findings.md` — this table is a snapshot. If they dis
 | P0-3 | `ZkAirdrop` has no test file | — | In Progress | `imp/P0-3-airdrop-tests` |
 | P0-4 | Top-level docs describe the old `ZkVotingLottery` design | — | In Progress | `imp/P0-4-readme-cleanup` |
 
-### P1 — Contract security (8)
+### P1 — Contract security (9)
 
-| ID | Title | Owner | Status |
-|----|-------|-------|--------|
-| P1-5  | Replace hand-rolled `_initialized` with OZ `Initializable` | — | Open |
-| P1-6  | Replace ad-hoc `onlyOwner` modifier with OZ `Ownable` / `Ownable2Step` | — | Open |
-| P1-7  | Custom errors instead of revert strings | — | Open |
-| P1-8  | Add `ReentrancyGuard` to `ZkAirdrop.claimAirdrop` | — | Open |
-| P1-9  | Owner escape hatch for unclaimed airdrop ETH | — | Open |
-| P1-10 | Unify Solidity pragma across all contracts | — | Open |
-| P1-11 | `ZkAnonVoting.startVoting` should require ≥1 voter | — | Open |
-| P1-12 | Cap batch size in `registerVoters` | — | Open |
+| ID | Title | Owner | Status | Branch |
+|----|-------|-------|--------|--------|
+| P1-5  | Replace hand-rolled `_initialized` with OZ `Initializable` | — | In Progress | `imp/P1-5-P1-6-P1-10-modernize-foundations` |
+| P1-6  | Replace ad-hoc `onlyOwner` modifier with OZ `Ownable` / `Ownable2Step` | — | In Progress | `imp/P1-5-P1-6-P1-10-modernize-foundations` |
+| P1-7  | Custom errors instead of revert strings | — | In Progress | `imp/P1-7-custom-errors` |
+| P1-8  | Add `ReentrancyGuard` to `ZkAirdrop.claimAirdrop` | — | In Progress | `imp/P1-8-P1-9-airdrop-hardening` |
+| P1-9  | Owner escape hatch for unclaimed airdrop ETH | — | In Progress | `imp/P1-8-P1-9-airdrop-hardening` |
+| P1-10 | Unify Solidity pragma across all contracts | — | In Progress | `imp/P1-5-P1-6-P1-10-modernize-foundations` |
+| P1-11 | `ZkAnonVoting.startVoting` should require ≥1 voter | — | In Progress | `imp/P1-11-P1-12-anon-invariants` |
+| P1-12 | Cap batch size in `registerVoters` | — | In Progress | `imp/P1-11-P1-12-anon-invariants` |
+| P1-13 | `registerVoters` cap of 100 exceeds mainnet block gas | — | Open | — |
 
 ### P2 — Frontend refactor (2)
 
@@ -91,3 +92,4 @@ When you find a new issue mid-task, append a one-liner here with date + ID, then
 |------|-----|----------|------|
 | 2026-04-27 | P0-1..P4-24 | Initial codebase audit | Seed entries from first read-through |
 | 2026-04-27 | P3-20 | Sprint 1 dispatch retrospective | Parallel agents sharing one working tree caused branch-checkout races; A2's commit briefly landed on A1's branch (recovered via `git rebase --onto`). Future sprints must use `isolation: "worktree"` per agent. |
+| 2026-04-27 | P1-13 | A7 empirical gas measurement during P1-12 implementation | 100-element registerVoters costs ~50M gas — exceeds mainnet's 30M block limit and Hardhat's 16.7M tx cap. Cap value chosen in P1-12 was wrong; recommend lowering to 50 (mainnet-fits) or 25 (Hardhat-fits) or making it a configurable initializer arg. |
