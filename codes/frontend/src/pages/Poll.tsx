@@ -3,10 +3,9 @@ import { useParams, Link } from 'react-router-dom'
 import { useAccount, useChainId, usePublicClient } from 'wagmi'
 import { hardhat, localhost } from 'wagmi/chains'
 import { Identity } from '@semaphore-protocol/identity'
-import { Group } from '@semaphore-protocol/group'
 import { generateProof } from '@semaphore-protocol/proof'
-import { parseAbiItem } from 'viem'
 import { usePollState, usePollOptions, usePollResults, usePollOwner, usePollWrite } from '../hooks/usePoll'
+import { useGroupSync } from '../hooks/useGroupSync'
 import ZkAnonVotingABI from '../abi/ZkAnonVoting.json'
 import {
     ArrowLeft,
@@ -132,10 +131,7 @@ function PrivacyReceipt() {
     )
 }
 
-/* -- Module-level state (preserved) --------------------------------------- */
-
-let group: Group | null = null;
-let isGroupSynced = false;
+/* -- Helpers -------------------------------------------------------------- */
 
 function loadSavedIdentity(pollAddr: string | undefined): Identity | null {
     if (!pollAddr) return null
@@ -180,7 +176,6 @@ export default function Poll() {
     // Load identity scoped to this poll
     useEffect(() => {
         setLocalIdentity(loadSavedIdentity(pollAddress))
-        isGroupSynced = false
         // Restore voted state from localStorage (scoped per poll)
         const nullifier = localStorage.getItem('my-nullifier-' + pollAddress)
         if (nullifier) setHasVoted(true)
@@ -191,7 +186,6 @@ export default function Poll() {
     const [statusMsg, setStatusMsg] = useState<string>("")
     const [statusType, setStatusType] = useState<'info' | 'success' | 'error'>('info')
     const [inviteToken, setInviteToken] = useState<string>("")
-    const [isSyncing, setIsSyncing] = useState(false)
     const [isPending, startTransition] = useTransition()
 
     // Admin: token generation
@@ -227,6 +221,10 @@ export default function Poll() {
         })
     }, [publicClient, pollAddress, typedPollAddr])
 
+    // Group sync state — owned by the hook, scoped per pollAddress.
+    const groupSync = useGroupSync(pollAddress, contractGroupId, publicClient, typedPollAddr)
+    const isSyncing = groupSync.isSyncing
+
     const pollOptions = (optionsData as string[]) || []
     const voteCounts = (resultsData as bigint[])?.map(Number) || []
     const totalVotes = voteCounts.reduce((s, c) => s + c, 0)
@@ -240,38 +238,7 @@ export default function Poll() {
         setStatusType(type)
     }
 
-    /* -- Core logic (unchanged) ------------------------------------------- */
-
-    const syncGroupState = async () => {
-        if (!pollAddress || !publicClient || isGroupSynced || contractGroupId === undefined || contractGroupId === null) return;
-        setIsSyncing(true);
-        setStatus("Syncing voting group from blockchain...");
-        try {
-            group = new Group();
-            const logs = await publicClient.getLogs({
-                address: typedPollAddr,
-                event: parseAbiItem('event VoterRegistered(uint256 identityCommitment)'),
-                fromBlock: 0n,
-            });
-            logs.forEach(log => {
-                try {
-                    if (log.args.identityCommitment && group) {
-                        group.addMember(BigInt(log.args.identityCommitment.toString()));
-                    }
-                } catch (e: unknown) {
-                    const err = e as { message?: string }
-                    if (!err.message?.includes('already')) console.warn(err.message);
-                }
-            });
-            isGroupSynced = true;
-            setStatus("Voting group synced. You can now vote.", 'success');
-        } catch (e) {
-            console.error("Failed to sync group", e);
-            setStatus("Failed to sync voting group. Proof might fail.", 'error');
-        } finally {
-            setIsSyncing(false);
-        }
-    }
+    /* -- Core logic ------------------------------------------------------- */
 
     const loadIdentityFromToken = () => {
         if (!inviteToken) return;
@@ -312,7 +279,7 @@ export default function Poll() {
             })
 
             setGeneratedTokens(tokens)
-            isGroupSynced = false; // force re-sync
+            groupSync.reset(); // force re-sync after new commitments registered
             setStatus(`${tokenCount} tokens generated and registered on-chain! Distribute them to voters.`, 'success')
         } catch (e: unknown) {
             console.error(e)
@@ -344,7 +311,16 @@ export default function Poll() {
     const handleVote = async () => {
         if (!localIdentity || !pollAddress || contractGroupId === undefined) return
         try {
-            await syncGroupState();
+            let group = groupSync.group
+            if (!group) {
+                setStatus("Syncing voting group from blockchain...")
+                try {
+                    group = await groupSync.sync()
+                    if (group) setStatus("Voting group synced. You can now vote.", 'success')
+                } catch {
+                    setStatus("Failed to sync voting group. Proof might fail.", 'error')
+                }
+            }
             if (!group) throw new Error("Group not initialized");
 
             setStatus("Generating zero-knowledge proof... This may take a moment.")
