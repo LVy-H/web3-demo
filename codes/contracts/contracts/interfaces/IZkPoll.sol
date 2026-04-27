@@ -2,7 +2,11 @@
 pragma solidity ^0.8.20;
 
 interface IZkPoll {
-    enum PollState { Registration, Voting, Ended }
+    enum PollState {
+        Registration,
+        Voting,
+        Ended
+    }
     event StateChanged(PollState newState);
 
     function getState() external view returns (PollState);

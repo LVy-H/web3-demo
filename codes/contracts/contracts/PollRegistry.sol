@@ -20,12 +20,7 @@ contract PollRegistry {
     PollInfo[] public polls;
 
     event ModuleRegistered(string moduleType, address implementation);
-    event PollCreated(
-        address pollAddress,
-        string moduleType,
-        string title,
-        address creator
-    );
+    event PollCreated(address pollAddress, string moduleType, string title, address creator);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Not owner");
@@ -37,10 +32,7 @@ contract PollRegistry {
     }
 
     /// @notice Register (or update) a module implementation address
-    function registerModule(
-        string calldata moduleType,
-        address implementation
-    ) external onlyOwner {
+    function registerModule(string calldata moduleType, address implementation) external onlyOwner {
         require(implementation != address(0), "Zero address");
         modules[moduleType] = implementation;
         emit ModuleRegistered(moduleType, implementation);

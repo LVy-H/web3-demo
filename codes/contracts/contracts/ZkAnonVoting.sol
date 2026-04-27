@@ -80,9 +80,7 @@ contract ZkAnonVoting is IZkPoll {
         return participantCount;
     }
 
-    function verifyParticipation(
-        uint256 nullifierHash
-    ) external view override returns (bool) {
+    function verifyParticipation(uint256 nullifierHash) external view override returns (bool) {
         return isNullifierUsed[nullifierHash];
     }
 
@@ -102,10 +100,7 @@ contract ZkAnonVoting is IZkPoll {
 
     function registerVoter(uint256 identityCommitment) external onlyOwner {
         require(state == PollState.Registration, "Not in registration phase");
-        require(
-            !registeredCommitments[identityCommitment],
-            "This identity is already registered"
-        );
+        require(!registeredCommitments[identityCommitment], "This identity is already registered");
 
         registeredCommitments[identityCommitment] = true;
         participantCount++;
@@ -114,16 +109,11 @@ contract ZkAnonVoting is IZkPoll {
         emit VoterRegistered(identityCommitment);
     }
 
-    function registerVoters(
-        uint256[] calldata identityCommitments
-    ) external onlyOwner {
+    function registerVoters(uint256[] calldata identityCommitments) external onlyOwner {
         require(state == PollState.Registration, "Not in registration phase");
 
         for (uint256 i = 0; i < identityCommitments.length; i++) {
-            require(
-                !registeredCommitments[identityCommitments[i]],
-                "Duplicate identity in batch"
-            );
+            require(!registeredCommitments[identityCommitments[i]], "Duplicate identity in batch");
             registeredCommitments[identityCommitments[i]] = true;
             participantCount++;
             semaphore.addMember(groupId, identityCommitments[i]);
@@ -134,10 +124,7 @@ contract ZkAnonVoting is IZkPoll {
     // ── Admin: Poll Lifecycle ───────────────────────────────────────
 
     function startVoting() external onlyOwner {
-        require(
-            state == PollState.Registration,
-            "Can only start from registration"
-        );
+        require(state == PollState.Registration, "Can only start from registration");
         require(options.length >= 2, "Need at least 2 options");
         state = PollState.Voting;
         emit StateChanged(PollState.Voting);
@@ -152,18 +139,12 @@ contract ZkAnonVoting is IZkPoll {
 
     // ── Voter: Cast an anonymous vote using Semaphore ───────────────
 
-    function castVote(
-        uint256 vote,
-        ISemaphore.SemaphoreProof calldata proof
-    ) external {
+    function castVote(uint256 vote, ISemaphore.SemaphoreProof calldata proof) external {
         require(state == PollState.Voting, "Not in voting phase");
         require(vote < options.length, "Invalid option index");
         require(!isNullifierUsed[proof.nullifier], "You have already voted");
 
-        require(
-            proof.scope == uint256(uint160(address(this))),
-            "Invalid scope"
-        );
+        require(proof.scope == uint256(uint160(address(this))), "Invalid scope");
         require(proof.message == vote, "Tampered vote signal");
 
         bool isValid = semaphore.verifyProof(groupId, proof);

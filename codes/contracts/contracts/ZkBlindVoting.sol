@@ -92,9 +92,7 @@ contract ZkBlindVoting is IZkPoll {
 
     /// @notice For IZkPoll compatibility. Interprets nullifierHash as address(uint160(nullifierHash)).
     ///         Returns true if that address has committed a vote.
-    function verifyParticipation(
-        uint256 nullifierHash
-    ) external view override returns (bool) {
+    function verifyParticipation(uint256 nullifierHash) external view override returns (bool) {
         address voter = address(uint160(nullifierHash));
         return commits[voter].commitHash != bytes32(0);
     }
@@ -151,10 +149,7 @@ contract ZkBlindVoting is IZkPoll {
 
     /// @notice Transition Registration → Voting. Requires >= 2 options and >= 1 voter.
     function startVoting() external onlyOwner {
-        require(
-            state == PollState.Registration,
-            "Can only start from registration"
-        );
+        require(state == PollState.Registration, "Can only start from registration");
         require(options.length >= 2, "Need at least 2 options");
         require(participantCount >= 1, "Need at least 1 voter");
 
@@ -179,10 +174,7 @@ contract ZkBlindVoting is IZkPoll {
     function commitVote(bytes32 commitHash) external {
         require(state == PollState.Voting, "Not in voting phase");
         require(isRegistered[msg.sender], "Not registered");
-        require(
-            commits[msg.sender].commitHash == bytes32(0),
-            "Already committed"
-        );
+        require(commits[msg.sender].commitHash == bytes32(0), "Already committed");
         require(commitHash != bytes32(0), "Empty commit hash");
 
         commits[msg.sender] = VoteCommit({
@@ -204,20 +196,12 @@ contract ZkBlindVoting is IZkPoll {
         require(state == PollState.Ended, "Not in ended phase");
         require(block.timestamp <= revealDeadline, "Reveal deadline passed");
         require(!resultsFinalized, "Results already finalized");
-        require(
-            commits[msg.sender].commitHash != bytes32(0),
-            "No commit found"
-        );
+        require(commits[msg.sender].commitHash != bytes32(0), "No commit found");
         require(!commits[msg.sender].revealed, "Already revealed");
         require(optionIndex < options.length, "Invalid option index");
 
-        bytes32 expectedHash = keccak256(
-            abi.encodePacked(optionIndex, salt)
-        );
-        require(
-            expectedHash == commits[msg.sender].commitHash,
-            "Hash mismatch"
-        );
+        bytes32 expectedHash = keccak256(abi.encodePacked(optionIndex, salt));
+        require(expectedHash == commits[msg.sender].commitHash, "Hash mismatch");
 
         commits[msg.sender].revealed = true;
         commits[msg.sender].revealedOption = optionIndex;
@@ -231,10 +215,7 @@ contract ZkBlindVoting is IZkPoll {
     /// @notice Finalize results after reveal deadline. Unrevealed votes are excluded.
     function finalizeResults() external onlyOwner {
         require(state == PollState.Ended, "Not in ended phase");
-        require(
-            block.timestamp > revealDeadline,
-            "Reveal deadline not passed"
-        );
+        require(block.timestamp > revealDeadline, "Reveal deadline not passed");
         require(!resultsFinalized, "Already finalized");
 
         resultsFinalized = true;
