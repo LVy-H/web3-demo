@@ -6,6 +6,21 @@ import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IZkPoll.sol";
 
+/// @notice Errors for {ZkAnonVoting}.
+/// @dev OZ-provided errors (OwnableUnauthorizedAccount, InvalidInitialization, etc.)
+///      cover access-control / lifecycle reverts; these are the module's local errors.
+error NotInRegistration();
+error NotInVoting();
+error CanOnlyStartFromRegistration();
+error NeedAtLeastTwoOptions();
+error AlreadyRegistered();
+error DuplicateInBatch();
+error InvalidOptionIndex();
+error AlreadyVoted();
+error InvalidScope();
+error TamperedVoteSignal();
+error InvalidProof();
+
 /// @title ZkAnonVoting (M1)
 /// @notice Anonymous voting module implementing IZkPoll.
 ///         Uses initialize() instead of constructor for EIP-1167 minimal proxy compatibility.
@@ -90,7 +105,7 @@ contract ZkAnonVoting is IZkPoll, Initializable, Ownable {
     // ── Admin: Manage Options (Registration phase only) ─────────────
 
     function addOption(string calldata label) external onlyOwner {
-        require(state == PollState.Registration, "Not in registration phase");
+        if (state != PollState.Registration) revert NotInRegistration();
         options.push(label);
         emit OptionAdded(label);
     }
@@ -102,11 +117,8 @@ contract ZkAnonVoting is IZkPoll, Initializable, Ownable {
     // ── Admin: Register Voters ──────────────────────────────────────
 
     function registerVoter(uint256 identityCommitment) external onlyOwner {
-        require(state == PollState.Registration, "Not in registration phase");
-        require(
-            !registeredCommitments[identityCommitment],
-            "This identity is already registered"
-        );
+        if (state != PollState.Registration) revert NotInRegistration();
+        if (registeredCommitments[identityCommitment]) revert AlreadyRegistered();
 
         registeredCommitments[identityCommitment] = true;
         participantCount++;
@@ -118,13 +130,10 @@ contract ZkAnonVoting is IZkPoll, Initializable, Ownable {
     function registerVoters(
         uint256[] calldata identityCommitments
     ) external onlyOwner {
-        require(state == PollState.Registration, "Not in registration phase");
+        if (state != PollState.Registration) revert NotInRegistration();
 
         for (uint256 i = 0; i < identityCommitments.length; i++) {
-            require(
-                !registeredCommitments[identityCommitments[i]],
-                "Duplicate identity in batch"
-            );
+            if (registeredCommitments[identityCommitments[i]]) revert DuplicateInBatch();
             registeredCommitments[identityCommitments[i]] = true;
             participantCount++;
             semaphore.addMember(groupId, identityCommitments[i]);
@@ -135,17 +144,14 @@ contract ZkAnonVoting is IZkPoll, Initializable, Ownable {
     // ── Admin: Poll Lifecycle ───────────────────────────────────────
 
     function startVoting() external onlyOwner {
-        require(
-            state == PollState.Registration,
-            "Can only start from registration"
-        );
-        require(options.length >= 2, "Need at least 2 options");
+        if (state != PollState.Registration) revert CanOnlyStartFromRegistration();
+        if (options.length < 2) revert NeedAtLeastTwoOptions();
         state = PollState.Voting;
         emit StateChanged(PollState.Voting);
     }
 
     function endVoting() external onlyOwner {
-        require(state == PollState.Voting, "Not in voting phase");
+        if (state != PollState.Voting) revert NotInVoting();
         state = PollState.Ended;
         emit StateChanged(PollState.Ended);
         emit PollClosed();
@@ -157,18 +163,15 @@ contract ZkAnonVoting is IZkPoll, Initializable, Ownable {
         uint256 vote,
         ISemaphore.SemaphoreProof calldata proof
     ) external {
-        require(state == PollState.Voting, "Not in voting phase");
-        require(vote < options.length, "Invalid option index");
-        require(!isNullifierUsed[proof.nullifier], "You have already voted");
+        if (state != PollState.Voting) revert NotInVoting();
+        if (vote >= options.length) revert InvalidOptionIndex();
+        if (isNullifierUsed[proof.nullifier]) revert AlreadyVoted();
 
-        require(
-            proof.scope == uint256(uint160(address(this))),
-            "Invalid scope"
-        );
-        require(proof.message == vote, "Tampered vote signal");
+        if (proof.scope != uint256(uint160(address(this)))) revert InvalidScope();
+        if (proof.message != vote) revert TamperedVoteSignal();
 
         bool isValid = semaphore.verifyProof(groupId, proof);
-        require(isValid, "Invalid ZK proof");
+        if (!isValid) revert InvalidProof();
 
         isNullifierUsed[proof.nullifier] = true;
         voteCounts[vote]++;
