@@ -139,6 +139,7 @@ contract ZkAnonVoting is IZkPoll {
             "Can only start from registration"
         );
         require(options.length >= 2, "Need at least 2 options");
+        require(participantCount >= 1, "Need at least 1 voter");
         state = PollState.Voting;
         emit StateChanged(PollState.Voting);
     }

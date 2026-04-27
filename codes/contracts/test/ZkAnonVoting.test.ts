@@ -233,6 +233,20 @@ describe("ZkAnonVoting", function () {
             );
         });
 
+        it("Requires at least 1 voter to start voting", async function () {
+            // Fresh poll with 2 options but no registered voters
+            await expect(voting.startVoting()).to.be.revertedWith(
+                "Need at least 1 voter"
+            );
+        });
+
+        it("startVoting succeeds after registering >=1 voter", async function () {
+            await voting.registerVoter(commitments[0]);
+            await expect(voting.startVoting())
+                .to.emit(voting, "StateChanged")
+                .withArgs(1); // PollState.Voting
+        });
+
         it("Cannot vote in Registration phase", async function () {
             const scope = BigInt(await voting.getAddress());
             const mockProof = {
@@ -256,12 +270,14 @@ describe("ZkAnonVoting", function () {
         });
 
         it("startVoting emits StateChanged", async function () {
+            await voting.registerVoter(commitments[0]);
             await expect(voting.startVoting())
                 .to.emit(voting, "StateChanged")
                 .withArgs(1); // PollState.Voting
         });
 
         it("endVoting emits StateChanged", async function () {
+            await voting.registerVoter(commitments[0]);
             await voting.startVoting();
             await expect(voting.endVoting())
                 .to.emit(voting, "StateChanged")
@@ -290,6 +306,7 @@ describe("ZkAnonVoting", function () {
         });
 
         it("Cannot add option after registration phase", async function () {
+            await voting.registerVoter(commitments[0]);
             await voting.startVoting();
             await expect(voting.addOption("Late Option")).to.be.revertedWith(
                 "Not in registration phase"
