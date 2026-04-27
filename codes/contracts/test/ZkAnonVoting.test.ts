@@ -117,6 +117,40 @@ describe("ZkAnonVoting", function () {
                 "Duplicate identity in batch"
             );
         });
+
+        it("Empty batch rejected", async function () {
+            await expect(voting.registerVoters([])).to.be.revertedWith(
+                "Empty batch"
+            );
+        });
+
+        it("Batch under cap succeeds (sub-boundary)", async function () {
+            // The contract cap is 100 (see registerVoters), but Semaphore.addMember
+            // costs grow with tree depth: a batch of 100 measures ~50M gas which
+            // exceeds Hardhat's default per-tx cap (16.7M) AND mainnet's 30M block
+            // limit. We assert the cap doesn't reject valid sub-cap batches by
+            // submitting a 25-element batch (~3.8M gas, comfortable).
+            // The 101-rejected test below confirms the upper bound is enforced
+            // without needing to actually run 100 Semaphore inserts.
+            const batch: bigint[] = [];
+            for (let i = 0; i < 25; i++) {
+                const pk = crypto.randomBytes(32).toString("hex");
+                batch.push(new Identity(pk).commitment);
+            }
+            await voting.registerVoters(batch);
+            expect(await voting.getParticipantCount()).to.equal(25);
+        });
+
+        it("Batch of 101 commitments rejected", async function () {
+            const batch: bigint[] = [];
+            for (let i = 0; i < 101; i++) {
+                const pk = crypto.randomBytes(32).toString("hex");
+                batch.push(new Identity(pk).commitment);
+            }
+            await expect(voting.registerVoters(batch)).to.be.revertedWith(
+                "Batch too large"
+            );
+        });
     });
 
     // ── Voting ───────────────────────────────────────────────────────

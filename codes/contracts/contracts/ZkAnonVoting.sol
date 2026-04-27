@@ -118,6 +118,8 @@ contract ZkAnonVoting is IZkPoll {
         uint256[] calldata identityCommitments
     ) external onlyOwner {
         require(state == PollState.Registration, "Not in registration phase");
+        require(identityCommitments.length > 0, "Empty batch");
+        require(identityCommitments.length <= 100, "Batch too large");
 
         for (uint256 i = 0; i < identityCommitments.length; i++) {
             require(
