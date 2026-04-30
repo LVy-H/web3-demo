@@ -32,7 +32,7 @@ npm run deploy:local
 
 echo ""
 echo "====================================================================="
-echo "Copying ABIs to frontend..."
+echo "Copying ABIs to frontend and relayer..."
 npm run copy-abis
 echo "====================================================================="
 echo ""

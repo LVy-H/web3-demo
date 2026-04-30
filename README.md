@@ -1,99 +1,63 @@
-# ZK Ballot & Lottery — PoC
+# ZK Voting Hub
 
-A **Zero-Knowledge voting system with anonymous lottery** built on Semaphore Protocol v4.  
-Voters register anonymously, cast votes, and one winner is drawn from the pool — with full privacy.
-
----
+A **Zero-Knowledge anonymous voting platform** built on Semaphore Protocol v4. Supports two voting modules — **Anonymous ZK Vote** and **Blind Commit-Reveal** — with an optional **Gasless Relayer** so voters can participate without a wallet.
 
 ## Architecture
 
 ```
 web3-demo/
-├── contracts/   Solidity + Hardhat (smart contracts, tests, deploy script)
-└── frontend/    React 19 + Vite + Wagmi (web UI)
+├── contracts/    Solidity + Hardhat — smart contracts, tests, deploy scripts
+├── frontend/     React 19 + Vite — web UI with dark mode
+├── relayer/      Express.js — gasless vote relayer service
+└── docs/         Architecture docs, roadmap, improvement tracker
 ```
 
-### Smart Contract (`ZkVotingLottery.sol`)
+### Smart Contracts (Modular)
 
-| Phase | Description |
-|-------|-------------|
-| **Registration** (0) | Users submit their Semaphore identity commitment on-chain. |
-| **Voting** (1) | Owner transitions to voting. Users cast anonymous votes with ZK proofs. |
-| **Ended** (2) | Owner closes the poll, a pseudo-random lottery winner is drawn from voters' nullifiers. The winner proves ownership to claim a prize. |
+| Contract | Purpose |
+|----------|---------|
+| **PollRegistry** | EIP-1167 factory — creates poll clones via minimal proxies |
+| **ZkAnonVoting** (M1) | Anonymous voting with Semaphore ZK proofs |
+| **ZkBlindVoting** (M2) | Commit-reveal blind voting (no ZK required) |
+| **ZkAirdrop** | Semaphore-gated anonymous ETH airdrop |
 
-Key properties:
-- **Anonymity** – votes are linked to ZK nullifiers, not Ethereum addresses.
-- **Double-vote prevention** – each nullifier can only be used once per poll.
-- **Prize claim** – winner generates a fresh ZK proof specifying the receiver address.
+### Services
 
-> ⚠️ **PoC only** – the lottery randomness (`block.timestamp + prevrandao`) is NOT safe for production. Use Chainlink VRF on mainnet.
+| Service | Port | Description |
+|---------|------|-------------|
+| Hardhat Node | 8545 | Local EVM blockchain (Chain ID 31337) |
+| Frontend | 5173 | React app with Wagmi + Viem |
+| Relayer | 3001 | Gasless vote relay API |
+| Block Explorer | 3728 | Ethereum Lite Explorer |
 
-### Frontend (`App.tsx`)
-
-Built with **React 19**, **Wagmi v3**, **Viem v2**, and **TailwindCSS v4**.
-
-- Generates and persists a Semaphore identity in `localStorage`.
-- Reads live poll state and vote tallies directly from the contract.
-- Generates ZK proofs client-side with `@semaphore-protocol/proof` and submits them.
-- Admin panel (owner only) to advance the poll phases.
-- Automatic network validation — prompts user to switch to the Hardhat network.
-
----
-
-## Prerequisites
-
-| Tool | Version |
-|------|---------|
-| Node.js | ≥ 20 |
-| npm | ≥ 9 |
-| MetaMask browser extension | latest |
-
----
-
-## Quick Start (local dev)
-
-### 1 – Smart Contracts
+## Quick Start (Docker)
 
 ```bash
-cd contracts
-npm install
-npm test           # Run all tests (no internet needed — uses MockSemaphoreVerifier)
+docker compose up --build -d
 ```
 
-### 2 – Start the local Hardhat node
+Wait for logs to show "Contracts are fully deployed", then open:
+- Frontend: `http://localhost:5173`
+- Explorer: `http://localhost:3728`
+- Relayer: `http://localhost:3001/api/relay/status`
+
+## Quick Start (Manual — 3 terminals)
 
 ```bash
-# In a dedicated terminal:
-cd contracts
-npm run node       # Starts JSON-RPC at http://127.0.0.1:8545
+# Terminal 1 — Blockchain node
+cd contracts && npm install && npx hardhat node
+
+# Terminal 2 — Deploy contracts
+cd contracts && npm run deploy:local && npm run copy-abis
+
+# Terminal 3 — Frontend
+cd frontend && npm install && npm run dev
+
+# Optional: Terminal 4 — Relayer
+cd relayer && npm install && npm start
 ```
 
-### 3 – Deploy the contracts
-
-```bash
-# In another terminal (while the node is running):
-cd contracts
-npm run deploy:local
-```
-
-Expected output:
-```
-ZkVotingLottery deployed to: 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
-```
-
-> The address is **deterministic** on a fresh Hardhat node — it always matches the hardcoded value in `frontend/src/config.ts`.
-
-### 4 – Start the frontend
-
-```bash
-cd frontend
-npm install
-npm run dev        # http://localhost:5173
-```
-
-### 5 – Configure MetaMask
-
-Add the Hardhat network to MetaMask:
+## MetaMask Setup
 
 | Field | Value |
 |-------|-------|
@@ -102,111 +66,52 @@ Add the Hardhat network to MetaMask:
 | Chain ID | `31337` |
 | Currency | ETH |
 
-Import one of the Hardhat test accounts using its private key (printed by `npm run node`).
+Import test account (Admin): `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`
 
----
+## Usage Workflow
 
-## Full User Flow
+### Admin Flow
 
-```
-1. Open http://localhost:5173
-2. Click "Connect MetaMask"
-3. Click "Generate Local Identity"   ← creates a Semaphore keypair in your browser
-4. Click "Submit Commitment On-chain" ← registers you as a voter
-   [Admin] Click "Start Voting"
-5. Select Candidate A or B
-6. Click "Generate Proof & Vote"      ← generates ZK proof, submits on-chain
-   [Admin] Click "Close & Draw Lottery"
-7. If you won, enter a receiver address and click "Verify & Claim Prize"
-```
+1. Connect MetaMask (Admin account) → **Create Poll** → choose type (ZK or Blind)
+2. **Generate Tokens** (ZK polls only) → distribute tokens to voters privately
+3. **Start Voting** → voters can now vote
+4. **Close Poll** → results locked on-chain
 
----
+### Voter Flow — Via Relayer (no wallet needed)
+
+1. Open poll link → paste invite token → **Load Identity**
+2. Select **Relayer (No Wallet)** tab → choose option → **Vote**
+3. ZK proof generates in browser → relayer submits to blockchain
+4. Vote recorded anonymously — no wallet, no ETH, no on-chain identity
+
+### Voter Flow — Direct (with wallet)
+
+1. Connect MetaMask → paste invite token → **Load Identity**
+2. Select **Direct (Wallet)** tab → choose option → **Cast Anonymous Vote**
+3. Confirm in MetaMask → vote recorded on-chain
 
 ## Testing
 
-### Contract tests
-
 ```bash
-cd contracts
-npm test
-```
+# Contract unit tests
+cd contracts && npm test
 
-Tests use `MockSemaphoreVerifier` so no SNARK artifacts need to be downloaded:
-
-| Test | Description |
-|------|-------------|
-| Should allow voters to register | Verifies `VoterRegistered` event |
-| Should reject registration during voting phase | Phase transition guard |
-| Should reject double voting via nullifier reuse | Nullifier uniqueness |
-| Should execute a full ZK voting, lottery, and prize-claim flow | End-to-end happy path |
-
-### Frontend (Playwright E2E)
-
-> E2E tests require a running Hardhat node with deployed contracts AND a running frontend dev server.
-
-```bash
-# Terminal 1
-cd contracts && npm run node
-
-# Terminal 2
-cd contracts && npm run deploy:local
-
-# Terminal 3
-cd frontend && npm run dev
-
-# Terminal 4
+# E2E frontend tests
 cd frontend && npx playwright test
 ```
 
----
+## Tech Stack
 
-## Configuration
+| Layer | Technologies |
+|-------|-------------|
+| Blockchain | Hardhat, Solidity 0.8.34, Semaphore v4, OpenZeppelin Clones |
+| Frontend | React 19, Vite 8, TailwindCSS 4, Wagmi 3, Viem 2 |
+| Relayer | Express.js, ethers.js v6 |
+| Infra | Docker Compose, Nix flake |
 
-### `frontend/src/config.ts`
+## Project Docs
 
-```ts
-export const CONTRACT_ADDRESS = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9";
-```
-
-This matches the deterministic address from a fresh Hardhat node.  
-If you restart the node and redeploy, the address resets to the same value.
-
-If you deploy to a different network, update `CONTRACT_ADDRESS` and the `chains` / `transports` in `createConfig`.
-
----
-
-## Project Structure
-
-```
-contracts/
-├── contracts/
-│   ├── ZkVotingLottery.sol        Main contract
-│   └── MockSemaphoreVerifier.sol  Test-only verifier (always returns true)
-├── scripts/
-│   └── deploy.ts                  Deployment script
-├── test/
-│   └── ZkVotingLottery.ts         Hardhat/Chai tests
-└── hardhat.config.ts
-
-frontend/
-├── src/
-│   ├── App.tsx                    Main React component
-│   ├── config.ts                  Wagmi config + contract address
-│   ├── main.tsx                   React entry point (WagmiProvider, QueryClientProvider)
-│   ├── ZkVotingLottery.json       Contract ABI
-│   └── index.css                  Tailwind base
-├── tests/
-│   └── e2e.spec.ts                Playwright E2E tests
-└── vite.config.ts
-```
-
----
-
-## Security Notes
-
-This is a **Proof of Concept** — do not use in production without the following changes:
-
-1. **Lottery randomness** — replace `block.timestamp + prevrandao` with [Chainlink VRF](https://docs.chain.link/vrf).
-2. **Group state** — the frontend maintains a local off-chain group mirror. In production, build it from `VoterRegistered` event history.
-3. **MockSemaphoreVerifier** — the mock verifier in `contracts/contracts/MockSemaphoreVerifier.sol` is for local testing only. The deploy script uses the real `SemaphoreVerifier`.
-4. **SNARK artifacts** — the production verifier requires SNARK artifacts from `snark-artifacts.pse.dev`. In a production frontend, ensure these are served from a trusted CDN or bundled locally.
+- [Architecture](docs/architecture/system-overview.md)
+- [Roadmap](docs/project/ROADMAP.md)
+- [Changelog](docs/project/CHANGELOG.md)
+- [Improvement Tracker](docs/improvements/findings.md)

@@ -22,3 +22,4 @@ export const config = createConfig({
 export const REGISTRY_ADDRESS = deployedAddresses.REGISTRY_ADDRESS as `0x${string}`;
 export const SEMAPHORE_ADDRESS = deployedAddresses.SEMAPHORE_ADDRESS as `0x${string}`;
 export const AIRDROP_ADDRESS = deployedAddresses.AIRDROP_ADDRESS as `0x${string}`;
+export const RELAYER_URL = import.meta.env.VITE_RELAYER_URL || 'http://127.0.0.1:3001';

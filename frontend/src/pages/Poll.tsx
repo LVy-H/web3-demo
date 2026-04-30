@@ -7,6 +7,7 @@ import { Group } from '@semaphore-protocol/group'
 import { generateProof } from '@semaphore-protocol/proof'
 import { parseAbiItem } from 'viem'
 import { usePollState, usePollOptions, usePollResults, usePollOwner, usePollWrite } from '../hooks/usePoll'
+import { useRelayVote } from '../hooks/useRelay'
 import ZkAnonVotingABI from '../abi/ZkAnonVoting.json'
 import {
     ArrowLeft,
@@ -19,6 +20,8 @@ import {
     Settings,
     BarChart3,
     Users,
+    Radio,
+    Zap,
 } from 'lucide-react'
 
 /* -- Error Map ------------------------------------------------------------ */
@@ -142,8 +145,15 @@ function loadSavedIdentity(pollAddr: string | undefined): Identity | null {
     try {
         const saved = localStorage.getItem(`semaphore-identity-${pollAddr}`)
         if (!saved) return null
+        // Migrate: old saves used Uint8Array.toString() which produces "1,2,3,..."
+        // Detect and remove these corrupt entries
+        if (saved.includes(',')) {
+            localStorage.removeItem(`semaphore-identity-${pollAddr}`)
+            return null
+        }
         return new Identity(saved)
     } catch {
+        localStorage.removeItem(`semaphore-identity-${pollAddr}`)
         return null
     }
 }
@@ -198,6 +208,10 @@ export default function Poll() {
     const [generatedTokens, setGeneratedTokens] = useState<string[]>([])
     const [newOptionLabel, setNewOptionLabel] = useState<string>("")
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
+
+    // Relay mode: vote without connecting wallet
+    const [useRelay, setUseRelay] = useState(false)
+    const { relayVote, isRelaying } = useRelayVote()
 
     // Use hooks from usePoll
     const { data: pollOwner } = usePollOwner(typedPollAddr)
@@ -276,7 +290,8 @@ export default function Poll() {
         if (!inviteToken) return;
         try {
             const newId = new Identity(inviteToken);
-            localStorage.setItem(`semaphore-identity-${pollAddress}`, newId.privateKey.toString());
+            // Save the original hex token string (not privateKey which is Uint8Array)
+            localStorage.setItem(`semaphore-identity-${pollAddress}`, inviteToken.trim());
             setLocalIdentity(newId);
             setStatus("Identity loaded successfully from invite token.", 'success');
         } catch {
@@ -383,6 +398,40 @@ export default function Poll() {
         }
     }
 
+    // --- Voter: Cast Vote via Relayer (no wallet needed) ---
+    const handleRelayVote = async () => {
+        if (!localIdentity || !pollAddress || contractGroupId === undefined) return
+        try {
+            await syncGroupState();
+            if (!group) throw new Error("Group not initialized");
+
+            setStatus("Generating zero-knowledge proof... This may take a moment.")
+
+            const scope = typedPollAddr
+
+            if (group.indexOf(BigInt(localIdentity.commitment.toString())) === -1) {
+                throw new Error("Your identity is not registered in this poll's on-chain group. Did you receive a valid invite token?");
+            }
+
+            const fullProof = await generateProof(localIdentity, group, selectedOption, scope)
+
+            setStatus("Sending vote to relayer service...")
+
+            const result = await relayVote(pollAddress, selectedOption, fullProof)
+
+            if (!result.success) {
+                throw new Error(result.error || "Relay failed")
+            }
+
+            localStorage.setItem('my-nullifier', fullProof.nullifier.toString())
+            setHasVoted(true)
+            setStatus(`Vote relayed successfully! Tx: ${result.txHash?.slice(0, 10)}...`, 'success')
+        } catch (e: unknown) {
+            console.error(e)
+            setStatus(friendlyError(e), 'error')
+        }
+    }
+
     // Admin actions
     const handleStartVoting = async () => {
         if (!pollAddress) return;
@@ -408,15 +457,40 @@ export default function Poll() {
         }
     }
 
-    /* -- Copy token helper ------------------------------------------------ */
+    /* -- Copy helper (works on HTTP / non-secure contexts) --------------- */
+    function copyToClipboard(text: string): boolean {
+        if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(text).catch(() => fallbackCopy(text))
+            return true
+        }
+        return fallbackCopy(text)
+    }
+
+    function fallbackCopy(text: string): boolean {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.select()
+        const ok = document.execCommand('copy')
+        document.body.removeChild(ta)
+        return ok
+    }
+
     const copyToken = (token: string, index: number) => {
-        navigator.clipboard.writeText(token)
+        copyToClipboard(token)
         setCopiedIndex(index)
         setTimeout(() => setCopiedIndex(null), 1500)
     }
 
     /* -- Vote button label ------------------------------------------------ */
     function voteButtonLabel(): string {
+        if (useRelay) {
+            if (isRelaying) return 'Relaying Vote...'
+            if (isSyncing) return 'Syncing Group...'
+            return 'Vote via Relayer (No Wallet)'
+        }
         if (isWrongNetwork) return 'Switch Network First'
         if (!isConnected) return 'Connect Wallet First'
         if (isSyncing) return 'Syncing Group...'
@@ -424,7 +498,9 @@ export default function Poll() {
         return 'Cast Anonymous Vote'
     }
 
-    const voteDisabled = !isConnected || isWrongNetwork || isSyncing || isTxConfirming || isPending
+    const voteDisabled = useRelay
+        ? isSyncing || isRelaying || isPending
+        : !isConnected || isWrongNetwork || isSyncing || isTxConfirming || isPending
 
     /* -- Render ----------------------------------------------------------- */
 
@@ -549,6 +625,38 @@ export default function Poll() {
                         <div className="animate-fade-in-up bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-sm p-6">
                             <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 mb-4">Cast Your Vote</h2>
 
+                            {/* Relay Mode Toggle */}
+                            <div className="flex items-center gap-3 mb-5 p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700">
+                                <button
+                                    onClick={() => setUseRelay(false)}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                                        !useRelay
+                                            ? 'bg-white dark:bg-stone-700 text-teal-700 dark:text-teal-400 shadow-sm border border-stone-200 dark:border-stone-600'
+                                            : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300'
+                                    }`}
+                                >
+                                    <Radio className="w-3.5 h-3.5" />
+                                    Direct (Wallet)
+                                </button>
+                                <button
+                                    onClick={() => setUseRelay(true)}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                                        useRelay
+                                            ? 'bg-white dark:bg-stone-700 text-violet-700 dark:text-violet-400 shadow-sm border border-stone-200 dark:border-stone-600'
+                                            : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300'
+                                    }`}
+                                >
+                                    <Zap className="w-3.5 h-3.5" />
+                                    Relayer (No Wallet)
+                                </button>
+                            </div>
+
+                            {useRelay && (
+                                <div className="mb-4 px-3 py-2.5 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg text-xs text-violet-700 dark:text-violet-400">
+                                    Your vote will be submitted anonymously via the relayer service. No wallet or ETH required.
+                                </div>
+                            )}
+
                             {pollOptions.length === 0 ? (
                                 <p className="text-sm text-stone-400 dark:text-stone-500">No options available.</p>
                             ) : (
@@ -567,7 +675,6 @@ export default function Poll() {
                                                         : 'border-stone-200 dark:border-stone-700 hover:border-teal-300 dark:hover:border-teal-600 text-stone-700 dark:text-stone-300'
                                                 }`}
                                             >
-                                                {/* Radio indicator */}
                                                 <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
                                                     selectedOption === i
                                                         ? 'border-teal-600 bg-teal-600'
@@ -584,9 +691,16 @@ export default function Poll() {
 
                                     {/* VOTE BUTTON */}
                                     <button
-                                        onClick={() => startTransition(async () => await handleVote())}
+                                        onClick={() => startTransition(async () => {
+                                            if (useRelay) await handleRelayVote()
+                                            else await handleVote()
+                                        })}
                                         disabled={voteDisabled}
-                                        className="w-full py-4 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white transition-colors rounded-xl text-base font-bold disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
+                                        className={`w-full py-4 text-white transition-colors rounded-xl text-base font-bold disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                                            useRelay
+                                                ? 'bg-violet-600 hover:bg-violet-700 active:bg-violet-800 focus-visible:ring-violet-500'
+                                                : 'bg-teal-600 hover:bg-teal-700 active:bg-teal-800 focus-visible:ring-teal-500'
+                                        }`}
                                     >
                                         {voteButtonLabel()}
                                     </button>
@@ -817,7 +931,7 @@ export default function Poll() {
                                                 </span>
                                                 <button
                                                     onClick={() => {
-                                                        navigator.clipboard.writeText(generatedTokens.join('\n'))
+                                                        copyToClipboard(generatedTokens.join('\n'))
                                                         setStatus("All tokens copied to clipboard!", 'success')
                                                     }}
                                                     className="text-xs bg-stone-700 hover:bg-stone-600 text-stone-200 px-3 py-1 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400"
