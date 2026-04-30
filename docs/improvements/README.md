@@ -44,7 +44,7 @@ Source of truth lives in `findings.md` — this table is a snapshot. If they dis
 
 ### P1 — Contract security (8)
 
-| ID | Title | Owner | Status |
+| ID | Title | Owner | Status | 
 |----|-------|-------|--------|
 | P1-5  | Replace hand-rolled `_initialized` with OZ `Initializable` | — | Open |
 | P1-6  | Replace ad-hoc `onlyOwner` modifier with OZ `Ownable` / `Ownable2Step` | — | Open |

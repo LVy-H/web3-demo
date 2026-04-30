@@ -7,6 +7,7 @@
     "test": "hardhat test",
     "compile": "hardhat compile",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
+    "copy-abis": "ts-node scripts/copyAbis.ts",
     "node": "hardhat node"
   },
   "keywords": [],
@@ -22,6 +23,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1",
     "@semaphore-protocol/contracts": "^4.14.2"
   }
 }

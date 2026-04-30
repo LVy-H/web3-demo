@@ -10,9 +10,7 @@ export const config = createConfig({
     connectors: [
         metaMask(),
         mock({
-            accounts: [
-                '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266', // Hardhat local account 0
-            ],
+            accounts: ['0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'],
         }),
     ],
     transports: {
@@ -21,7 +19,6 @@ export const config = createConfig({
     },
 })
 
-// Contract details dynamically set
-export const FACTORY_ADDRESS = deployedAddresses.FACTORY_ADDRESS as `0x${string}`;
+export const REGISTRY_ADDRESS = deployedAddresses.REGISTRY_ADDRESS as `0x${string}`;
+export const SEMAPHORE_ADDRESS = deployedAddresses.SEMAPHORE_ADDRESS as `0x${string}`;
 export const AIRDROP_ADDRESS = deployedAddresses.AIRDROP_ADDRESS as `0x${string}`;
-

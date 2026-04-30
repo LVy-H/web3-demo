@@ -15,7 +15,7 @@ echo "Hardhat node is successfully running!"
 
 echo ""
 echo "====================================================================="
-echo "🦊 MetaMask Local Node Configuration:"
+echo "MetaMask Local Node Configuration:"
 echo "---------------------------------------------------------------------"
 echo "Network Name:    Hardhat Local"
 echo "New RPC URL:     http://127.0.0.1:8545"
@@ -32,8 +32,8 @@ npm run deploy:local
 
 echo ""
 echo "====================================================================="
-echo "Generating Anonymous Tokens for Voting / Claims:"
-npx hardhat run scripts/generateTokens.ts --network localhost
+echo "Copying ABIs to frontend..."
+npm run copy-abis
 echo "====================================================================="
 echo ""
 
