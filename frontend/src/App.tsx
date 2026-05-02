@@ -177,6 +177,23 @@ function AppContent() {
                     </div>
                 )}
 
+                {/* -- Hardhat nonce tip (shown once per session) --------------- */}
+                {isConnected && !isWrongNetwork && !sessionStorage.getItem('nonce-tip-dismissed') && (
+                    <div className="bg-sky-50 dark:bg-sky-900/20 border-t border-sky-200 dark:border-sky-800">
+                        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 px-6 py-2.5 md:px-8">
+                            <p className="text-xs text-sky-800 dark:text-sky-300">
+                                <strong>Tip:</strong> If MetaMask shows transactions as failed but they still succeed, go to MetaMask &gt; Settings &gt; Advanced &gt; <strong>Clear activity tab data</strong>, or delete and re-add the Hardhat Local network.
+                            </p>
+                            <button
+                                onClick={() => { sessionStorage.setItem('nonce-tip-dismissed', '1'); window.location.reload() }}
+                                className="text-xs text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-200 font-semibold shrink-0 px-2 py-1"
+                            >
+                                Dismiss
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Mobile nav */}
                 <nav className="sm:hidden flex items-center gap-1 px-6 pb-3">
                     <NavLink to="/" icon={LayoutDashboard}>Dashboard</NavLink>

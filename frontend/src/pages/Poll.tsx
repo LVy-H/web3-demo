@@ -1,11 +1,11 @@
-import { useState, useEffect, useTransition, Fragment } from 'react'
+import { useState, useEffect, useRef, useTransition, Fragment } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAccount, useChainId, usePublicClient } from 'wagmi'
 import { hardhat, localhost } from 'wagmi/chains'
 import { Identity } from '@semaphore-protocol/identity'
 import { Group } from '@semaphore-protocol/group'
 import { generateProof } from '@semaphore-protocol/proof'
-import { parseAbiItem } from 'viem'
+import { createPublicClient, http, parseAbiItem } from 'viem'
 import { usePollState, usePollOptions, usePollResults, usePollOwner, usePollWrite } from '../hooks/usePoll'
 import { useRelayVote } from '../hooks/useRelay'
 import ZkAnonVotingABI from '../abi/ZkAnonVoting.json'
@@ -34,6 +34,10 @@ const ERROR_MAP: Record<string, string> = {
     'Not in registration phase': 'Registration is closed. Voting has already begun.',
     'Need at least 2 options': 'A poll needs at least 2 options before voting can start.',
     'Already registered': 'This identity is already registered for this poll.',
+    'nullifier consumed': 'This vote token has already been used.',
+    'Relay failed': 'Relayer service could not process the vote. Please try again.',
+    'Failed to fetch': 'Cannot reach relayer service. Make sure it is running on port 3001.',
+    'NetworkError': 'Network error connecting to relayer. Check your connection.',
 }
 
 function friendlyError(err: unknown): string {
@@ -43,7 +47,8 @@ function friendlyError(err: unknown): string {
     for (const [key, friendly] of Object.entries(ERROR_MAP)) {
         if (msg.includes(key)) return friendly
     }
-    return 'Something went wrong. Please check your wallet and try again.'
+    const short = msg.length > 200 ? msg.slice(0, 200) + '...' : msg
+    return `Error: ${short}`
 }
 
 /* -- State Progression ---------------------------------------------------- */
@@ -135,10 +140,13 @@ function PrivacyReceipt() {
     )
 }
 
-/* -- Module-level state (preserved) --------------------------------------- */
+/* -- Fallback public client for relay mode (no wallet connected) --------- */
 
-let group: Group | null = null;
-let isGroupSynced = false;
+const RPC_URL = import.meta.env.VITE_RPC_URL || 'http://127.0.0.1:8545'
+const fallbackPublicClient = createPublicClient({
+    chain: hardhat,
+    transport: http(RPC_URL),
+})
 
 function loadSavedIdentity(pollAddr: string | undefined): Identity | null {
     if (!pollAddr) return null
@@ -187,13 +195,21 @@ export default function Poll() {
     const [localIdentity, setLocalIdentity] = useState<Identity | null>(null)
     const [hasVoted, setHasVoted] = useState(false)
 
+    const groupRef = useRef<Group | null>(null)
+    const isGroupSyncedRef = useRef(false)
+
     // Load identity scoped to this poll
     useEffect(() => {
         setLocalIdentity(loadSavedIdentity(pollAddress))
-        isGroupSynced = false
-        // Restore voted state from localStorage
-        const nullifier = localStorage.getItem('my-nullifier')
-        if (nullifier) setHasVoted(true)
+        isGroupSyncedRef.current = false
+        groupRef.current = null
+        // Restore voted state scoped to this poll
+        if (pollAddress) {
+            const nullifier = localStorage.getItem(`my-nullifier-${pollAddress}`)
+            setHasVoted(!!nullifier)
+        } else {
+            setHasVoted(false)
+        }
     }, [pollAddress])
 
     const [selectedOption, setSelectedOption] = useState<number>(0)
@@ -227,8 +243,9 @@ export default function Poll() {
     // Read groupId from ZkAnonVoting (not in IZkPoll interface)
     const [contractGroupId, setContractGroupId] = useState<bigint | null>(null)
     useEffect(() => {
-        if (!publicClient || !pollAddress) return
-        publicClient.readContract({
+        if (!pollAddress) return
+        const client = publicClient ?? fallbackPublicClient;
+        client.readContract({
             address: typedPollAddr,
             abi: ZkAnonVotingABI.abi,
             functionName: 'groupId',
@@ -256,28 +273,34 @@ export default function Poll() {
     /* -- Core logic (unchanged) ------------------------------------------- */
 
     const syncGroupState = async () => {
-        if (!pollAddress || !publicClient || isGroupSynced || contractGroupId === undefined || contractGroupId === null) return;
+        if (!pollAddress || isGroupSyncedRef.current) return;
+        const client = publicClient ?? fallbackPublicClient;
         setIsSyncing(true);
         setStatus("Syncing voting group from blockchain...");
         try {
-            group = new Group();
-            const logs = await publicClient.getLogs({
+            const g = new Group();
+            const logs = await client.getLogs({
                 address: typedPollAddr,
                 event: parseAbiItem('event VoterRegistered(uint256 identityCommitment)'),
                 fromBlock: 0n,
             });
+            const seen = new Set<string>();
             logs.forEach(log => {
-                try {
-                    if (log.args.identityCommitment && group) {
-                        group.addMember(BigInt(log.args.identityCommitment.toString()));
+                if (log.args.identityCommitment) {
+                    const key = log.args.identityCommitment.toString();
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        g.addMember(BigInt(key));
                     }
-                } catch (e: unknown) {
-                    const err = e as { message?: string }
-                    if (!err.message?.includes('already')) console.warn(err.message);
                 }
             });
-            isGroupSynced = true;
-            setStatus("Voting group synced. You can now vote.", 'success');
+            groupRef.current = g;
+            isGroupSyncedRef.current = true;
+            if (g.members.length === 0) {
+                setStatus("No registered voters found on-chain. The admin may not have registered tokens yet, or the blockchain node was restarted.", 'error');
+            } else {
+                setStatus(`Voting group synced (${g.members.length} members). You can now vote.`, 'success');
+            }
         } catch (e) {
             console.error("Failed to sync group", e);
             setStatus("Failed to sync voting group. Proof might fail.", 'error');
@@ -289,10 +312,13 @@ export default function Poll() {
     const loadIdentityFromToken = () => {
         if (!inviteToken) return;
         try {
-            const newId = new Identity(inviteToken);
-            // Save the original hex token string (not privateKey which is Uint8Array)
-            localStorage.setItem(`semaphore-identity-${pollAddress}`, inviteToken.trim());
+            const trimmed = inviteToken.trim()
+            const newId = new Identity(trimmed);
+            localStorage.setItem(`semaphore-identity-${pollAddress}`, trimmed);
             setLocalIdentity(newId);
+            isGroupSyncedRef.current = false
+            groupRef.current = null
+            setHasVoted(false)
             setStatus("Identity loaded successfully from invite token.", 'success');
         } catch {
             setStatus("Invalid invite token. Please double-check and try again.", 'error');
@@ -326,7 +352,7 @@ export default function Poll() {
             })
 
             setGeneratedTokens(tokens)
-            isGroupSynced = false; // force re-sync
+            isGroupSyncedRef.current = false; // force re-sync
             setStatus(`${tokenCount} tokens generated and registered on-chain! Distribute them to voters.`, 'success')
         } catch (e: unknown) {
             console.error(e)
@@ -356,20 +382,37 @@ export default function Poll() {
 
     // --- Voter: Cast Vote ---
     const handleVote = async () => {
-        if (!localIdentity || !pollAddress || contractGroupId === undefined) return
+        if (!localIdentity || !pollAddress) {
+            setStatus("Please load your identity first.", 'error')
+            return
+        }
+        if (contractGroupId === undefined || contractGroupId === null) {
+            setStatus("Loading poll data... Please wait a moment and try again.", 'error')
+            return
+        }
         try {
-            await syncGroupState();
-            if (!group) throw new Error("Group not initialized");
+            if (!groupRef.current || !isGroupSyncedRef.current) {
+                isGroupSyncedRef.current = false
+                await syncGroupState();
+            }
+            if (!groupRef.current) throw new Error("Could not sync the voting group. Please refresh the page and try again.");
 
-            setStatus("Generating zero-knowledge proof... This may take a moment.")
+            setStatus("Generating zero-knowledge proof... This may take 10-30 seconds.")
 
             const scope = typedPollAddr
 
-            if (group.indexOf(BigInt(localIdentity.commitment.toString())) === -1) {
-                throw new Error("Your identity is not registered in this poll's on-chain group. Did you receive a valid invite token?");
+            const memberIndex = groupRef.current.indexOf(BigInt(localIdentity.commitment.toString()))
+            if (memberIndex === -1) {
+                throw new Error("Your identity is not registered in this poll. Check your invite token or ask the admin for a new one.");
             }
 
-            const fullProof = await generateProof(localIdentity, group, selectedOption, scope)
+            let fullProof
+            try {
+                fullProof = await generateProof(localIdentity, groupRef.current, selectedOption, scope)
+            } catch (proofErr) {
+                console.error("ZK proof generation failed:", proofErr)
+                throw new Error("ZK proof generation failed. This requires downloading ~2MB of circuit data. Check your internet connection and try again.")
+            }
 
             const proofStruct = {
                 merkleTreeDepth: fullProof.merkleTreeDepth,
@@ -389,7 +432,7 @@ export default function Poll() {
                 gas: 5000000n,
             })
 
-            localStorage.setItem('my-nullifier', fullProof.nullifier.toString())
+            localStorage.setItem(`my-nullifier-${pollAddress}`, fullProof.nullifier.toString())
             setHasVoted(true)
             setStatus("Vote cast successfully! Your anonymity is guaranteed by zero-knowledge cryptography.", 'success')
         } catch (e: unknown) {
@@ -400,30 +443,47 @@ export default function Poll() {
 
     // --- Voter: Cast Vote via Relayer (no wallet needed) ---
     const handleRelayVote = async () => {
-        if (!localIdentity || !pollAddress || contractGroupId === undefined) return
+        if (!localIdentity || !pollAddress) {
+            setStatus("Please load your identity first.", 'error')
+            return
+        }
+        if (contractGroupId === undefined || contractGroupId === null) {
+            setStatus("Loading poll data... Please wait a moment and try again.", 'error')
+            return
+        }
         try {
-            await syncGroupState();
-            if (!group) throw new Error("Group not initialized");
+            if (!groupRef.current || !isGroupSyncedRef.current) {
+                isGroupSyncedRef.current = false
+                await syncGroupState();
+            }
+            if (!groupRef.current) throw new Error("Could not sync the voting group. Please refresh the page and try again.");
 
-            setStatus("Generating zero-knowledge proof... This may take a moment.")
+            setStatus("Generating zero-knowledge proof... This may take 10-30 seconds.")
 
             const scope = typedPollAddr
 
-            if (group.indexOf(BigInt(localIdentity.commitment.toString())) === -1) {
-                throw new Error("Your identity is not registered in this poll's on-chain group. Did you receive a valid invite token?");
+            const memberIndex = groupRef.current.indexOf(BigInt(localIdentity.commitment.toString()))
+            if (memberIndex === -1) {
+                throw new Error("Your identity is not registered in this poll. Check your invite token or ask the admin for a new one.");
             }
 
-            const fullProof = await generateProof(localIdentity, group, selectedOption, scope)
+            let fullProof
+            try {
+                fullProof = await generateProof(localIdentity, groupRef.current, selectedOption, scope)
+            } catch (proofErr) {
+                console.error("ZK proof generation failed:", proofErr)
+                throw new Error("ZK proof generation failed. This requires downloading ~2MB of circuit data. Check your internet connection and try again.")
+            }
 
             setStatus("Sending vote to relayer service...")
 
             const result = await relayVote(pollAddress, selectedOption, fullProof)
 
             if (!result.success) {
-                throw new Error(result.error || "Relay failed")
+                throw new Error(result.error || "Relayer could not process the vote. Check if the relayer service is running.")
             }
 
-            localStorage.setItem('my-nullifier', fullProof.nullifier.toString())
+            localStorage.setItem(`my-nullifier-${pollAddress}`, fullProof.nullifier.toString())
             setHasVoted(true)
             setStatus(`Vote relayed successfully! Tx: ${result.txHash?.slice(0, 10)}...`, 'success')
         } catch (e: unknown) {
@@ -591,8 +651,12 @@ export default function Poll() {
                                 <button
                                     onClick={() => {
                                         localStorage.removeItem(`semaphore-identity-${pollAddress}`)
+                                        if (pollAddress) localStorage.removeItem(`my-nullifier-${pollAddress}`)
                                         setLocalIdentity(null)
                                         setHasVoted(false)
+                                        setInviteToken("")
+                                        isGroupSyncedRef.current = false
+                                        groupRef.current = null
                                         setStatus("Identity cleared.", 'info')
                                     }}
                                     className="text-xs text-stone-400 dark:text-stone-500 hover:text-rose-500 dark:hover:text-rose-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 rounded px-2 py-1"

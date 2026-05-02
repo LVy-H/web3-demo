@@ -102,7 +102,7 @@ Tính năng 2: Nền kinh tế trả thưởng (Trade-to-Earn / Vote-to-Earn)
 
 
 
-  -​   Vocdoni / Aragon: Các nền tảng quản trị có ứng dụng một phần
+  -​   Vocdoni / Aragon: Các ền tảng quản trị có ứng dụng một phần
        công nghệ mã hóa, nhưng quy trình thiết lập rất phức tạp, UX/UI
        kém thân thiện với người mới và chưa đạt được mức độ ẩn danh toàn
        diện (Tier 4).
