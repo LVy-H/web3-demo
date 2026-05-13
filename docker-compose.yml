@@ -1,19 +1,20 @@
+# DEV ONLY — not for production. Ports bound to loopback only.
 version: '3.8'
 
 services:
   contracts:
     build:
-      context: ./contracts
+      context: ./codes/contracts
     ports:
-      - "8545:8545"
+      - "127.0.0.1:8545:8545"
     volumes:
-      - ./contracts:/app
-      - ./frontend/src:/app/frontend/src
+      - ./codes/contracts:/app
+      - ./codes/frontend/src:/app/frontend/src
       - /app/node_modules
 
   frontend:
     build:
-      context: ./frontend
+      context: ./codes/frontend
     ports:
       - "5173:5173"
     environment:
@@ -22,7 +23,7 @@ services:
     depends_on:
       - contracts
     volumes:
-      - ./frontend:/app
+      - ./codes/frontend:/app
       - /app/node_modules
 
   # T-D: relayer service wiring. The image is built from codes/relayer/,
