@@ -42,9 +42,6 @@ services:
       - PORT=3001
     depends_on:
       - contracts
-    volumes:
-      - ./codes/relayer:/app
-      - /app/node_modules
 
   explorer:
     image: alethio/ethereum-lite-explorer

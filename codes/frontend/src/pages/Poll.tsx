@@ -192,6 +192,9 @@ export default function Poll() {
             setHasVoted(false)
             return
         }
+        // Sweep legacy unscoped nullifier key for returning voters who re-loaded
+        // their identity token (the new key is `my-nullifier-${pollAddress}-${commitment}`).
+        localStorage.removeItem(`my-nullifier-${pollAddress}`)
         const nullifier = localStorage.getItem(`my-nullifier-${pollAddress}-${id.commitment.toString()}`)
         setHasVoted(Boolean(nullifier))
     }, [pollAddress])
