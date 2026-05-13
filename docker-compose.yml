@@ -25,6 +25,25 @@ services:
       - ./frontend:/app
       - /app/node_modules
 
+  # T-D: relayer service wiring. The image is built from codes/relayer/,
+  # which is being ported in by T-B (branch imp/T-B-*). Until T-B lands on
+  # main, `docker compose up relayer` will fail to build — that's expected.
+  # Defaults mirror codes/relayer/src/config.ts (port 3001, hardhat dev key).
+  relayer:
+    build:
+      context: ./codes/relayer
+    ports:
+      - "3001:3001"
+    environment:
+      - RPC_URL=http://contracts:8545
+      - RELAYER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - PORT=3001
+    depends_on:
+      - contracts
+    volumes:
+      - ./codes/relayer:/app
+      - /app/node_modules
+
   explorer:
     image: alethio/ethereum-lite-explorer
     ports:
