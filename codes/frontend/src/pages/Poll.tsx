@@ -6,6 +6,7 @@ import { Identity } from '@semaphore-protocol/identity'
 import { generateProof } from '@semaphore-protocol/proof'
 import { usePollState, usePollOptions, usePollResults, usePollOwner, usePollWrite } from '../hooks/usePoll'
 import { useGroupSync } from '../hooks/useGroupSync'
+import { useRelayVote } from '../hooks/useRelay'
 import ZkAnonVotingABI from '../abi/ZkAnonVoting.json'
 import {
     ArrowLeft,
@@ -18,6 +19,8 @@ import {
     Settings,
     BarChart3,
     Users,
+    Radio,
+    Zap,
 } from 'lucide-react'
 
 /* -- Error Map ------------------------------------------------------------ */
@@ -30,6 +33,10 @@ const ERROR_MAP: Record<string, string> = {
     'Not in registration phase': 'Registration is closed. Voting has already begun.',
     'Need at least 2 options': 'A poll needs at least 2 options before voting can start.',
     'Already registered': 'This identity is already registered for this poll.',
+    'nullifier consumed': 'This vote token has already been used.',
+    'Relay failed': 'Relayer service could not process the vote. Please try again.',
+    'Failed to fetch': 'Cannot reach relayer service. Make sure it is running on port 3001.',
+    'NetworkError': 'Network error connecting to relayer. Check your connection.',
 }
 
 function friendlyError(err: unknown): string {
@@ -187,6 +194,10 @@ export default function Poll() {
     const [statusType, setStatusType] = useState<'info' | 'success' | 'error'>('info')
     const [inviteToken, setInviteToken] = useState<string>("")
     const [isPending, startTransition] = useTransition()
+
+    // Vote submission mode: false = direct on-chain via wallet, true = gasless relayer.
+    const [useRelay, setUseRelay] = useState(false)
+    const { relayVote, isRelaying } = useRelayVote()
 
     // Admin: token generation
     const [tokenCount, setTokenCount] = useState<number>(5)
@@ -367,6 +378,44 @@ export default function Poll() {
         }
     }
 
+    // --- Voter: Cast Vote via Relayer (no wallet required) ---
+    const handleRelayVote = async () => {
+        if (!localIdentity || !pollAddress || contractGroupId === null || contractGroupId === undefined) return
+        try {
+            let group = groupSync.group
+            if (!group) {
+                setStatus("Syncing voting group from blockchain...")
+                try {
+                    group = await groupSync.sync()
+                } catch {
+                    setStatus("Failed to sync voting group. Proof might fail.", 'error')
+                    return
+                }
+            }
+            if (!group) throw new Error("Could not sync the voting group.")
+
+            const scope = typedPollAddr
+            if (group.indexOf(BigInt(localIdentity.commitment.toString())) === -1) {
+                throw new Error("Your identity is not registered in this poll's on-chain group. Did you receive a valid invite token?")
+            }
+
+            setStatus("Generating zero-knowledge proof... This may take 10-30 seconds.")
+            const fullProof = await generateProof(localIdentity, group, selectedOption, scope)
+
+            setStatus("Sending vote to relayer service...")
+            const result = await relayVote(pollAddress, selectedOption, fullProof)
+            if (!result.success) throw new Error(result.error || 'Relay failed')
+
+            localStorage.setItem(`my-nullifier-${pollAddress}`, fullProof.nullifier.toString())
+            setHasVoted(true)
+            const txTail = result.txHash ? ` Tx: ${result.txHash.slice(0, 10)}...` : ''
+            setStatus(`Vote relayed successfully!${txTail} Your anonymity is preserved.`, 'success')
+        } catch (e: unknown) {
+            console.error(e)
+            setStatus(friendlyError(e), 'error')
+        }
+    }
+
     // Admin actions
     const handleStartVoting = async () => {
         if (!pollAddress) return;
@@ -401,6 +450,12 @@ export default function Poll() {
 
     /* -- Vote button label ------------------------------------------------ */
     function voteButtonLabel(): string {
+        if (useRelay) {
+            if (isRelaying) return 'Relaying Vote...'
+            if (isSyncing) return 'Syncing Group...'
+            if (isPending) return 'Processing...'
+            return 'Vote via Relayer (No Wallet)'
+        }
         if (isWrongNetwork) return 'Switch Network First'
         if (!isConnected) return 'Connect Wallet First'
         if (isSyncing) return 'Syncing Group...'
@@ -408,7 +463,9 @@ export default function Poll() {
         return 'Cast Anonymous Vote'
     }
 
-    const voteDisabled = !isConnected || isWrongNetwork || isSyncing || isTxConfirming || isPending
+    const voteDisabled = useRelay
+        ? isSyncing || isRelaying || isPending
+        : !isConnected || isWrongNetwork || isSyncing || isTxConfirming || isPending
 
     /* -- Render ----------------------------------------------------------- */
 
@@ -536,6 +593,40 @@ export default function Poll() {
                         <div className="animate-fade-in-up bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-sm p-6">
                             <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 mb-4">Cast Your Vote</h2>
 
+                            {/* Relay Mode Toggle */}
+                            <div className="flex items-center gap-3 mb-5 p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700">
+                                <button
+                                    onClick={() => setUseRelay(false)}
+                                    aria-pressed={!useRelay}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                                        !useRelay
+                                            ? 'bg-white dark:bg-stone-700 text-teal-700 dark:text-teal-400 shadow-sm border border-stone-200 dark:border-stone-600'
+                                            : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300'
+                                    }`}
+                                >
+                                    <Radio className="w-3.5 h-3.5" />
+                                    Direct (Wallet)
+                                </button>
+                                <button
+                                    onClick={() => setUseRelay(true)}
+                                    aria-pressed={useRelay}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                                        useRelay
+                                            ? 'bg-white dark:bg-stone-700 text-violet-700 dark:text-violet-400 shadow-sm border border-stone-200 dark:border-stone-600'
+                                            : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300'
+                                    }`}
+                                >
+                                    <Zap className="w-3.5 h-3.5" />
+                                    Relayer (No Wallet)
+                                </button>
+                            </div>
+
+                            {useRelay && (
+                                <div className="mb-4 px-3 py-2.5 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg text-xs text-violet-700 dark:text-violet-400">
+                                    Your vote will be submitted anonymously via the relayer service. No wallet or ETH required.
+                                </div>
+                            )}
+
                             {pollOptions.length === 0 ? (
                                 <p className="text-sm text-stone-400 dark:text-stone-500">No options available.</p>
                             ) : (
@@ -571,9 +662,16 @@ export default function Poll() {
 
                                     {/* VOTE BUTTON */}
                                     <button
-                                        onClick={() => startTransition(async () => await handleVote())}
+                                        onClick={() => startTransition(async () => {
+                                            if (useRelay) await handleRelayVote()
+                                            else await handleVote()
+                                        })}
                                         disabled={voteDisabled}
-                                        className="w-full py-4 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white transition-colors rounded-xl text-base font-bold disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
+                                        className={`w-full py-4 text-white transition-colors rounded-xl text-base font-bold disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                                            useRelay
+                                                ? 'bg-violet-600 hover:bg-violet-700 active:bg-violet-800 focus-visible:ring-violet-500'
+                                                : 'bg-teal-600 hover:bg-teal-700 active:bg-teal-800 focus-visible:ring-teal-500'
+                                        }`}
                                     >
                                         {voteButtonLabel()}
                                     </button>
