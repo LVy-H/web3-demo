@@ -177,7 +177,7 @@ export default function Poll() {
     useEffect(() => {
         setLocalIdentity(loadSavedIdentity(pollAddress))
         // Restore voted state from localStorage (scoped per poll)
-        const nullifier = localStorage.getItem('my-nullifier-' + pollAddress)
+        const nullifier = localStorage.getItem(`my-nullifier-${pollAddress}`)
         if (nullifier) setHasVoted(true)
         else setHasVoted(false)
     }, [pollAddress])
@@ -245,6 +245,13 @@ export default function Poll() {
         try {
             const newId = new Identity(inviteToken);
             localStorage.setItem(`semaphore-identity-${pollAddress}`, newId.privateKey.toString());
+            // Loading a different identity invalidates any cached voted-state and
+            // group membership cache: the new identity may map to a different
+            // member of the group, and the saved nullifier was keyed to the
+            // previous one.
+            localStorage.removeItem(`my-nullifier-${pollAddress}`)
+            setHasVoted(false)
+            groupSync.reset()
             setLocalIdentity(newId);
             setStatus("Identity loaded successfully from invite token.", 'success');
         } catch {
@@ -351,7 +358,7 @@ export default function Poll() {
                 gas: 5000000n,
             })
 
-            localStorage.setItem('my-nullifier-' + pollAddress, fullProof.nullifier.toString())
+            localStorage.setItem(`my-nullifier-${pollAddress}`, fullProof.nullifier.toString())
             setHasVoted(true)
             setStatus("Vote cast successfully! Your anonymity is guaranteed by zero-knowledge cryptography.", 'success')
         } catch (e: unknown) {
@@ -492,9 +499,11 @@ export default function Poll() {
                                 <button
                                     onClick={() => {
                                         localStorage.removeItem(`semaphore-identity-${pollAddress}`)
-                                        localStorage.removeItem('my-nullifier-' + pollAddress)
+                                        localStorage.removeItem(`my-nullifier-${pollAddress}`)
                                         setLocalIdentity(null)
                                         setHasVoted(false)
+                                        setInviteToken("")
+                                        groupSync.reset()
                                         setStatus("Identity cleared.", 'info')
                                     }}
                                     className="text-xs text-stone-400 dark:text-stone-500 hover:text-rose-500 dark:hover:text-rose-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 rounded px-2 py-1"
