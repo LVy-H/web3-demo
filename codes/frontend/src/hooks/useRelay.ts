@@ -15,13 +15,19 @@ import { RELAYER_URL } from '../config'
  *  - useRelayStatus() -> { fetchStatus }    (one-shot poll-on-demand)
  */
 
+/**
+ * RelayProof matches the shape returned by @semaphore-protocol/proof's
+ * generateProof(). Numeric fields are decimal strings (NumericString),
+ * not bigints — the upstream type uses string-form because snarkjs emits
+ * stringified field elements. We accept both for ergonomic callers.
+ */
 export interface RelayProof {
     merkleTreeDepth: number | bigint
-    merkleTreeRoot: bigint
-    nullifier: bigint
-    message: bigint
-    scope: bigint
-    points: readonly bigint[]
+    merkleTreeRoot: string | bigint
+    nullifier: string | bigint
+    message: string | bigint
+    scope: string | bigint
+    points: readonly (string | bigint)[]
 }
 
 export interface RelayResult {
