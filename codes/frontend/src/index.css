@@ -5,11 +5,43 @@
 
 /* ── Design Tokens ─────────────────────────────────────────────── */
 @theme {
-  /* Semantic colors — warm neutrals with teal accent */
+  /* Semantic colors — warm neutrals with teal accent (legacy light theme) */
   --color-surface: oklch(0.985 0.002 75);        /* stone-50 */
   --color-card: oklch(1 0 0);                     /* white */
   --color-brand: oklch(0.12 0.01 75);             /* near stone-950 */
   --color-accent: oklch(0.55 0.14 175);           /* teal-600 */
+
+  /* ── Dark Bauhaus palette ────────────────────────────────────
+     Source of truth: .tmp/ui-proposals/05-dark-bauhaus.md.
+     Naming convention `--color-db-*` so Tailwind v4 generates
+     `bg-db-*`, `text-db-*`, `border-db-*` utilities. */
+  --color-db-void:        #0a0c10;  /* page background                              */
+  --color-db-slate:       #1a1f2e;  /* default card surface (active)                */
+  --color-db-slate-2:     #1f2436;  /* upcoming card surface                        */
+  --color-db-slate-dim:   #171b27;  /* ended card surface (1 step darker)           */
+  --color-db-slate-3:     #11141f;  /* compare + filter strip background            */
+  --color-db-slate-4:     #141826;  /* "ended" chip fill, pager hover               */
+  --color-db-chalk:       #f5f7fa;  /* primary text                                 */
+  --color-db-chalk-dim:   #c9d0db;  /* secondary text                               */
+  --color-db-mute:        #7a8599;  /* mono labels, meta                            */
+  --color-db-mute-dim:    #4d5566;  /* very-low-contrast accents                    */
+  --color-db-rule:        #2a3140;  /* hairline rule                                */
+  --color-db-rule-soft:   #1f2433;  /* internal divider in cards                    */
+  --color-db-segnale:     #ff3b5c;  /* primary signal — active / countdown          */
+  --color-db-segnale-d:   #cc2e49;  /* darker signal — FAILED verdict / sub-label   */
+  --color-db-oltremare:   #4d7cff;  /* secondary signal — upcoming / time states    */
+  --color-db-success:     #10ff8a;  /* success — reveal / celebration / PASSED      */
+
+  /* Per-poll category hues (muted; used as 4px accent strip + ink) */
+  --color-db-cat-governance: #5a8f7b;  /* sage         */
+  --color-db-cat-treasury:   #8a7359;  /* warm tan     */
+  --color-db-cat-tech:       #6a7592;  /* slate-blue   */
+  --color-db-cat-social:     #946b87;  /* muted plum   */
+
+  /* Fonts — Inter (UI) + JetBrains Mono (numeric / mono labels).
+     Loaded via Google Fonts in index.html. */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Spacing */
   --spacing-section: 2rem;
