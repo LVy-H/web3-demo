@@ -1,0 +1,15 @@
+Type: cli
+Command: cd codes/relayer && npm install --ignore-scripts
+Expected: exits 0; relayer/node_modules populated
+Timestamp: 2026-05-13T14:08Z
+Status: PASS
+
+--- output (tail) ---
+added 112 packages, and audited 113 packages in 36s
+
+22 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+--- end output ---
+Exit code: 0
