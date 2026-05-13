@@ -2,9 +2,20 @@ import { BarChart3, Users } from 'lucide-react'
 import { OPTION_BAR_COLORS } from '../../lib/optionColors'
 
 /**
- * Live results card: per-option bar chart of revealed votes plus a summary
- * footer with the registered-voter count. The header label adapts to the
- * current poll phase / finalization state.
+ * Per-option revealed-vote bar chart for the blind-poll page, restyled in
+ * the Dark Bauhaus grammar (see `.tmp/impl-specs/impl-3-blind-vote-page.md`
+ * §2.8). Heading label adapts to lifecycle:
+ *
+ *   - finalized                  → "Final Results"
+ *   - state===2 && !finalized    → "Results (Reveal Window Open)"
+ *   - else                       → "Options"
+ *
+ * The footer adds the blind-specific reveal-vs-registered ratio plus a
+ * LIVE / FINAL pill keyed off `finalized`.
+ *
+ * Style duplicated inline (rather than imported from a shared poll bar
+ * primitive) because the anon-poll restyle is happening in a parallel
+ * worktree and the shared component is not yet on `dev/lvh`.
  */
 export function ResultsBars(props: {
     pollOptions: string[]
@@ -16,22 +27,23 @@ export function ResultsBars(props: {
 }) {
     const { pollOptions, voteCounts, totalVotes, participantCount, currentPollState, finalized } = props
 
-    const headerLabel = finalized
-        ? 'Final Results'
-        : currentPollState === 2
-            ? 'Results (updating as reveals come in)'
-            : 'Options'
+    let headerLabel: string
+    if (finalized) headerLabel = 'Final Results'
+    else if (currentPollState === 2) headerLabel = 'Results (Reveal Window Open)'
+    else headerLabel = 'Options'
 
     return (
-        <div className="animate-fade-in-up animate-fade-in-up-4 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-sm p-6">
+        <div className="animate-fade-in-up bg-db-slate border border-db-rule p-6">
             <div className="flex items-center justify-between mb-5">
-                <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-stone-400 dark:text-stone-500" />
-                    {headerLabel}
+                <h2 className="inline-flex items-center gap-2">
+                    <BarChart3 className="w-3.5 h-3.5 text-db-mute" aria-hidden="true" />
+                    <span className="font-display font-extrabold text-[12px] tracking-[0.20em] uppercase text-db-chalk">
+                        {headerLabel}
+                    </span>
                 </h2>
                 {totalVotes > 0 && (
-                    <span className="text-xs font-semibold text-stone-500 dark:text-stone-400 bg-stone-100 dark:bg-stone-800 px-3 py-1 rounded-full font-mono tabular-nums">
-                        {totalVotes} revealed
+                    <span className="font-mono text-[11px] text-db-mute tracking-[0.05em] tabular-nums">
+                        <strong className="text-db-chalk">{totalVotes}</strong> revealed
                     </span>
                 )}
             </div>
@@ -45,17 +57,19 @@ export function ResultsBars(props: {
                         return (
                             <div key={i}>
                                 <div className="flex justify-between items-baseline mb-2">
-                                    <span className="text-sm font-medium text-stone-700 dark:text-stone-300">{opt}</span>
+                                    <span className="font-mono text-[12px] text-db-chalk">{opt}</span>
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-xs text-stone-400 dark:text-stone-500 font-mono tabular-nums">
-                                            {totalVotes > 0 ? `${pct.toFixed(1)}%` : '--'}
+                                        <span className="font-mono text-[10px] text-db-mute tracking-[0.05em] tabular-nums">
+                                            {totalVotes > 0 ? `${pct.toFixed(1)}%` : '—'}
                                         </span>
-                                        <span className="text-xl font-bold text-stone-900 dark:text-stone-100 font-mono tabular-nums">{count}</span>
+                                        <span className="font-display font-extrabold text-[20px] text-db-chalk tabular-nums">
+                                            {count}
+                                        </span>
                                     </div>
                                 </div>
-                                <div className="w-full bg-stone-100 dark:bg-stone-800 rounded-full h-2.5 overflow-hidden">
+                                <div className="w-full bg-db-void h-1.5 overflow-hidden">
                                     <div
-                                        className={`${barColor} h-2.5 rounded-full transition-all duration-700 ease-out`}
+                                        className={`${barColor} h-1.5 transition-all duration-700 ease-out`}
                                         style={{ width: `${pct}%` }}
                                     />
                                 </div>
@@ -65,16 +79,26 @@ export function ResultsBars(props: {
                 </div>
             ) : (
                 <div className="text-center py-8">
-                    <BarChart3 className="w-8 h-8 text-stone-300 dark:text-stone-600 mx-auto mb-2" />
-                    <p className="text-sm text-stone-400 dark:text-stone-500">No options configured yet.</p>
+                    <BarChart3 className="w-8 h-8 text-db-mute-dim mx-auto mb-2" aria-hidden="true" />
+                    <p className="font-mono text-[12px] text-db-mute">No options configured yet.</p>
                 </div>
             )}
 
-            {/* Participant info */}
-            <div className="mt-4 pt-4 border-t border-stone-100 dark:border-stone-800 flex items-center gap-2 text-xs text-stone-400 dark:text-stone-500">
-                <Users className="w-3.5 h-3.5" />
-                <span className="font-mono tabular-nums text-sm font-bold text-teal-600 dark:text-teal-400">{participantCount}</span>
-                registered voter{participantCount !== 1 ? 's' : ''}
+            <div className="mt-5 pt-4 border-t border-db-rule flex items-center gap-3 font-mono text-[11px] text-db-mute tracking-[0.05em]">
+                <Users className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>
+                    <strong className="text-db-chalk tabular-nums">{totalVotes}</strong> revealed
+                </span>
+                <span className="text-db-rule" aria-hidden="true">·</span>
+                <span>
+                    <strong className="text-db-chalk tabular-nums">{participantCount}</strong> registered
+                </span>
+                <span className="text-db-rule" aria-hidden="true">·</span>
+                <span>
+                    <strong className={finalized ? 'text-db-success' : 'text-db-segnale'}>
+                        {finalized ? 'FINAL' : 'LIVE'}
+                    </strong>
+                </span>
             </div>
         </div>
     )
