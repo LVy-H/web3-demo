@@ -56,15 +56,8 @@ jobs:
       - run: npm run lint
       - run: npx tsc --noEmit -p tsconfig.app.json
 
-  # TODO(T-D): the relayer job is provisional. codes/relayer/ is being ported
-  # in by T-B and does not yet exist on main. Until T-B lands, every step here
-  # will fail at the working-directory resolution / `npm ci`. Job-level
-  # `continue-on-error: true` keeps overall CI green so contracts isn't
-  # blocked. Drop the flag (and `|| true` on lint) once T-B is merged and the
-  # relayer toolchain (package.json, tsconfig, eslint config) is tracked.
   relayer:
     runs-on: ubuntu-latest
-    continue-on-error: true
     defaults:
       run:
         working-directory: codes/relayer
