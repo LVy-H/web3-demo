@@ -8,6 +8,10 @@ import { validateVoteRequest, validateClaimRequest } from "./validation";
 
 const app = express();
 
+// Trust first proxy hop so express-rate-limit sees the real client IP
+// when running behind cloudflared / nginx / docker network.
+app.set('trust proxy', 1);
+
 app.use(cors());
 app.use(express.json());
 
