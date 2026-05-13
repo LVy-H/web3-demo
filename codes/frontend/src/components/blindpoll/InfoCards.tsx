@@ -1,17 +1,6 @@
 import { Key, Lock } from 'lucide-react'
 
 /**
- * Deprecated — the standalone trust-signal banner moves into a hairline
- * metadata strip inlined by `BlindPoll.tsx` (spec §2.2). This null export
- * is kept only so the existing import in `BlindPoll.tsx` keeps compiling
- * during the Impl-3 incremental rollout; the next commit drops the
- * consumer and this stub disappears.
- */
-export function TrustBanner() {
-    return null
-}
-
-/**
  * Two `PhaseGate`-style cards used by BlindPoll when a phase or wallet
  * condition blocks normal interaction. Restyled per
  * `.tmp/impl-specs/impl-3-blind-vote-page.md` §2.6:
