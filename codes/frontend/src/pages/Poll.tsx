@@ -361,13 +361,24 @@ export default function Poll() {
             }
 
             setStatus("Submitting ZK proof to the blockchain...")
-            await writeContractAsync({
+            const txHash = await writeContractAsync({
                 address: typedPollAddr,
                 abi: ZkAnonVotingABI.abi,
                 functionName: 'castVote',
                 args: [selectedOption, proofStruct],
                 gas: 5000000n,
             })
+
+            // Wait for inclusion + success before marking the local nullifier consumed.
+            // writeContractAsync resolves on tx SEND, not CONFIRMATION; a revert here
+            // would otherwise leave the UI showing "voted" while the on-chain
+            // nullifier was never spent.
+            if (!publicClient) throw new Error("No public client available to confirm transaction.")
+            setStatus("Confirming on-chain... please wait for block inclusion.")
+            const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
+            if (receipt.status !== 'success') {
+                throw new Error("Transaction reverted on-chain. Your vote was not recorded.")
+            }
 
             localStorage.setItem(`my-nullifier-${pollAddress}`, fullProof.nullifier.toString())
             setHasVoted(true)
@@ -405,10 +416,22 @@ export default function Poll() {
             setStatus("Sending vote to relayer service...")
             const result = await relayVote(pollAddress, selectedOption, fullProof)
             if (!result.success) throw new Error(result.error || 'Relay failed')
+            if (!result.txHash) throw new Error("Relayer did not return a transaction hash.")
+
+            // Wait for inclusion + success before marking the local nullifier consumed.
+            // The relayer returns once the tx is broadcast; a revert (out of gas,
+            // contract revert, reorg) would otherwise leave the UI showing "voted"
+            // while the on-chain nullifier was never spent.
+            if (!publicClient) throw new Error("No public client available to confirm transaction.")
+            setStatus("Confirming on-chain... please wait for block inclusion.")
+            const receipt = await publicClient.waitForTransactionReceipt({ hash: result.txHash })
+            if (receipt.status !== 'success') {
+                throw new Error("Relayed transaction reverted on-chain. Your vote was not recorded.")
+            }
 
             localStorage.setItem(`my-nullifier-${pollAddress}`, fullProof.nullifier.toString())
             setHasVoted(true)
-            const txTail = result.txHash ? ` Tx: ${result.txHash.slice(0, 10)}...` : ''
+            const txTail = ` Tx: ${result.txHash.slice(0, 10)}...`
             setStatus(`Vote relayed successfully!${txTail} Your anonymity is preserved.`, 'success')
         } catch (e: unknown) {
             console.error(e)
