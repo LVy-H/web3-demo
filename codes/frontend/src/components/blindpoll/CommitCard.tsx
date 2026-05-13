@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Check, Radio, Zap } from 'lucide-react'
 
 /**
  * Voting-phase card. When the voter has not yet committed, shows the option
@@ -24,6 +24,34 @@ export function CommitCard(props: {
         return (
             <div className="animate-fade-in-up bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-sm p-6">
                 <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 mb-4">Cast Your Vote</h2>
+
+                {/*
+                    Direct/Relayer mode toggle.
+                    The blind-vote relayer endpoint (e.g. /api/relay/blind-commit)
+                    does not exist yet, so the Relayer pill is rendered disabled
+                    with a tooltip pointing at the limitation. Flip the
+                    `relayAvailable` flag once the endpoint ships.
+                */}
+                <div className="flex items-center gap-3 mb-5 p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700">
+                    <button
+                        type="button"
+                        aria-pressed="true"
+                        className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold bg-white dark:bg-stone-700 text-teal-700 dark:text-teal-400 shadow-sm border border-stone-200 dark:border-stone-600"
+                    >
+                        <Radio className="w-3.5 h-3.5" />
+                        Direct (Wallet)
+                    </button>
+                    <button
+                        type="button"
+                        aria-pressed="false"
+                        disabled
+                        title="Relayer support for blind-vote commits is coming soon."
+                        className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-stone-400 dark:text-stone-500 cursor-not-allowed opacity-60"
+                    >
+                        <Zap className="w-3.5 h-3.5" />
+                        Relayer (Coming Soon)
+                    </button>
+                </div>
 
                 {pollOptions.length === 0 ? (
                     <p className="text-sm text-stone-400 dark:text-stone-500">No options available.</p>
