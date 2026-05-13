@@ -79,6 +79,28 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  /* Dark Bauhaus is the default surface. Tailwind utilities on the
+     React tree still win where set (light-theme classes etc. continue
+     to override); this only paints the canvas behind everything. */
+  background-color: var(--color-db-void);
+  color: var(--color-db-chalk);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* JetBrains Mono for <code> and anything tagged .font-mono / .mono,
+   with tabular numerics on by default so numbers don't jitter. */
+code,
+kbd,
+samp,
+pre,
+.font-mono,
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
 /* ── Dot grid background texture ─────────────────────────────── */
