@@ -16,7 +16,7 @@ services:
     build:
       context: ./codes/frontend
     ports:
-      - "5173:5173"
+      - "127.0.0.1:5173:5173"
     environment:
       - VITE_HOST=0.0.0.0
       - VITE_RPC_URL=https://bike-knife-jewelry-collaborative.trycloudflare.com
@@ -34,7 +34,7 @@ services:
     build:
       context: ./codes/relayer
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     environment:
       - RPC_URL=http://contracts:8545
       - RELAYER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
