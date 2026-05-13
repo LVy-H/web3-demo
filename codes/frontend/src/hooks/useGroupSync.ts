@@ -53,14 +53,18 @@ export function useGroupSync(
                 event: parseAbiItem('event VoterRegistered(uint256 identityCommitment)'),
                 fromBlock: 0n,
             })
+            const seen = new Set<string>()
             logs.forEach(log => {
+                const c = log.args.identityCommitment
+                if (c === undefined || c === null) return
+                const key = c.toString()
+                if (seen.has(key)) return
+                seen.add(key)
                 try {
-                    if (log.args.identityCommitment) {
-                        group.addMember(BigInt(log.args.identityCommitment.toString()))
-                    }
+                    group.addMember(BigInt(key))
                 } catch (e: unknown) {
                     const err = e as { message?: string }
-                    if (!err.message?.includes('already')) console.warn(err.message)
+                    console.warn('group.addMember failed for commitment', key, err.message)
                 }
             })
             groupRef.current = group
