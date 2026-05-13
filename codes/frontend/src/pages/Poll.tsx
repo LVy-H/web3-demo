@@ -180,13 +180,20 @@ export default function Poll() {
     const [localIdentity, setLocalIdentity] = useState<Identity | null>(null)
     const [hasVoted, setHasVoted] = useState(false)
 
-    // Load identity scoped to this poll
+    // Load identity scoped to this poll. The voted-state must be scoped to
+    // both poll AND identity commitment so a shared-kiosk scenario (user A
+    // voted, user B loads their own token on the same browser) doesn't
+    // suppress the vote UI for user B.
     useEffect(() => {
-        setLocalIdentity(loadSavedIdentity(pollAddress))
-        // Restore voted state from localStorage (scoped per poll)
-        const nullifier = localStorage.getItem(`my-nullifier-${pollAddress}`)
-        if (nullifier) setHasVoted(true)
-        else setHasVoted(false)
+        const id = loadSavedIdentity(pollAddress)
+        setLocalIdentity(id)
+        if (!id) {
+            // No identity yet — no scoped key to read; default to not-voted.
+            setHasVoted(false)
+            return
+        }
+        const nullifier = localStorage.getItem(`my-nullifier-${pollAddress}-${id.commitment.toString()}`)
+        setHasVoted(Boolean(nullifier))
     }, [pollAddress])
 
     const [selectedOption, setSelectedOption] = useState<number>(0)
@@ -256,12 +263,13 @@ export default function Poll() {
         try {
             const newId = new Identity(inviteToken);
             localStorage.setItem(`semaphore-identity-${pollAddress}`, newId.privateKey.toString());
-            // Loading a different identity invalidates any cached voted-state and
-            // group membership cache: the new identity may map to a different
-            // member of the group, and the saved nullifier was keyed to the
-            // previous one.
+            // Loading a different identity: the voted-flag is now scoped per
+            // (poll, identity) so the new identity's flag is naturally isolated.
+            // Still clear the legacy unscoped key for migration cleanup, and
+            // re-check the per-identity flag for the loaded identity.
             localStorage.removeItem(`my-nullifier-${pollAddress}`)
-            setHasVoted(false)
+            const scopedFlag = localStorage.getItem(`my-nullifier-${pollAddress}-${newId.commitment.toString()}`)
+            setHasVoted(Boolean(scopedFlag))
             groupSync.reset()
             setLocalIdentity(newId);
             setStatus("Identity loaded successfully from invite token.", 'success');
@@ -361,7 +369,7 @@ export default function Poll() {
             }
 
             setStatus("Submitting ZK proof to the blockchain...")
-            await writeContractAsync({
+            const txHash = await writeContractAsync({
                 address: typedPollAddr,
                 abi: ZkAnonVotingABI.abi,
                 functionName: 'castVote',
@@ -369,7 +377,18 @@ export default function Poll() {
                 gas: 5000000n,
             })
 
-            localStorage.setItem(`my-nullifier-${pollAddress}`, fullProof.nullifier.toString())
+            // Wait for inclusion + success before marking the local nullifier consumed.
+            // writeContractAsync resolves on tx SEND, not CONFIRMATION; a revert here
+            // would otherwise leave the UI showing "voted" while the on-chain
+            // nullifier was never spent.
+            if (!publicClient) throw new Error("No public client available to confirm transaction.")
+            setStatus("Confirming on-chain... please wait for block inclusion.")
+            const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
+            if (receipt.status !== 'success') {
+                throw new Error("Transaction reverted on-chain. Your vote was not recorded.")
+            }
+
+            localStorage.setItem(`my-nullifier-${pollAddress}-${localIdentity.commitment.toString()}`, fullProof.nullifier.toString())
             setHasVoted(true)
             setStatus("Vote cast successfully! Your anonymity is guaranteed by zero-knowledge cryptography.", 'success')
         } catch (e: unknown) {
@@ -405,10 +424,22 @@ export default function Poll() {
             setStatus("Sending vote to relayer service...")
             const result = await relayVote(pollAddress, selectedOption, fullProof)
             if (!result.success) throw new Error(result.error || 'Relay failed')
+            if (!result.txHash) throw new Error("Relayer did not return a transaction hash.")
 
-            localStorage.setItem(`my-nullifier-${pollAddress}`, fullProof.nullifier.toString())
+            // Wait for inclusion + success before marking the local nullifier consumed.
+            // The relayer returns once the tx is broadcast; a revert (out of gas,
+            // contract revert, reorg) would otherwise leave the UI showing "voted"
+            // while the on-chain nullifier was never spent.
+            if (!publicClient) throw new Error("No public client available to confirm transaction.")
+            setStatus("Confirming on-chain... please wait for block inclusion.")
+            const receipt = await publicClient.waitForTransactionReceipt({ hash: result.txHash })
+            if (receipt.status !== 'success') {
+                throw new Error("Relayed transaction reverted on-chain. Your vote was not recorded.")
+            }
+
+            localStorage.setItem(`my-nullifier-${pollAddress}-${localIdentity.commitment.toString()}`, fullProof.nullifier.toString())
             setHasVoted(true)
-            const txTail = result.txHash ? ` Tx: ${result.txHash.slice(0, 10)}...` : ''
+            const txTail = ` Tx: ${result.txHash.slice(0, 10)}...`
             setStatus(`Vote relayed successfully!${txTail} Your anonymity is preserved.`, 'success')
         } catch (e: unknown) {
             console.error(e)
@@ -556,7 +587,14 @@ export default function Poll() {
                                 <button
                                     onClick={() => {
                                         localStorage.removeItem(`semaphore-identity-${pollAddress}`)
+                                        // Clear both the legacy unscoped key and the
+                                        // identity-scoped key for the currently-loaded
+                                        // identity. Other identities' scoped flags on
+                                        // this device remain intact under their own keys.
                                         localStorage.removeItem(`my-nullifier-${pollAddress}`)
+                                        if (localIdentity) {
+                                            localStorage.removeItem(`my-nullifier-${pollAddress}-${localIdentity.commitment.toString()}`)
+                                        }
                                         setLocalIdentity(null)
                                         setHasVoted(false)
                                         setInviteToken("")
