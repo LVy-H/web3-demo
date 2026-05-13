@@ -1,56 +1,61 @@
 import { Key, Lock } from 'lucide-react'
 
 /**
- * Static teal trust-signal banner shown at the top of every BlindPoll page.
+ * Deprecated — the standalone trust-signal banner moves into a hairline
+ * metadata strip inlined by `BlindPoll.tsx` (spec §2.2). This null export
+ * is kept only so the existing import in `BlindPoll.tsx` keeps compiling
+ * during the Impl-3 incremental rollout; the next commit drops the
+ * consumer and this stub disappears.
  */
 export function TrustBanner() {
-    return (
-        <div className="animate-fade-in-up animate-fade-in-up-2 bg-teal-50 dark:bg-teal-900/30 border border-teal-200 dark:border-teal-800 rounded-xl px-5 py-4 flex items-center gap-3">
-            <Lock className="w-5 h-5 text-teal-600 dark:text-teal-400 flex-shrink-0" />
-            <p className="text-sm text-teal-800 dark:text-teal-300 font-medium">
-                Your vote is sealed with a cryptographic commitment. No one can see your choice until the reveal phase.
-            </p>
-        </div>
-    )
+    return null
 }
 
 /**
- * Card shown when the reveal window has closed and results are final.
+ * Two `PhaseGate`-style cards used by BlindPoll when a phase or wallet
+ * condition blocks normal interaction. Restyled per
+ * `.tmp/impl-specs/impl-3-blind-vote-page.md` §2.6:
+ *
+ *   - 1px slate card with a 2px hairline left-border (tone per state)
+ *   - 40×40 icon box with a hairline border
+ *   - uppercase display-extrabold title + mono leading-relaxed body
+ *
+ * The earlier `TrustBanner` export is dropped — the trust message moves
+ * into a hairline metadata strip inlined in `BlindPoll.tsx` (spec §2.2).
  */
+
 export function FinalizedCard() {
     return (
-        <div className="animate-fade-in-up bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-sm p-6">
-            <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-stone-100 dark:bg-stone-800 flex items-center justify-center flex-shrink-0">
-                    <Lock className="w-5 h-5 text-stone-500 dark:text-stone-400" />
-                </div>
-                <div>
-                    <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">Results Finalized</p>
-                    <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
-                        The reveal window has closed and results are final. Unrevealed votes were excluded.
-                    </p>
-                </div>
+        <div className="animate-fade-in-up bg-db-slate border-l-2 border-db-mute p-5 flex items-start gap-4 max-w-[640px]">
+            <div className="w-10 h-10 border border-db-rule flex items-center justify-center flex-shrink-0">
+                <Lock className="w-5 h-5 text-db-mute" aria-hidden="true" />
+            </div>
+            <div>
+                <p className="font-display font-extrabold text-[14px] tracking-[0.02em] text-db-chalk uppercase">
+                    Results Finalized
+                </p>
+                <p className="font-mono text-[11px] text-db-mute leading-relaxed mt-1">
+                    The reveal window has closed and results are final. Unrevealed
+                    votes were excluded.
+                </p>
             </div>
         </div>
     )
 }
 
-/**
- * Card prompting the visitor to connect their wallet.
- */
 export function NotConnectedCard() {
     return (
-        <div className="animate-fade-in-up bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-sm p-6">
-            <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-stone-100 dark:bg-stone-800 flex items-center justify-center flex-shrink-0">
-                    <Key className="w-5 h-5 text-stone-400 dark:text-stone-500" />
-                </div>
-                <div>
-                    <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">Wallet Not Connected</p>
-                    <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
-                        Connect your wallet to register, vote, or reveal.
-                    </p>
-                </div>
+        <div className="animate-fade-in-up bg-db-slate border-l-2 border-db-segnale p-5 flex items-start gap-4 max-w-[640px]">
+            <div className="w-10 h-10 border border-db-rule flex items-center justify-center flex-shrink-0">
+                <Key className="w-5 h-5 text-db-segnale" aria-hidden="true" />
+            </div>
+            <div>
+                <p className="font-display font-extrabold text-[14px] tracking-[0.02em] text-db-chalk uppercase">
+                    Wallet Not Connected
+                </p>
+                <p className="font-mono text-[11px] text-db-mute leading-relaxed mt-1">
+                    Connect your wallet to register, vote, or reveal.
+                </p>
             </div>
         </div>
     )
