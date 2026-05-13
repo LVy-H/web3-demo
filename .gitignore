@@ -9,6 +9,9 @@ typechain/
 dist/
 dist-ssr/
 *.local
+# Playwright E2E (videos + HTML report — generated demo artifacts)
+codes/frontend/test-results/
+codes/frontend/playwright-report/
 # Environment
 .env
 .env.local
