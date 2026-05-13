@@ -97,7 +97,7 @@ test.describe('Clear-identity does not duplicate input section [bug: nhập bị
         // because we are NOT casting a vote, only exercising the load/clear UI.
         const SYNTHETIC_TOKEN = 'a'.repeat(64)
         await inviteInput.fill(SYNTHETIC_TOKEN)
-        await page.getByRole('button', { name: /^Load Identity$/ }).click()
+        await page.getByRole('button', { name: /Load Identity/ }).click()
 
         // After load, the card swaps to the "Identity Ready" badge branch —
         // the input must DISAPPEAR. (count === 0 here is part of the fix:
@@ -112,9 +112,12 @@ test.describe('Clear-identity does not duplicate input section [bug: nhập bị
         ).toHaveCount(0)
 
         // ===== STEP 3: Click "Clear" — THIS is the regression-proof step =====
-        // Use ^Clear$ to avoid the admin "Copy All" / token "Copied!" text
-        // and any other "Clear …" copy that may appear elsewhere.
-        const clearButton = page.getByRole('button', { name: /^Clear$/ })
+        // Dark Bauhaus IdentityCard renders the button text as `[ Clear ↵ ]`
+        // (decorative brackets + return-arrow glyph). The accessible name is
+        // that whole string, so we match the literal "Clear" substring.
+        // No other "Clear" button exists on the poll page — verified by grep
+        // across pages/ + components/.
+        const clearButton = page.getByRole('button', { name: /Clear/ })
         await clearButton.click()
 
         // ===== STEP 4: REGRESSION ASSERTION — count MUST be 1, not 2 =====
@@ -132,7 +135,7 @@ test.describe('Clear-identity does not duplicate input section [bug: nhập bị
         // The "Load Identity" button should also appear exactly once — it
         // is rendered inside the same branch as the input.
         await expect(
-            page.getByRole('button', { name: /^Load Identity$/ }),
+            page.getByRole('button', { name: /Load Identity/ }),
             'After Clear, the "Load Identity" button must appear exactly once.',
         ).toHaveCount(1)
 
@@ -144,7 +147,7 @@ test.describe('Clear-identity does not duplicate input section [bug: nhập bị
         // If group/state weren't reset, loading a fresh token after Clear
         // might log a /duplicate|already/ console error from useGroupSync.
         await inviteInput.fill('b'.repeat(64))
-        await page.getByRole('button', { name: /^Load Identity$/ }).click()
+        await page.getByRole('button', { name: /Load Identity/ }).click()
 
         await expect(
             page.getByText(/Identity Ready/i),
