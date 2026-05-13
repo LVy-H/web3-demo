@@ -124,17 +124,19 @@ function AppContent() {
 
                         {!isConnected ? (
                             <>
-                                <button
-                                    onClick={() => {
-                                        const mockConnector = connectors.find(c => c.id === 'mock')
-                                        if (mockConnector) connect({ connector: mockConnector })
-                                    }}
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-50 dark:bg-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-700 rounded-xl text-sm font-medium transition-colors min-h-[44px] cursor-pointer"
-                                    title="Connect using a built-in Hardhat test account. No MetaMask required."
-                                >
-                                    <Code2 className="w-4 h-4" />
-                                    Test Account
-                                </button>
+                                {import.meta.env.DEV && (
+                                    <button
+                                        onClick={() => {
+                                            const mockConnector = connectors.find(c => c.id === 'mock')
+                                            if (mockConnector) connect({ connector: mockConnector })
+                                        }}
+                                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-50 dark:bg-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-700 rounded-xl text-sm font-medium transition-colors min-h-[44px] cursor-pointer"
+                                        title="Connect using a built-in Hardhat test account. No MetaMask required."
+                                    >
+                                        <Code2 className="w-4 h-4" />
+                                        Test Account
+                                    </button>
+                                )}
                                 <button
                                     onClick={async () => {
                                         await addHardhatNetwork()
