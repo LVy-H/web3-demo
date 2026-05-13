@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="60" height="70" viewBox="0 0 60 70">
+  <!-- Isometric cube outline, tileable. -->
+  <rect width="60" height="70" fill="none"/>
+  <g fill="none" stroke="#2a3140" stroke-width="0.7" opacity="0.55">
+    <path d="M30 5 L55 19 L55 47 L30 61 L5 47 L5 19 Z"/>
+    <path d="M5 19 L30 33 L55 19 M30 33 L30 61"/>
+  </g>
+</svg>
