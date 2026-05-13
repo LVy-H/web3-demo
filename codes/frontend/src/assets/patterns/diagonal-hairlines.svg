@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <!-- Diagonal hairlines, 45deg, tileable. -->
+  <rect width="24" height="24" fill="none"/>
+  <path d="M-6 6 L6 -6 M0 24 L24 0 M18 30 L30 18" stroke="#2a3140" stroke-width="1" opacity="0.6"/>
+</svg>
