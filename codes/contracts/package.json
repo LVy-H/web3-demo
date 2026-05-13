@@ -8,6 +8,7 @@
     "compile": "hardhat compile",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
     "deploy:real-verifier": "USE_REAL_VERIFIER=true hardhat run scripts/deploy.ts --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
     "copy-abis": "ts-node scripts/copyAbis.ts",
     "node": "hardhat node",
     "lint": "solhint 'contracts/**/*.sol'",

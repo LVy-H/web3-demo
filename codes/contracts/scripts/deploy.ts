@@ -1,9 +1,24 @@
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import fs from "fs";
 import path from "path";
 
 async function main() {
+    const networkName = network.name;
+    const chainId = Number((await ethers.provider.getNetwork()).chainId);
     const useRealVerifier = process.env.USE_REAL_VERIFIER === "true";
+    const isPublicNetwork = networkName !== "hardhat" && networkName !== "localhost";
+
+    console.log(`\nNetwork: ${networkName} (chainId=${chainId})`);
+
+    // ── Refuse mock verifier on any non-local network ───────────────
+    // The MockSemaphoreVerifier accepts ANY proof. Deploying it to a
+    // public network would let attackers submit garbage proofs.
+    if (isPublicNetwork && !useRealVerifier) {
+        throw new Error(
+            `Refusing to deploy MockSemaphoreVerifier on public network "${networkName}". ` +
+            `Set USE_REAL_VERIFIER=true (and complete P4-23 wiring) before deploying to a public chain.`
+        );
+    }
 
     if (!useRealVerifier) {
         console.log("\n" + "═".repeat(70));
@@ -106,9 +121,11 @@ async function main() {
     console.log("ZkAirdrop funded with 10 ETH");
 
     console.log("==============================================\n");
+    console.log(`Network: ${networkName} (chainId=${chainId})`);
 
     // ── 9. Write deployed-addresses.json to frontend ────────────────
-    const addressMap = {
+    // The file is chainId-keyed so multiple networks can coexist in one file.
+    const networkEntry = {
         REGISTRY_ADDRESS: registryAddress,
         SEMAPHORE_ADDRESS: semaphoreAddress,
         ANON_VOTING_IMPL: anonVotingImplAddress,
@@ -118,17 +135,25 @@ async function main() {
 
     const frontendSrcDir = path.resolve(__dirname, "../../frontend/src");
     if (fs.existsSync(frontendSrcDir)) {
-        fs.writeFileSync(
-            path.join(frontendSrcDir, "deployed-addresses.json"),
-            JSON.stringify(addressMap, null, 2) + "\n"
-        );
-        console.log("Saved deployed addresses to frontend/src/deployed-addresses.json");
+        const addressesPath = path.join(frontendSrcDir, "deployed-addresses.json");
+        // Merge with existing entries so deploying to one network does not wipe others.
+        let existing: Record<string, unknown> = {};
+        if (fs.existsSync(addressesPath)) {
+            try {
+                existing = JSON.parse(fs.readFileSync(addressesPath, "utf-8"));
+            } catch {
+                existing = {};
+            }
+        }
+        const merged = { ...existing, [String(chainId)]: networkEntry };
+        fs.writeFileSync(addressesPath, JSON.stringify(merged, null, 2) + "\n");
+        console.log(`Saved deployed addresses to frontend/src/deployed-addresses.json (chainId ${chainId})`);
     } else {
         console.warn("WARNING: frontend/src/ not found at", frontendSrcDir);
         console.log("Deployed addresses (copy manually):");
     }
 
-    console.log(JSON.stringify(addressMap, null, 2));
+    console.log(JSON.stringify({ [String(chainId)]: networkEntry }, null, 2));
 }
 
 main().catch((error) => {
