@@ -7,6 +7,21 @@ Voters register anonymously, cast votes, and one winner is drawn from the pool �
 
 ## Architecture
 
+> Note: the rest of this README documents the original single-contract
+> PoC (`ZkVotingLottery.sol`). The current modular system lives under
+> [`codes/`](codes/README.md) — start there for the production-shaped
+> architecture (PollRegistry + M1/M2 modules + optional relayer).
+
+### Optional: gasless voting
+
+An Express **relayer** under [`codes/relayer/`](codes/relayer/README.md)
+can submit ZK votes and airdrop claims on behalf of voters, so voters
+need no wallet and no ETH. The voter still generates the ZK proof in
+their browser; the relayer cannot see their identity and cannot alter
+the vote. The relayer is optional — when it is not running, the
+frontend falls back to direct wallet voting. Trust model and API are
+documented in [`codes/relayer/README.md`](codes/relayer/README.md).
+
 ```
 web3-demo/
 ├── contracts/   Solidity + Hardhat (smart contracts, tests, deploy script)
