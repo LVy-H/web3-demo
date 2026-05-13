@@ -30,3 +30,11 @@ export const AIRDROP_ADDRESS = deployedAddresses.AIRDROP_ADDRESS as `0x${string}
 // Gasless relayer base URL. Defaults to the local dev port; override via
 // VITE_RELAYER_URL in .env.local for staging/prod or alternate ports.
 export const RELAYER_URL = import.meta.env.VITE_RELAYER_URL ?? 'http://localhost:3001';
+
+// Defense-in-depth: a misconfigured env or hostile build-time injection could
+// set VITE_RELAYER_URL to `javascript:`, `file://`, or `data:` and turn the
+// relayer URL into a foot-gun for fetch / window.open / link rendering. Fail
+// fast at module-load instead of letting an unsafe scheme propagate.
+if (!/^https?:\/\//.test(RELAYER_URL)) {
+    throw new Error(`Invalid RELAYER_URL: must start with http:// or https:// (got "${RELAYER_URL}")`);
+}
