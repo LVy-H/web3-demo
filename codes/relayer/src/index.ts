@@ -52,7 +52,7 @@ app.post("/api/relay/vote", async (req, res) => {
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[RELAY] ✗ castVote error:`, message);
-        res.status(500).json({ error: message });
+        res.status(500).json({ error: "Internal relayer error" });
     }
 });
 
@@ -84,7 +84,7 @@ app.post("/api/relay/claim-airdrop", async (req, res) => {
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[RELAY] ✗ claimAirdrop error:`, message);
-        res.status(500).json({ error: message });
+        res.status(500).json({ error: "Internal relayer error" });
     }
 });
 
@@ -99,7 +99,8 @@ app.get("/api/relay/status", async (_req, res) => {
         });
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        res.status(500).json({ error: message });
+        console.error(`[RELAY] ✗ status error:`, message);
+        res.status(500).json({ error: "Internal relayer error" });
     }
 });
 
