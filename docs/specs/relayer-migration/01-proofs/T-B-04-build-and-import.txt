@@ -1,0 +1,41 @@
+Type: cli
+Command: cd codes/relayer && npm run build && node -e "require('./dist/index.js')"
+Expected: build emits dist/index.js; require() loads module and starts server.
+         RPC connection failure (ENOTFOUND hardhat) is the documented
+         acceptable failure mode — running outside docker compose, the
+         service hostname 'hardhat' has no DNS resolution.
+Timestamp: 2026-05-13T14:18Z
+Status: PASS (with expected post-import RPC connect failure)
+
+--- build output ---
+> relayer@1.0.0 build
+> tsc
+(no errors)
+--- end build output ---
+
+--- dist contents ---
+abi/  config.js  index.js  relay.js  validation.js  wallet.js
+--- end ---
+
+--- import test output ---
+================================================
+  Relayer Service running on port 3001
+  RPC: http://hardhat:8545
+================================================
+
+JsonRpcProvider failed to detect network and cannot start up; retry in 1s
+  (perhaps the URL is wrong or the node is not started)
+
+Error: getaddrinfo ENOTFOUND hardhat
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'hardhat'
+}
+--- end import test output ---
+
+Exit code: 0 from `node -e require` invocation itself; the listen()
+callback then attempts an RPC handshake which fails as expected.
+The module-load proof (which is what gate 4 verifies) succeeded:
+all imports resolved, no MODULE_NOT_FOUND, no SyntaxError.

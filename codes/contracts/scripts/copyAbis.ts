@@ -3,27 +3,56 @@ import path from "path";
 
 /**
  * Reads compiled Hardhat artifacts and extracts ABI arrays
- * into the frontend src/abi/ directory.
+ * into every consumer's src/abi/ directory (frontend + relayer).
  *
  * Usage:  npx ts-node scripts/copyAbis.ts
  */
 
 const ARTIFACTS_ROOT = path.resolve(__dirname, "../artifacts/contracts");
-const FRONTEND_ABI_DIR = path.resolve(__dirname, "../../frontend/src/abi");
+
+// Consumers that need contract ABIs. Skipped silently if the directory
+// doesn't exist (lets a frontend-only checkout still run copy-abis).
+const ABI_TARGETS: { name: string; dir: string }[] = [
+    { name: "frontend", dir: path.resolve(__dirname, "../../frontend/src/abi") },
+    { name: "relayer", dir: path.resolve(__dirname, "../../relayer/src/abi") },
+];
 
 // Map: output file name -> artifact path (relative to ARTIFACTS_ROOT)
 const CONTRACTS: Record<string, string> = {
     "IZkPoll.json": "interfaces/IZkPoll.sol/IZkPoll.json",
     "PollRegistry.json": "PollRegistry.sol/PollRegistry.json",
+    "ZkAirdrop.json": "ZkAirdrop.sol/ZkAirdrop.json",
     "ZkAnonVoting.json": "ZkAnonVoting.sol/ZkAnonVoting.json",
     "ZkBlindVoting.json": "ZkBlindVoting.sol/ZkBlindVoting.json",
 };
 
+function isConsumerPresent(targetDir: string): boolean {
+    // Treat the parent (`src/`) as the signal that this consumer exists in
+    // the working tree. The abi/ directory itself may be missing on a fresh
+    // checkout — we'll create it.
+    const parent = path.dirname(targetDir);
+    return fs.existsSync(parent);
+}
+
 function main() {
-    // Ensure output directory exists
-    if (!fs.existsSync(FRONTEND_ABI_DIR)) {
-        fs.mkdirSync(FRONTEND_ABI_DIR, { recursive: true });
-        console.log("Created", FRONTEND_ABI_DIR);
+    const presentTargets = ABI_TARGETS.filter((t) => {
+        if (isConsumerPresent(t.dir)) {
+            return true;
+        }
+        console.log(`Skipping ${t.name}: ${path.dirname(t.dir)} not found.`);
+        return false;
+    });
+
+    if (presentTargets.length === 0) {
+        console.error("ERROR: No consumer src/ directories found. Nothing to do.");
+        process.exit(1);
+    }
+
+    for (const target of presentTargets) {
+        if (!fs.existsSync(target.dir)) {
+            fs.mkdirSync(target.dir, { recursive: true });
+            console.log(`Created ${target.dir}`);
+        }
     }
 
     for (const [outName, artifactRelPath] of Object.entries(CONTRACTS)) {
@@ -37,13 +66,24 @@ function main() {
 
         const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf-8"));
         const abiOnly = { abi: artifact.abi };
+        const serialized = JSON.stringify(abiOnly, null, 2) + "\n";
 
-        const outPath = path.join(FRONTEND_ABI_DIR, outName);
-        fs.writeFileSync(outPath, JSON.stringify(abiOnly, null, 2) + "\n");
-        console.log(`Wrote ${outName} (${artifact.abi.length} entries)`);
+        for (const target of presentTargets) {
+            const outPath = path.join(target.dir, outName);
+            fs.writeFileSync(outPath, serialized);
+        }
+
+        console.log(
+            `Wrote ${outName} (${artifact.abi.length} entries) → ${presentTargets
+                .map((t) => t.name)
+                .join(", ")}`
+        );
     }
 
-    console.log("\nDone. ABIs written to", FRONTEND_ABI_DIR);
+    console.log("\nDone.");
+    for (const t of presentTargets) {
+        console.log(`  - ${t.name}: ${t.dir}`);
+    }
 }
 
 main();

@@ -1,0 +1,16 @@
+Type: cli
+Command: cd codes/relayer && npx tsc --noEmit
+Expected: exits 0; no TS errors after copyAbis has run
+Timestamp: 2026-05-13T14:17Z
+Status: PASS
+
+--- output ---
+(no output — clean typecheck)
+--- end output ---
+Exit code: 0
+
+Note: An earlier run (before copyAbis) failed with TS2307 for
+  ./abi/ZkAnonVoting.json and ./abi/ZkAirdrop.json — expected,
+  because the ABI files are not in git (only .gitkeep is). After
+  running `npm run copy-abis` in codes/contracts (gate 3), tsc
+  passes cleanly.

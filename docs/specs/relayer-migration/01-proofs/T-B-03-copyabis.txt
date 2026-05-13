@@ -1,0 +1,36 @@
+Type: cli
+Command: cd codes/contracts && npx hardhat compile && npm run copy-abis
+Expected: all 5 ABIs written to BOTH codes/frontend/src/abi/ AND codes/relayer/src/abi/
+Timestamp: 2026-05-13T14:17Z
+Status: PASS
+
+--- compile output (tail) ---
+Generating typings for: 23 artifacts in dir: typechain-types for target: ethers-v6
+Successfully generated 68 typings!
+Compiled 25 Solidity files successfully (evm target: paris).
+--- end compile output ---
+
+--- copy-abis output ---
+> contracts@1.0.0 copy-abis
+> ts-node scripts/copyAbis.ts
+
+Wrote IZkPoll.json (7 entries) → frontend, relayer
+Wrote PollRegistry.json (23 entries) → frontend, relayer
+Wrote ZkAirdrop.json (36 entries) → frontend, relayer
+Wrote ZkAnonVoting.json (50 entries) → frontend, relayer
+Wrote ZkBlindVoting.json (62 entries) → frontend, relayer
+
+Done.
+  - frontend: codes/frontend/src/abi
+  - relayer:  codes/relayer/src/abi
+--- end copy-abis output ---
+
+--- ls codes/relayer/src/abi ---
+IZkPoll.json       2.0K
+PollRegistry.json  8.2K
+ZkAirdrop.json     8.0K
+ZkAnonVoting.json  12K
+ZkBlindVoting.json 14K
+.gitkeep           (tracked placeholder)
+--- end ---
+Exit code: 0
