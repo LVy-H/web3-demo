@@ -1,8 +1,15 @@
-import { Users } from 'lucide-react'
+import { ArrowRight, Loader2, Users } from 'lucide-react'
+import teamUrl from '../../assets/illustrations/team.svg'
 
 /**
- * Registration-phase card. Shows the current voter count and a "Register"
- * button. The actual transaction is delegated to the parent via `onRegister`.
+ * Registration-phase hero card — wide poster-style block in the Dark
+ * Bauhaus grammar (see `.tmp/impl-specs/impl-3-blind-vote-page.md` §2.3).
+ *
+ * Shows a brief explanation of the commit-reveal flow, the current voter
+ * count in a hairline strip, and a single wide CTA. A `team.svg`
+ * watermark sits in the right gutter on `md+` viewports.
+ *
+ * Prop interface is preserved verbatim.
  */
 export function RegisterCard(props: {
     participantCount: number
@@ -13,26 +20,55 @@ export function RegisterCard(props: {
 }) {
     const { participantCount, isConnected, isProcessing, disabled, onRegister } = props
 
+    let ctaLabel: string
+    if (!isConnected) ctaLabel = 'Connect Wallet First'
+    else if (isProcessing) ctaLabel = 'Registering…'
+    else ctaLabel = 'Register as Voter'
+
     return (
-        <div className="animate-fade-in-up animate-fade-in-up-3 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-sm p-6">
-            <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 mb-1">Register to Vote</h2>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mb-4">
-                Connect your wallet and register. Your address will be added to the voter list.
-            </p>
-            <div className="flex items-center gap-3">
-                <Users className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                <span className="text-sm text-stone-600 dark:text-stone-400 font-mono tabular-nums">
-                    <span className="text-lg font-bold text-teal-600 dark:text-teal-400">{participantCount}</span>{' '}
-                    voter{participantCount !== 1 ? 's' : ''} registered
-                </span>
+        <div className="animate-fade-in-up bg-db-slate border border-db-rule p-8 relative overflow-hidden">
+            {/* Watermark — right gutter, md+ only */}
+            <img
+                src={teamUrl}
+                alt=""
+                aria-hidden="true"
+                className="absolute right-8 top-1/2 -translate-y-1/2 w-[200px] opacity-15 pointer-events-none hidden md:block select-none"
+            />
+
+            <div className="relative">
+                <h2 className="font-display font-extrabold text-[28px] leading-[1.05] tracking-[-0.01em] text-db-chalk uppercase mb-1">
+                    Registration
+                </h2>
+                <div className="w-12 h-px bg-db-segnale mb-4" aria-hidden="true" />
+
+                <p className="font-mono text-[12px] text-db-mute leading-[1.6] max-w-[480px] mb-6">
+                    Sign up to vote in this commit-reveal poll. Your wallet address
+                    is added to the voter registry. Once voting opens you can submit
+                    one sealed commitment.
+                </p>
+
+                <div className="inline-flex items-center gap-3 px-4 py-2 bg-db-void border-l-2 border-db-segnale mb-6">
+                    <Users className="w-4 h-4 text-db-segnale" aria-hidden="true" />
+                    <span className="font-mono text-[14px] text-db-chalk tabular-nums">
+                        <strong className="font-mono font-bold text-db-chalk">{participantCount}</strong>{' '}
+                        voter{participantCount === 1 ? '' : 's'} registered
+                    </span>
+                </div>
+
+                <button
+                    onClick={onRegister}
+                    disabled={disabled}
+                    className="w-full max-w-[640px] inline-flex items-center justify-center gap-3 px-6 py-4 bg-db-segnale hover:bg-db-segnale/90 text-db-void font-display font-extrabold text-[12px] tracking-[0.20em] uppercase disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-db-segnale focus-visible:ring-offset-2 focus-visible:ring-offset-db-void"
+                >
+                    {isProcessing && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />}
+                    <span>{ctaLabel}</span>
+                    {!isProcessing && isConnected && <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />}
+                </button>
+
+                <p className="mt-4 font-mono text-[10px] text-db-mute tracking-[0.08em] uppercase">
+                    [ prover ready · scope locked to this poll ]
+                </p>
             </div>
-            <button
-                onClick={onRegister}
-                disabled={disabled}
-                className="mt-4 w-full py-3 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white transition-colors rounded-xl text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
-            >
-                {!isConnected ? 'Connect Wallet First' : isProcessing ? 'Processing...' : 'Register to Vote'}
-            </button>
         </div>
     )
 }

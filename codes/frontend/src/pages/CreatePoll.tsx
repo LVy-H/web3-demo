@@ -12,36 +12,19 @@ import {
     EyeOff,
     Plus,
     X,
-    Check,
     AlertTriangle,
-    Loader2,
-    Vote,
-    FileText,
+    Send,
 } from 'lucide-react'
+import { CreateFeedback } from '../components/create/CreateFeedback'
+import { PreviewPanel } from '../components/create/PreviewPanel'
+import { HowItWorks } from '../components/create/HowItWorks'
+import { getOptionTone } from '../lib/createOptionTone'
+import creativeDesigner from '../assets/illustrations/creative-designer.svg'
 
 type PollType = 'anon-vote' | 'blind-vote'
 
-/* -- Feedback message component ----------------------------------------- */
-function FeedbackMessage({ type, children }: { type: 'success' | 'error' | 'pending'; children: React.ReactNode }) {
-    const styles = {
-        success: 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/30 dark:border-emerald-700 dark:text-emerald-300',
-        error: 'bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-900/30 dark:border-rose-700 dark:text-rose-300',
-        pending: 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300',
-    }
-    const icons = {
-        success: <Check className="w-5 h-5 text-emerald-500 shrink-0" />,
-        error: <X className="w-5 h-5 text-rose-500 shrink-0" />,
-        pending: <Loader2 className="w-5 h-5 text-amber-500 shrink-0 animate-spin" />,
-    }
-    return (
-        <div className={`flex items-center gap-3 px-4 py-3 border rounded-xl text-sm font-semibold ${styles[type]}`} role="alert">
-            {icons[type]}
-            {children}
-        </div>
-    )
-}
-
 export default function CreatePoll() {
+    // ---- Data layer (preserved verbatim from pre-Impl-4 implementation) ----
     const { address, isConnected } = useAccount()
     const navigate = useNavigate()
     const [title, setTitle] = useState('')
@@ -53,7 +36,6 @@ export default function CreatePoll() {
 
     const { createPoll, isPending, isConfirming, isSuccess } = useCreatePoll()
 
-    /* -- Form handlers --------------------------------------------------- */
     async function handleCreatePoll(e: React.FormEvent) {
         e.preventDefault()
         setErrorMsg('')
@@ -106,314 +88,305 @@ export default function CreatePoll() {
     }
 
     const validOptions = options.filter(o => o.trim() !== '')
+    // ---- End preserved data layer ----------------------------------------
+
+    const optionsLegendIndex = pollType === 'blind-vote' ? '05' : '04'
+    const allowListCaption =
+        pollType === 'anon-vote'
+            ? 'voters are added later · admin generates invite tokens after the poll is deployed'
+            : 'registration opens automatically · voters add themselves by wallet address during the registration phase'
 
     return (
-        <div className="space-y-8">
-            {/* -- Breadcrumb -------------------------------------------------- */}
-            <div className="animate-fade-in-up flex items-center gap-3">
+        <div className="space-y-6">
+            {/* -- Breadcrumb ----------------------------------------------- */}
+            <div className="flex items-center gap-2 py-4 border-b border-db-rule animate-fade-in-up">
                 <Link
                     to="/"
-                    className="text-teal-600 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300 text-sm font-medium flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors"
+                    className="text-db-mute hover:text-db-chalk font-mono text-[11px] tracking-[0.16em] uppercase flex items-center gap-1.5 transition-colors"
                 >
-                    <ArrowLeft className="w-4 h-4" />
+                    <ArrowLeft className="w-3.5 h-3.5" />
                     Dashboard
                 </Link>
-                <span className="text-stone-300 dark:text-stone-600">/</span>
-                <span className="text-sm font-semibold text-stone-700 dark:text-stone-300">Create Poll</span>
+                <span className="text-db-rule font-mono text-[11px]">/</span>
+                <span className="font-mono text-[11px] text-db-chalk tracking-[0.16em] uppercase">CREATE POLL</span>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* -- Main Form Column ---------------------------------------- */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="animate-fade-in-up">
-                        <h1 className="text-2xl font-extrabold tracking-tight text-stone-900 dark:text-stone-100">
-                            Create a New Poll
-                        </h1>
-                        <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
-                            Configure your poll settings, add options, and publish it on-chain.
-                        </p>
-                    </div>
+            {/* -- 12-col form-builder poster ------------------------------- */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-px lg:gap-8 bg-db-rule lg:bg-transparent">
+                {/* -- Form region (8 cols) -------------------------------- */}
+                <div className="relative lg:col-span-8 bg-db-void p-6 lg:p-10 space-y-8 overflow-hidden animate-fade-in-up">
+                    {/* Watermark — desktop only, behind hero (per MANIFEST) */}
+                    <img
+                        src={creativeDesigner}
+                        alt=""
+                        aria-hidden="true"
+                        className="hidden lg:block absolute top-0 right-0 w-[300px] opacity-15 pointer-events-none select-none"
+                    />
 
-                    <div className="animate-fade-in-up animate-fade-in-up-1 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-sm p-6 md:p-8">
-                        {/* Feedback messages */}
-                        <div className="space-y-3 mb-6">
-                            {isPending && <FeedbackMessage type="pending">Submitting transaction...</FeedbackMessage>}
-                            {isConfirming && <FeedbackMessage type="pending">Waiting for confirmation...</FeedbackMessage>}
-                            {isSuccess && <FeedbackMessage type="success">Poll created successfully! Redirecting...</FeedbackMessage>}
-                            {errorMsg && <FeedbackMessage type="error">{errorMsg}</FeedbackMessage>}
+                    {/* Hero */}
+                    <header className="relative">
+                        <h1 className="font-sans font-extrabold text-[clamp(36px,5vw,64px)] leading-[1.05] tracking-[-0.02em] text-db-chalk uppercase">
+                            Create<br />a new poll
+                        </h1>
+                        <div className="w-16 h-px bg-db-segnale mt-4 mb-4" />
+                        <p className="font-mono text-[12px] text-db-mute leading-relaxed max-w-[480px]">
+                            Configure poll metadata, options, and visibility. The poll is published on-chain in a single transaction.
+                        </p>
+                    </header>
+
+                    {/* Feedback messages (above the form, not inside) */}
+                    {(isPending || isConfirming || isSuccess || errorMsg) && (
+                        <div className="space-y-2 relative">
+                            {isPending && <CreateFeedback type="pending">submitting transaction…</CreateFeedback>}
+                            {isConfirming && <CreateFeedback type="pending">awaiting on-chain confirmation…</CreateFeedback>}
+                            {isSuccess && <CreateFeedback type="success">poll deployed · redirecting to dashboard…</CreateFeedback>}
+                            {errorMsg && <CreateFeedback type="error">{errorMsg}</CreateFeedback>}
+                        </div>
+                    )}
+
+                    {/* -- Form: hairline-rule fields, no inner card ------- */}
+                    <form onSubmit={handleCreatePoll} className="space-y-6 relative">
+                        {/* 01 · Title — hairline-bottom-rule, 24px Inter 800 echo */}
+                        <div className="flex flex-col gap-2 pb-6 border-b border-db-rule">
+                            <label
+                                htmlFor="poll-title"
+                                className="font-mono text-[10px] text-db-mute uppercase tracking-[0.18em] flex items-center gap-2"
+                            >
+                                <span>01 · TITLE</span>
+                                <span className="text-db-segnale">*</span>
+                            </label>
+                            <input
+                                id="poll-title"
+                                type="text"
+                                placeholder="e.g., Q3 Treasury Allocation"
+                                value={title}
+                                onChange={e => setTitle(e.target.value)}
+                                className="bg-transparent border-0 border-b border-db-rule focus:border-db-segnale focus:outline-none px-0 py-3 text-db-chalk placeholder:text-db-mute font-sans font-extrabold text-[24px] tracking-[-0.01em] caret-db-segnale"
+                                required
+                            />
                         </div>
 
-                        <form onSubmit={handleCreatePoll} className="space-y-6">
-                            {/* Title */}
-                            <div className="flex flex-col gap-2">
-                                <label htmlFor="poll-title" className="text-sm font-semibold text-stone-700 dark:text-stone-300">
-                                    Poll Title <span className="text-rose-500">*</span>
+                        {/* 02 · Description */}
+                        <div className="flex flex-col gap-2 pb-6 border-b border-db-rule">
+                            <label
+                                htmlFor="poll-description"
+                                className="font-mono text-[10px] text-db-mute uppercase tracking-[0.18em] flex items-center gap-2"
+                            >
+                                <span>02 · DESCRIPTION</span>
+                                <span className="font-mono text-[10px] text-db-mute normal-case opacity-60">(optional)</span>
+                            </label>
+                            <textarea
+                                id="poll-description"
+                                placeholder="What is this poll about?"
+                                value={description}
+                                onChange={e => setDescription(e.target.value)}
+                                rows={3}
+                                className="bg-transparent border-0 border-b border-db-rule focus:border-db-segnale focus:outline-none px-0 py-2 text-db-chalk placeholder:text-db-mute font-mono text-[13px] leading-relaxed caret-db-segnale resize-y"
+                            />
+                        </div>
+
+                        {/* 03 · Poll type — mono ( ) / (•) radio glyphs */}
+                        <div className="flex flex-col gap-3 pb-6 border-b border-db-rule">
+                            <span className="font-mono text-[10px] text-db-mute uppercase tracking-[0.18em]">03 · POLL TYPE</span>
+                            <div
+                                role="radiogroup"
+                                aria-label="Poll type"
+                                className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-db-rule"
+                            >
+                                <button
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={pollType === 'anon-vote'}
+                                    onClick={() => setPollType('anon-vote')}
+                                    className={`p-5 flex flex-col gap-3 text-left transition-colors cursor-pointer ${
+                                        pollType === 'anon-vote'
+                                            ? 'bg-db-slate border-l-2 border-db-segnale'
+                                            : 'bg-db-void hover:bg-db-slate border-l-2 border-transparent'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-mono text-[14px] text-db-segnale" aria-hidden="true">
+                                            {pollType === 'anon-vote' ? '(•)' : '( )'}
+                                        </span>
+                                        <ShieldCheck
+                                            className={`w-4 h-4 ${pollType === 'anon-vote' ? 'text-db-segnale' : 'text-db-mute'}`}
+                                        />
+                                        <span className="font-sans font-extrabold text-[14px] tracking-[0.05em] uppercase text-db-chalk">
+                                            Anonymous · ZK
+                                        </span>
+                                    </div>
+                                    <p className="font-mono text-[11px] text-db-mute leading-relaxed">
+                                        Zero-knowledge proofs. Admin distributes invite tokens. No on-chain link between identity and vote.
+                                    </p>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={pollType === 'blind-vote'}
+                                    onClick={() => setPollType('blind-vote')}
+                                    className={`p-5 flex flex-col gap-3 text-left transition-colors cursor-pointer ${
+                                        pollType === 'blind-vote'
+                                            ? 'bg-db-slate border-l-2 border-db-oltremare'
+                                            : 'bg-db-void hover:bg-db-slate border-l-2 border-transparent'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-mono text-[14px] text-db-oltremare" aria-hidden="true">
+                                            {pollType === 'blind-vote' ? '(•)' : '( )'}
+                                        </span>
+                                        <EyeOff
+                                            className={`w-4 h-4 ${pollType === 'blind-vote' ? 'text-db-oltremare' : 'text-db-mute'}`}
+                                        />
+                                        <span className="font-sans font-extrabold text-[14px] tracking-[0.05em] uppercase text-db-chalk">
+                                            Blind · Commit-Reveal
+                                        </span>
+                                    </div>
+                                    <p className="font-mono text-[11px] text-db-mute leading-relaxed">
+                                        Votes sealed until reveal phase. Address-based registration. No invite token needed.
+                                    </p>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* 04 · Reveal window — blind only */}
+                        {pollType === 'blind-vote' && (
+                            <div className="flex flex-col gap-2 pb-6 border-b border-db-rule animate-fade-in-up">
+                                <label
+                                    htmlFor="reveal-duration"
+                                    className="font-mono text-[10px] text-db-mute uppercase tracking-[0.18em]"
+                                >
+                                    04 · REVEAL WINDOW <span className="opacity-60 normal-case">(seconds)</span>
                                 </label>
                                 <input
-                                    id="poll-title"
-                                    type="text"
-                                    placeholder="e.g., Q3 Board Election"
-                                    value={title}
-                                    onChange={e => setTitle(e.target.value)}
-                                    className="bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-sm text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 min-h-[44px] transition-all"
-                                    required
+                                    id="reveal-duration"
+                                    type="number"
+                                    min={60}
+                                    value={revealDuration}
+                                    onChange={e => setRevealDuration(Number(e.target.value))}
+                                    className="w-48 bg-transparent border-0 border-b border-db-rule focus:border-db-oltremare focus:outline-none px-0 py-3 text-db-chalk font-sans font-extrabold text-[24px] tabular-nums caret-db-oltremare"
                                 />
+                                <p className="font-mono text-[11px] text-db-mute">default: 3600 (1 hour) · minimum: 60s</p>
                             </div>
+                        )}
 
-                            {/* Description */}
-                            <div className="flex flex-col gap-2">
-                                <label htmlFor="poll-description" className="text-sm font-semibold text-stone-700 dark:text-stone-300">
-                                    Description <span className="text-stone-400 dark:text-stone-500 font-normal">(optional)</span>
-                                </label>
-                                <textarea
-                                    id="poll-description"
-                                    placeholder="What is this poll about?"
-                                    value={description}
-                                    onChange={e => setDescription(e.target.value)}
-                                    rows={3}
-                                    className="bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-sm text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-y transition-all"
-                                />
-                            </div>
-
-                            {/* Poll Type Selector */}
-                            <div className="flex flex-col gap-2">
-                                <span className="text-sm font-semibold text-stone-700 dark:text-stone-300">Poll Type</span>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setPollType('anon-vote')}
-                                        className={`flex items-start gap-4 px-5 py-4 rounded-xl border-2 transition-all text-left cursor-pointer ${
-                                            pollType === 'anon-vote'
-                                                ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30 dark:border-teal-600'
-                                                : 'border-stone-200 dark:border-stone-700 hover:border-stone-300 dark:hover:border-stone-600 bg-white dark:bg-stone-800'
-                                        }`}
-                                    >
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                                            pollType === 'anon-vote'
-                                                ? 'bg-teal-600'
-                                                : 'bg-stone-100 dark:bg-stone-700'
-                                        }`}>
-                                            <ShieldCheck className={`w-5 h-5 ${pollType === 'anon-vote' ? 'text-white' : 'text-stone-400 dark:text-stone-500'}`} />
-                                        </div>
-                                        <div>
-                                            <span className={`text-sm font-semibold ${pollType === 'anon-vote' ? 'text-teal-800 dark:text-teal-300' : 'text-stone-600 dark:text-stone-400'}`}>
-                                                Anonymous (ZK)
-                                            </span>
-                                            <span className={`block text-xs font-normal mt-0.5 ${pollType === 'anon-vote' ? 'text-teal-600/70 dark:text-teal-400/70' : 'text-stone-400 dark:text-stone-500'}`}>
-                                                Zero-knowledge proofs. No one can link your identity to your vote.
-                                            </span>
-                                        </div>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setPollType('blind-vote')}
-                                        className={`flex items-start gap-4 px-5 py-4 rounded-xl border-2 transition-all text-left cursor-pointer ${
-                                            pollType === 'blind-vote'
-                                                ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/30 dark:border-amber-600'
-                                                : 'border-stone-200 dark:border-stone-700 hover:border-stone-300 dark:hover:border-stone-600 bg-white dark:bg-stone-800'
-                                        }`}
-                                    >
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                                            pollType === 'blind-vote'
-                                                ? 'bg-amber-500'
-                                                : 'bg-stone-100 dark:bg-stone-700'
-                                        }`}>
-                                            <EyeOff className={`w-5 h-5 ${pollType === 'blind-vote' ? 'text-white' : 'text-stone-400 dark:text-stone-500'}`} />
-                                        </div>
-                                        <div>
-                                            <span className={`text-sm font-semibold ${pollType === 'blind-vote' ? 'text-amber-800 dark:text-amber-300' : 'text-stone-600 dark:text-stone-400'}`}>
-                                                Blind (Commit-Reveal)
-                                            </span>
-                                            <span className={`block text-xs font-normal mt-0.5 ${pollType === 'blind-vote' ? 'text-amber-600/70 dark:text-amber-400/70' : 'text-stone-400 dark:text-stone-500'}`}>
-                                                Votes are hidden until the reveal phase. Address-based registration.
-                                            </span>
-                                        </div>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Reveal Duration (blind-vote only) */}
-                            {pollType === 'blind-vote' && (
-                                <div className="flex flex-col gap-2 animate-fade-in-up">
-                                    <label htmlFor="reveal-duration" className="text-sm font-semibold text-stone-700 dark:text-stone-300">
-                                        Reveal Window (seconds)
-                                    </label>
-                                    <p className="text-xs text-stone-400 dark:text-stone-500">
-                                        How long voters have to reveal their vote after voting ends. Default: 3600 (1 hour).
-                                    </p>
-                                    <input
-                                        id="reveal-duration"
-                                        type="number"
-                                        min={60}
-                                        value={revealDuration}
-                                        onChange={e => setRevealDuration(Number(e.target.value))}
-                                        className="w-40 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-sm text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 min-h-[44px] transition-all"
-                                    />
-                                </div>
-                            )}
-
-                            {/* Options */}
-                            <fieldset className="flex flex-col gap-3">
-                                <legend className="text-sm font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                                    Voting Options <span className="text-stone-400 dark:text-stone-500 font-normal">(min 2)</span>
-                                </legend>
-
-                                <div className="space-y-2">
-                                    {options.map((opt, i) => (
-                                        <div key={i} className="flex items-center gap-2">
+                        {/* 04/05 · Voting options — dynamic list, per-index colours */}
+                        <fieldset className="flex flex-col gap-3 pb-6 border-b border-db-rule">
+                            <legend className="font-mono text-[10px] text-db-mute uppercase tracking-[0.18em]">
+                                {optionsLegendIndex} · VOTING OPTIONS <span className="opacity-60 normal-case">(min 2)</span>
+                            </legend>
+                            <div className="flex flex-col gap-px bg-db-rule">
+                                {options.map((opt, i) => {
+                                    const tone = getOptionTone(i)
+                                    return (
+                                        <div key={i} className="flex items-center gap-4 bg-db-void px-4 py-3">
                                             <label htmlFor={`option-${i}`} className="sr-only">
                                                 Option {i + 1}
                                             </label>
+                                            <span className={`font-sans font-extrabold text-[14px] tabular-nums w-8 shrink-0 ${tone.text}`}>
+                                                {String(i + 1).padStart(2, '0')}
+                                            </span>
                                             <input
                                                 id={`option-${i}`}
                                                 type="text"
                                                 placeholder={`Option ${i + 1}`}
                                                 value={opt}
                                                 onChange={e => updateOption(i, e.target.value)}
-                                                className="flex-1 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-2.5 text-sm text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 min-h-[44px] transition-all"
+                                                className="flex-1 bg-transparent border-0 focus:outline-none px-0 py-2 text-db-chalk placeholder:text-db-mute font-mono text-[14px] caret-db-segnale"
                                                 required
                                             />
                                             {options.length > 2 && (
                                                 <button
                                                     type="button"
                                                     onClick={() => removeOption(i)}
-                                                    className="flex items-center justify-center w-11 h-11 bg-rose-50 dark:bg-rose-900/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-700 rounded-xl text-sm transition-colors cursor-pointer shrink-0"
+                                                    className="text-db-mute hover:text-db-segnale font-mono text-[11px] tracking-[0.12em] uppercase flex items-center gap-1 cursor-pointer transition-colors shrink-0"
                                                     aria-label={`Remove option ${i + 1}`}
                                                 >
-                                                    <X className="w-4 h-4" />
+                                                    <X className="w-3.5 h-3.5" /> REMOVE
                                                 </button>
                                             )}
                                         </div>
-                                    ))}
-                                </div>
+                                    )
+                                })}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={addOption}
+                                className="self-start inline-flex items-center gap-2 bg-db-slate hover:bg-db-rule text-db-chalk border border-db-rule font-sans font-extrabold text-[11px] tracking-[0.18em] uppercase px-4 py-2.5 transition-colors cursor-pointer"
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                                ADD OPTION
+                            </button>
+                        </fieldset>
 
-                                <button
-                                    type="button"
-                                    onClick={addOption}
-                                    className="self-start inline-flex items-center gap-1.5 px-4 py-2.5 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 rounded-xl text-sm font-semibold transition-colors cursor-pointer min-h-[44px]"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                    Add Option
-                                </button>
-                            </fieldset>
+                        {/*
+                         * NOTE: the original design hint mentioned an "allow-list" field at
+                         * poll-creation time. The underlying contract surface (see
+                         * `handleCreatePoll` above + ZkAnonVoting.initialize /
+                         * ZkBlindVoting.initialize ABI args) does NOT accept an allow-list at
+                         * create-time — invite tokens are generated post-creation (anon path)
+                         * and registration is open-by-address (blind path). The caption below
+                         * is the documented fallback (spec §2.2) so users see where voters
+                         * actually come from. Adding a real allow-list field would require a
+                         * contract change, out of Impl-4 scope.
+                         */}
+                        <p className="font-mono text-[11px] text-db-mute leading-relaxed border-l-2 border-db-mute pl-3 pb-6 border-b border-db-rule">
+                            {allowListCaption}
+                        </p>
 
-                            {/* Submit */}
+                        {/* Deploy (8 cols) + Cancel (4 cols) footer row */}
+                        <div className="grid grid-cols-12 gap-px bg-db-rule">
                             <button
                                 type="submit"
                                 disabled={!isConnected || isPending || isConfirming}
-                                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-xl text-sm font-semibold transition-colors min-h-[44px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="col-span-12 sm:col-span-8 bg-db-segnale hover:bg-db-segnale/90 text-db-void font-sans font-extrabold text-[14px] tracking-[0.20em] uppercase px-6 py-5 flex items-center justify-between transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                             >
-                                {!isConnected
-                                    ? 'Connect Wallet to Create'
-                                    : isPending
-                                        ? 'Submitting...'
-                                        : isConfirming
-                                            ? 'Confirming...'
-                                            : 'Create Poll'}
+                                <span>
+                                    {!isConnected
+                                        ? 'CONNECT WALLET TO DEPLOY'
+                                        : isPending
+                                            ? 'SUBMITTING TX…'
+                                            : isConfirming
+                                                ? 'CONFIRMING…'
+                                                : 'DEPLOY POLL ON-CHAIN'}
+                                </span>
+                                <Send className="w-4 h-4" />
                             </button>
-                        </form>
-                    </div>
+                            <Link
+                                to="/"
+                                className="col-span-12 sm:col-span-4 bg-db-slate hover:bg-db-rule text-db-mute hover:text-db-chalk font-sans font-extrabold text-[14px] tracking-[0.20em] uppercase px-6 py-5 flex items-center justify-center transition-colors"
+                            >
+                                CANCEL
+                            </Link>
+                        </div>
+                    </form>
                 </div>
 
-                {/* -- Sidebar: Preview & Info --------------------------------- */}
-                <div className="space-y-6">
-                    {/* Live Preview */}
-                    <div className="animate-fade-in-up animate-fade-in-up-2 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-sm p-6">
-                        <h3 className="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <FileText className="w-4 h-4" />
-                            Preview
-                        </h3>
-                        <div className="space-y-3">
-                            <div>
-                                <p className="text-xs text-stone-400 dark:text-stone-500 mb-1">Title</p>
-                                <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">
-                                    {title || <span className="text-stone-300 dark:text-stone-600 italic">Untitled Poll</span>}
-                                </p>
-                            </div>
-                            {description && (
-                                <div>
-                                    <p className="text-xs text-stone-400 dark:text-stone-500 mb-1">Description</p>
-                                    <p className="text-sm text-stone-600 dark:text-stone-400">{description}</p>
-                                </div>
-                            )}
-                            <div>
-                                <p className="text-xs text-stone-400 dark:text-stone-500 mb-1">Type</p>
-                                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wide ${
-                                    pollType === 'blind-vote'
-                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                        : 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
-                                }`}>
-                                    {pollType === 'blind-vote' ? 'Blind Commit-Reveal' : 'ZK Anonymous'}
-                                </span>
-                            </div>
-                            {validOptions.length > 0 && (
-                                <div>
-                                    <p className="text-xs text-stone-400 dark:text-stone-500 mb-2">Options ({validOptions.length})</p>
-                                    <div className="space-y-1">
-                                        {validOptions.map((opt, i) => (
-                                            <div key={i} className="flex items-center gap-2 px-3 py-2 bg-stone-50 dark:bg-stone-800 rounded-lg text-sm text-stone-700 dark:text-stone-300 border border-stone-100 dark:border-stone-700">
-                                                <span className="w-5 h-5 rounded-full bg-teal-500 text-white text-xs flex items-center justify-center font-bold">{i + 1}</span>
-                                                {opt}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                {/* -- Sidebar (4 cols) ----------------------------------- */}
+                <aside className="lg:col-span-4 bg-db-void p-6 lg:p-10 space-y-6 animate-fade-in-up animate-fade-in-up-2">
+                    <PreviewPanel
+                        title={title}
+                        description={description}
+                        pollType={pollType}
+                        validOptions={validOptions}
+                    />
 
-                    {/* How it works */}
-                    <div className="animate-fade-in-up animate-fade-in-up-3 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-sm p-6">
-                        <h3 className="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <Vote className="w-4 h-4" />
-                            How It Works
-                        </h3>
-                        <div className="space-y-4">
-                            {pollType === 'anon-vote' ? (
-                                <>
-                                    <div className="flex gap-3">
-                                        <div className="w-6 h-6 rounded-full bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center flex-shrink-0 text-xs font-bold text-teal-700 dark:text-teal-400">1</div>
-                                        <p className="text-xs text-stone-600 dark:text-stone-400">Admin generates invite tokens and distributes them privately to voters.</p>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <div className="w-6 h-6 rounded-full bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center flex-shrink-0 text-xs font-bold text-teal-700 dark:text-teal-400">2</div>
-                                        <p className="text-xs text-stone-600 dark:text-stone-400">Voters load their token and cast a vote using a ZK proof -- no identity revealed.</p>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <div className="w-6 h-6 rounded-full bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center flex-shrink-0 text-xs font-bold text-teal-700 dark:text-teal-400">3</div>
-                                        <p className="text-xs text-stone-600 dark:text-stone-400">Results are tallied on-chain. The smart contract guarantees each token votes once.</p>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="flex gap-3">
-                                        <div className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0 text-xs font-bold text-amber-700 dark:text-amber-400">1</div>
-                                        <p className="text-xs text-stone-600 dark:text-stone-400">Voters register their wallet address during the registration phase.</p>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <div className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0 text-xs font-bold text-amber-700 dark:text-amber-400">2</div>
-                                        <p className="text-xs text-stone-600 dark:text-stone-400">During voting, each voter commits a hash of their choice -- nobody can see votes.</p>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <div className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0 text-xs font-bold text-amber-700 dark:text-amber-400">3</div>
-                                        <p className="text-xs text-stone-600 dark:text-stone-400">After voting ends, voters reveal their choices. Unrevealed votes are excluded.</p>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
+                    <HowItWorks pollType={pollType} />
 
-                    {/* Warning */}
                     {!isConnected && (
-                        <div className="animate-fade-in-up animate-fade-in-up-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl px-5 py-4 flex items-start gap-3">
-                            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                            <div>
-                                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Wallet not connected</p>
-                                <p className="text-xs text-amber-700/70 dark:text-amber-400/70 mt-0.5">Connect your wallet using the button in the header to create a poll.</p>
+                        <div className="bg-db-slate border-l-2 border-db-segnale p-5 flex items-start gap-3">
+                            <AlertTriangle className="w-4 h-4 text-db-segnale shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <p className="font-sans font-extrabold text-[12px] tracking-[0.12em] uppercase text-db-chalk">
+                                    Wallet not connected
+                                </p>
+                                <p className="font-mono text-[11px] text-db-mute leading-relaxed">
+                                    Connect your wallet using the button in the header to deploy a poll.
+                                </p>
                             </div>
                         </div>
                     )}
-                </div>
+                </aside>
             </div>
         </div>
     )

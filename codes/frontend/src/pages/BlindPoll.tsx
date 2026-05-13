@@ -2,6 +2,7 @@ import { useState, useTransition } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAccount, useChainId } from 'wagmi'
 import { hardhat, localhost } from 'wagmi/chains'
+import { Check, Lock, Unlock, Users, type LucideIcon } from 'lucide-react'
 
 import { usePollState, usePollOptions, usePollResults, usePollOwner, useParticipantCount } from '../hooks/usePoll'
 import {
@@ -12,7 +13,7 @@ import {
 } from '../hooks/useBlindPoll'
 import { useBlindVote } from '../hooks/useBlindVote'
 
-import { StateProgress } from '../components/blindpoll/StateProgress'
+import { PhaseStrip } from '../components/shared/PhaseStrip'
 import { RegisterCard } from '../components/blindpoll/RegisterCard'
 import { CommitCard } from '../components/blindpoll/CommitCard'
 import { RevealCard } from '../components/blindpoll/RevealCard'
@@ -20,7 +21,19 @@ import { AdminPanel } from '../components/blindpoll/AdminPanel'
 import { ResultsBars } from '../components/blindpoll/ResultsBars'
 import { PageHeader } from '../components/blindpoll/PageHeader'
 import { StatusBanner, type StatusType } from '../components/blindpoll/StatusBanner'
-import { TrustBanner, FinalizedCard, NotConnectedCard } from '../components/blindpoll/InfoCards'
+import { FinalizedCard, NotConnectedCard } from '../components/blindpoll/InfoCards'
+
+/**
+ * Blind-vote lifecycle steps, consumed by `PhaseStrip`. Order matches the
+ * contract's PollState enum (0 registration → 1 commit → 2 reveal) with a
+ * trailing synthetic "ended" step that lights up only after `finalized`.
+ */
+const BLIND_PHASE_STEPS: { label: string; icon: LucideIcon }[] = [
+    { label: 'Registration', icon: Users },
+    { label: 'Commit', icon: Lock },
+    { label: 'Reveal', icon: Unlock },
+    { label: 'Ended', icon: Check },
+]
 
 export default function BlindPoll() {
     const { address: pollAddress } = useParams()
@@ -103,58 +116,75 @@ export default function BlindPoll() {
     const voteDisabled = !isConnected || isWrongNetwork || isTxConfirming || isPending
     const isProcessing = isPending || isTxConfirming
 
+    // Map contract state → PhaseStrip index. `finalized` forces the trailing
+    // "Ended" block to light up regardless of the live state read.
+    const phaseIndex = finalized ? 3 : currentPollState
+
     return (
         <div className="space-y-6">
             <PageHeader pollAddress={pollAddress} />
 
             {currentPollState >= 0 && (
-                <div className="animate-fade-in-up animate-fade-in-up-1 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-sm px-6 py-5">
-                    <StateProgress current={currentPollState} />
+                <PhaseStrip steps={BLIND_PHASE_STEPS} current={phaseIndex} />
+            )}
+
+            {/* Inline trust-signal strip — replaces the standalone TrustBanner. */}
+            {currentPollState >= 0 && currentPollState <= 2 && !finalized && (
+                <div className="flex items-center gap-3 px-4 py-2 border-l-2 border-db-oltremare bg-db-slate">
+                    <Lock className="w-3.5 h-3.5 text-db-oltremare flex-shrink-0" aria-hidden="true" />
+                    <span className="font-mono text-[11px] text-db-mute tracking-[0.05em]">
+                        commitment-sealed · choices invisible until reveal phase
+                    </span>
                 </div>
             )}
 
-            <TrustBanner />
             <StatusBanner msg={statusMsg} type={statusType} isTxConfirming={isTxConfirming} isTxSuccess={isTxSuccess} />
 
-            <main className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <section className="space-y-6">
-                    {currentPollState === 0 && (
-                        <RegisterCard
-                            participantCount={participantCount}
-                            isConnected={isConnected}
-                            isProcessing={isProcessing}
-                            disabled={voteDisabled}
-                            onRegister={() => startTransition(async () => await handleRegister())}
-                        />
-                    )}
-                    {currentPollState === 1 && (
-                        <CommitCard
-                            pollOptions={pollOptions}
-                            selectedOption={selectedOption}
-                            onSelectOption={setSelectedOption}
-                            onCommit={() => startTransition(async () => await handleCommitVote())}
-                            hasCommitted={hasCommitted}
-                            hasSavedCommit={hasSavedCommit}
-                            isConnected={isConnected}
-                            isProcessing={isProcessing}
-                            disabled={voteDisabled}
-                        />
-                    )}
-                    {currentPollState === 2 && !finalized && (
-                        <RevealCard
-                            revealDeadline={revealDeadline}
-                            hasCommitted={hasCommitted}
-                            hasRevealed={hasRevealed}
-                            onReveal={() => startTransition(async () => await handleRevealVote())}
-                            isProcessing={isProcessing}
-                            disabled={voteDisabled}
-                        />
-                    )}
-                    {currentPollState === 2 && finalized && <FinalizedCard />}
-                    {!isConnected && currentPollState >= 0 && <NotConnectedCard />}
-                </section>
+            {/* Active-phase hero — only one renders at a time. */}
+            <section className="max-w-[840px]">
+                {currentPollState === 0 && (
+                    <RegisterCard
+                        participantCount={participantCount}
+                        isConnected={isConnected}
+                        isProcessing={isProcessing}
+                        disabled={voteDisabled}
+                        onRegister={() => startTransition(async () => await handleRegister())}
+                    />
+                )}
+                {currentPollState === 1 && (
+                    <CommitCard
+                        pollOptions={pollOptions}
+                        selectedOption={selectedOption}
+                        onSelectOption={setSelectedOption}
+                        onCommit={() => startTransition(async () => await handleCommitVote())}
+                        hasCommitted={hasCommitted}
+                        hasSavedCommit={hasSavedCommit}
+                        isConnected={isConnected}
+                        isProcessing={isProcessing}
+                        disabled={voteDisabled}
+                    />
+                )}
+                {currentPollState === 2 && !finalized && (
+                    <RevealCard
+                        revealDeadline={revealDeadline}
+                        hasCommitted={hasCommitted}
+                        hasRevealed={hasRevealed}
+                        onReveal={() => startTransition(async () => await handleRevealVote())}
+                        isProcessing={isProcessing}
+                        disabled={voteDisabled}
+                    />
+                )}
+                {currentPollState === 2 && finalized && <FinalizedCard />}
+                {!isConnected && currentPollState >= 0 && (
+                    <div className="mt-6">
+                        <NotConnectedCard />
+                    </div>
+                )}
+            </section>
 
-                <section className="space-y-6">
+            {/* Results + admin grid (hairline-divided). */}
+            <main className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-px bg-db-rule">
+                <div className="bg-db-void">
                     <ResultsBars
                         pollOptions={pollOptions}
                         voteCounts={voteCounts}
@@ -163,7 +193,9 @@ export default function BlindPoll() {
                         currentPollState={currentPollState}
                         finalized={finalized}
                     />
-                    {isAdmin && (
+                </div>
+                {isAdmin && (
+                    <div className="bg-db-void">
                         <AdminPanel
                             currentPollState={currentPollState}
                             finalized={finalized}
@@ -178,8 +210,8 @@ export default function BlindPoll() {
                             onFinalizeResults={handleFinalizeResults}
                             onAddOption={() => startTransition(async () => await handleAddOption())}
                         />
-                    )}
-                </section>
+                    </div>
+                )}
             </main>
         </div>
     )
