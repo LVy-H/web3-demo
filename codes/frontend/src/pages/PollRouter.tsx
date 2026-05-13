@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { useReadContract } from 'wagmi'
 import { REGISTRY_ADDRESS } from '../config'
 import PollRegistryABI from '../abi/PollRegistry.json'
@@ -54,7 +54,7 @@ export default function PollRouter() {
     const { address } = useParams<{ address: string }>()
 
     // Find this poll's module type from the registry
-    const { data: polls } = useReadContract({
+    const { data: polls, isLoading, isError } = useReadContract({
         address: REGISTRY_ADDRESS,
         abi: PollRegistryABI.abi,
         functionName: 'getAllPolls',
@@ -64,6 +64,27 @@ export default function PollRouter() {
     const thisPoll = pollList.find(
         (p) => p.pollAddress.toLowerCase() === address?.toLowerCase()
     )
+
+    if (isLoading) {
+        return <LoadingSkeleton />
+    }
+
+    if (isError || (polls !== undefined && !thisPoll)) {
+        return (
+            <div className="max-w-lg mx-auto mt-16 p-8 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-sm text-center space-y-4">
+                <h2 className="text-lg font-bold text-stone-900 dark:text-stone-100">Poll Not Found</h2>
+                <p className="text-sm text-stone-500 dark:text-stone-400">
+                    This poll does not exist or the system has been restarted. Polls are reset when the blockchain node restarts.
+                </p>
+                <Link
+                    to="/"
+                    className="inline-block px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-medium transition-colors"
+                >
+                    Back to Dashboard
+                </Link>
+            </div>
+        )
+    }
 
     if (!thisPoll) {
         return <LoadingSkeleton />
