@@ -186,16 +186,20 @@ Existing async flows still work; vote-on-A then navigate-to-B shows the vote UI 
 
 - **Goal:** Zero-install voter flow at `/live/:pollId/vote`: verify the ticket, mint an ephemeral Semaphore identity, show the big 4-digit code, **poll for on-chain confirmation**, then question + options → tap → client-side ZK proof → relayer `castVote` → receipt modal. No wallet.
 - **Files:**
-  - `src/pages/LiveVote.tsx` — NEW. Read `?t=<ticket>`; `verifyTicket` (S1.1) → expired/forged shows "code expired, get a fresh QR". Mint `new Identity()`; `confirmationCode(nonce, identity.commitment)`; `POST /api/relay/tickets/pending` `{pollId, ticket, ephemeralIdentityCommitment, confirmationCode}`. Show the big code. **Gate enablement on an on-chain read of `registeredCommitments(commitment)`** (NOT the org queue). Until true → "waiting for confirmation." Once enabled: re-sync **this page's** group (`useGroupSync` here), render options → tap → proof → `POST /api/relay/vote` → ReceiptModal (reuse).
+  - `src/pages/LiveVote.tsx` — NEW. Read `?t=<ticket>`; `verifyTicket` (S1.1) → expired/forged shows "code expired, get a fresh QR". Mint `new Identity()`; `confirmationCode(nonce, identity.commitment)`; `POST /api/relay/tickets/pending` `{pollId, ticket, ephemeralIdentityCommitment, confirmationCode}`. Show the big code. **Gate on TWO on-chain reads — `registeredCommitments(commitment)` AND `getState()` — as a THREE-state machine** (NOT the org queue, never local optimistic state):
+    1. `!registered` → **"waiting for confirmation"** (big code shown).
+    2. `registered && state == Registration` → **"confirmed — waiting for the organizer to open voting"** (do NOT show options yet; `castVote` would revert `NotInVoting`).
+    3. `registered && state == Voting` → **only now** re-sync **this page's** group (`useGroupSync` here — the Merkle root is frozen once registration closes, so the membership proof is valid) → render options → tap → proof → `POST /api/relay/vote` → ReceiptModal (reuse).
+    Syncing the group in state 2 would build a proof against a stale root that keeps changing as more voters are confirmed — that's why the group-sync is deferred to state 3 (same root-freezing argument as spec §2.2 #3, applied to the voter).
   - `src/components/live/ConfirmationCode.tsx` — NEW. Big code + animation.
   - `src/App.tsx` — MODIFY. Add `<Route path="/live/:pollId/vote" element={<LiveVote/>} />`.
 - **Steps (TDD):**
   1. Failing E2E (folded into S1.7 or focused): valid `?t=` → mint identity, show 4-digit code, stay "waiting" until `registeredCommitments` reads true.
   2. Ticket verify + identity mint + code display + `POST …/tickets/pending`.
-  3. On-chain `registeredCommitments` enablement poll; on true → group re-sync + options.
+  3. Implement the **three-state gate**: poll `registeredCommitments(commitment)` AND `getState()`. State 2 (`registered && Registration`) shows "confirmed — waiting for the organizer to open voting" (no options). **Only in state 3 (`registered && Voting`)** do the group re-sync + render options.
   4. Tap → proof → `POST /api/relay/vote` → receipt; friendly errors.
   5. Scoped lint.
-- **Acceptance:** on a second browser, scan → code → (after on-chain confirm) → tap → vote lands → receipt, **no wallet**; expired/forged → graceful "get a fresh code"; enablement driven by the **on-chain read**, never local optimistic state; scoped lint passes.
+- **Acceptance:** on a second browser, scan → code → (after on-chain confirm) → tap → vote lands → receipt, **no wallet**; expired/forged → graceful "get a fresh code"; enablement driven by the **on-chain reads** (`registeredCommitments` + `getState`), never local optimistic state; the vote UI appears **only when `registered && state == Voting`** — while `registered && Registration` the page shows the "waiting for the organizer to open voting" state and never lets a tap reach `castVote` (which would revert `NotInVoting`); the group is synced **only after voting opens** (proof built against the frozen root); scoped lint passes.
 - **Depends on:** **S1.1**, **S1.2**. Buildable against mocks before S1.6.
 
 ### 6. S1.6 — Wire organizer-owned on-chain registration on Confirm
@@ -204,7 +208,7 @@ Existing async flows still work; vote-on-A then navigate-to-B shows the vote UI 
 - **Files:**
   - `src/hooks/useLiveQueue.ts` — MODIFY. `confirmVoter(commitment)`: (a) `writeContractAsync({address: pollAddr, abi, functionName:'registerVoter', args:[commitment], gas: <override like Poll.tsx's 15000000n>})` — **single scalar arg, NOT an array**; (b) **await a per-tx `publicClient.waitForTransactionReceipt({hash})`** (mirror Poll.tsx:294–303) — drive per-voter state from THAT, not `usePollWrite`'s shared `isConfirming`/`isSuccess` (racy across a multi-voter queue); (c) then `POST /api/relay/tickets/redeem`. Treat `AlreadyRegistered()` (ZkAnonVoting.sol:124) as success (read `registeredCommitments` to confirm) so retry is idempotent. Never flip to enabled on tx send.
   - `src/components/live/PendingVoterList.tsx` — MODIFY. Confirm → `confirmVoter`; disable unless connected wallet === `usePollOwner(pollId)`; "Registering on-chain…" while pending; flip on receipt. Reject leaves un-registered + drops the row.
-  - `src/pages/LiveVote.tsx` — MODIFY. Enablement reads `registeredCommitments(commitment)` on-chain — NOT the org queue, not local state.
+  - `src/pages/LiveVote.tsx` — MODIFY. Enablement is the **three-state gate** (S1.5): `registeredCommitments(commitment)` + `getState()` on-chain — NOT the org queue, not local state. The vote UI unlocks only in state 3 (`registered && Voting`); group-sync deferred to that state.
   - `codes/relayer/src/tickets.ts` — MODIFY. On redeem, move ticket pending→consumed + surface state. Pin redeem payload jointly with S1.2. **This overrides the design doc's `/relay/register`** — registration is the organizer's browser wallet (the owner); a relayer-driven `registerVoter` would revert `OwnableUnauthorizedAccount`. Document the override.
   - `codes/relayer/test/tickets.test.ts` — MODIFY. Redeem marks consumed exactly once; replay rejected; status reflects consumed only post-redeem.
   - `codes/relayer/README.md` — MODIFY. Redeem semantics + `/relay/register` override.
@@ -223,7 +227,7 @@ Existing async flows still work; vote-on-A then navigate-to-B shows the vote UI 
 - **Goal:** A Playwright spec running an organizer context (MetaMask owner) and a voter context (wallet-free), covering happy + reject under the sequential phase machine.
 - **Files:** `codes/frontend/e2e/09-live-two-context.spec.ts` — NEW (synpress MetaMask config). May absorb the focused S1.5/S1.6 specs.
 - **Steps (TDD):**
-  1. **Happy path:** organizer creates/owns a live M1 poll → host; voter scans the `/vote?t=` URL → code → disabled; organizer Confirms (real `registerVoter`) → voter's `registeredCommitments` flips → organizer **Start Voting** → voter taps → relayed `castVote` → tally moves → organizer **End Voting**.
+  1. **Happy path:** organizer creates/owns a live M1 poll → host; voter scans the `/vote?t=` URL → code → disabled; organizer Confirms (real `registerVoter`) → voter's `registeredCommitments` flips → **assert the voter now shows "waiting for the organizer to open voting" with NO options visible** (guards the three-state bug — see S1.5; without this assertion the test passes even if the voter wrongly shows options in Registration) → organizer **Start Voting** → voter taps → relayed `castVote` → tally moves → organizer **End Voting**.
   2. **Reject path:** a "friend not in the room" scans, gets a code; organizer Rejects → no tx → that voter never enables.
 - **Acceptance:** both contexts run; happy path tallies one vote through Registration→Start Voting→Voting; reject path leaves the voter blocked with no tx; no contract changes.
 - **Depends on:** **S1.4, S1.5, S1.6** (+ S1.1/S1.2/S1.3 transitively).
