@@ -60,9 +60,16 @@ is the operative instruction.
 - **PHASE 2 part A DONE ✅** — `RelayClient` + `PendingVoter`/`RelayProof` models:
   10/10 MockClient tests asserting exact paths/body-keys/parsing for
   issue/pending/queue/redeem/vote/status (verified vs codes/relayer/src + liveRelay.ts/useRelay.ts).
-- **Now:** Phase 2 part B — on-chain reads (JSON-RPC `eth_call` for IZkPoll +
-  PollRegistry). Deciding `web3dart` vs hand-rolled ABI.
-- **Next:** Phase 3 ZK proof spike (WebView+snarkjs) — **advisor check before starting** (long pole).
+- **ZK RISK A (crypto) RESOLVED ✅** — de-risk spike: Semaphore v4
+  `generateProof → verifyProof == true` against the **real Groth16 vkey** (not
+  the local mock), CDN artifacts fetched in 3.7s. Golden proof vector →
+  `test/fixtures/zk_proof_vector.json`. `ProofService` seam defined +
+  `FakeProofService` (4/4 tests). Remaining ZK = plumbing only (Risk B).
+- **Now:** Phase 2 part B — on-chain reads via `web3dart`, tested against a
+  running Hardhat node (reads are NOT mock-tainted, unlike the verifier).
+- **Next (parallel):** read-only UI (browse/results/verify/identity) — ZK-independent.
+- **Later:** Risk B plumbing — Flutter-web JS-interop (Chrome, testable here),
+  then mobile webview (last mile, do not block the loop on it).
 - **Oracle:** recreate `codes/frontend/src/lib/__vectors.gen.test.ts` + `npx vitest run …`
   to regenerate vectors; delete after. Durable artifact = the committed fixture.
 - **Build/test runs via Bash** (`flutter test`/`flutter analyze`) — Dart MCP is
@@ -119,10 +126,14 @@ Detail when reached. Relayer client mirrors `liveRelay.ts` endpoints; JSON-RPC
 registeredCommitments/isNullifierUsed`; JSON models with `fromJson`. Verify ABIs
 & selectors against `codes/frontend/src/abi/*.json` and the contract source.
 
-## Phase 3 — ZK proof spike (WebView + snarkjs) [SPIKE, de-risk early]
-Before UI that depends on voting: load Semaphore artifacts in a hidden WebView,
-generate one real proof, return it over the JS channel, confirm it verifies
-on-chain against local Hardhat. Behind a `ProofService` interface.
+## Phase 3 — ZK proof (decomposed; behind `ProofService`)
+- **Risk A — crypto [DONE ✅]:** `generateProof → verifyProof` against the real
+  Groth16 vkey (Node, zero Flutter). NOTE: local Hardhat = MockSemaphoreVerifier
+  (always-true) → never use "vote lands locally" as a crypto success criterion.
+- **Risk B — plumbing [TODO]:** host the same Semaphore JS bundle and marshal
+  the `RelayProof` back. (1) Flutter-web JS-interop in Chrome — testable on this
+  machine; (2) mobile `webview_flutter` — last mile, needs device/emulator.
+  Output must match `zk_proof_vector.json`.
 
 ## Phase 4 — UI (Dark Bauhaus theme, go_router, MVVM screens)
 Theme tokens from `docs/standards/visual-design-guide.md`. Screens: Browse,
