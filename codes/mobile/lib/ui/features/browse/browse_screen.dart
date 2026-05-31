@@ -8,6 +8,7 @@ import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
 import '../../core/watermark.dart';
+import '../wallet/wallet_button.dart';
 import 'browse_view_model.dart';
 
 /// Browse all polls — Dark Bauhaus stateful-card grammar (port of web Home.tsx).
@@ -187,6 +188,8 @@ class _Hero extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            const WalletButton(),
+            const SizedBox(height: 8),
             _GhostButton(
               icon: Icons.verified_outlined,
               label: 'VERIFY',

@@ -1,4 +1,5 @@
 import 'package:http/http.dart' as http;
+import 'package:wallet/wallet.dart' show EthereumAddress; // web3dart 3.x moved it here
 import 'package:web3dart/web3dart.dart';
 
 import '../models/poll_info.dart';
@@ -71,7 +72,7 @@ class ChainReader {
 
   Future<String> getOwner(String pollAddress) async {
     final r = await _read(_pollAbi, EthereumAddress.fromHex(pollAddress), 'owner');
-    return (r.first as EthereumAddress).hexEip55;
+    return (r.first as EthereumAddress).eip55With0x;
   }
 
   Future<BigInt> getParticipantCount(String pollAddress) async {
