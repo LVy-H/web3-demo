@@ -114,9 +114,7 @@ contract ZkBlindVoting is IZkPoll, Initializable, Ownable {
 
     /// @notice For IZkPoll compatibility. Interprets nullifierHash as address(uint160(nullifierHash)).
     ///         Returns true if that address has committed a vote.
-    function verifyParticipation(
-        uint256 nullifierHash
-    ) external view override returns (bool) {
+    function verifyParticipation(uint256 nullifierHash) external view override returns (bool) {
         address voter = address(uint160(nullifierHash));
         return commits[voter].commitHash != bytes32(0);
     }
@@ -224,9 +222,7 @@ contract ZkBlindVoting is IZkPoll, Initializable, Ownable {
         if (commits[msg.sender].revealed) revert AlreadyRevealed();
         if (optionIndex >= options.length) revert InvalidOptionIndex();
 
-        bytes32 expectedHash = keccak256(
-            abi.encodePacked(optionIndex, salt)
-        );
+        bytes32 expectedHash = keccak256(abi.encodePacked(optionIndex, salt));
         if (expectedHash != commits[msg.sender].commitHash) revert HashMismatch();
 
         commits[msg.sender].revealed = true;

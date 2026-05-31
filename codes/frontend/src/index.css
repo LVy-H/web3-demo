@@ -51,6 +51,74 @@
   --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
 }
 
+/* ── Theme switcher ────────────────────────────────────────────────
+   Three themes, all remap the existing `--color-db-*` tokens so no
+   component file needs to change. Default = bauhaus (no class needed,
+   uses the @theme block above). The other themes override.
+
+   Source proposals:
+   - .tmp/ui-proposals/01-brutalist-editorial.md  (cream paper, ink text)
+   - .tmp/ui-proposals/02-terminal-cyberpunk.md   (near-black + phosphor green)
+   - .tmp/ui-proposals/05-dark-bauhaus.md         (current default)
+   ───────────────────────────────────────────────────────────────── */
+
+/* ── Theme: Brutalist Editorial ──────────────────────────────────── */
+:root.theme-brutalist {
+  --color-db-void:        #f7f4ed;  /* paper — warm cream                 */
+  --color-db-slate:       #efeae0;  /* paper-2 — card surface             */
+  --color-db-slate-2:     #ece6da;  /* upcoming card variant              */
+  --color-db-slate-dim:   #e6dfd1;  /* ended card variant                 */
+  --color-db-slate-3:     #f1ecde;  /* filter strip background            */
+  --color-db-slate-4:     #e9e2d2;  /* ended chip fill                    */
+  --color-db-chalk:       #0a0a0a;  /* ink — primary text                 */
+  --color-db-chalk-dim:   #2a2520;  /* secondary text                     */
+  --color-db-mute:        #6b6359;  /* warm gray — meta labels            */
+  --color-db-mute-dim:    #998d7d;  /* lower-contrast accent              */
+  --color-db-rule:        #0a0a0a;  /* hairline rule — solid black        */
+  --color-db-rule-soft:   #d8d2c4;  /* soft inner divider                 */
+  --color-db-segnale:     #c8261c;  /* tomato-red — the ONE accent        */
+  --color-db-segnale-d:   #9b1d15;  /* darker accent                      */
+  --color-db-oltremare:   #1c4dc8;  /* deep ink-blue secondary            */
+  --color-db-success:     #1e7a3c;  /* dark green success                 */
+  --color-db-cat-governance: #2f6b54;
+  --color-db-cat-treasury:   #6b4f2f;
+  --color-db-cat-tech:       #2f4a6b;
+  --color-db-cat-social:     #6b3f5b;
+}
+
+/* ── Theme: Terminal Cyberpunk ───────────────────────────────────── */
+:root.theme-cyberpunk {
+  --color-db-void:        #0a0e0a;  /* near-black, green undertone        */
+  --color-db-slate:       #111611;  /* card surface +1 elevation          */
+  --color-db-slate-2:     #131a13;
+  --color-db-slate-dim:   #0e120e;
+  --color-db-slate-3:     #0c100c;
+  --color-db-slate-4:     #161e16;
+  --color-db-chalk:       #d0d8d0;  /* primary text                       */
+  --color-db-chalk-dim:   #a0b0a0;
+  --color-db-mute:        #5a6c5a;  /* secondary, comments, hex tails     */
+  --color-db-mute-dim:    #3a4a3a;
+  --color-db-rule:        #1f2a1f;  /* hairline rule                      */
+  --color-db-rule-soft:   #16201a;
+  --color-db-segnale:     #00ff41;  /* phosphor green — the ONE accent    */
+  --color-db-segnale-d:   #ff3b3b;  /* error red                          */
+  --color-db-oltremare:   #00d8ff;  /* cyan secondary signal              */
+  --color-db-success:     #7dffb3;  /* desaturated green                  */
+  --color-db-cat-governance: #00ff41;
+  --color-db-cat-treasury:   #ffaa00;
+  --color-db-cat-tech:       #00d8ff;
+  --color-db-cat-social:     #ff00ff;
+}
+
+/* Body background must follow the active theme. Without this rule the body
+   is painted with the bauhaus var() at module-load time and never changes
+   when the theme class flips. */
+html.theme-brutalist body,
+html.theme-cyberpunk body {
+  background-color: var(--color-db-void);
+  color: var(--color-db-chalk);
+}
+
 /* ── Base ──────────────────────────────────────────────────────── */
 :root {
   font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;

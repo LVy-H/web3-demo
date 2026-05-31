@@ -44,10 +44,7 @@ contract ZkAirdrop is Ownable, ReentrancyGuard {
     event ClaimingEnded();
     event UnclaimedWithdrawn(address indexed to, uint256 amount);
 
-    constructor(
-        address _semaphoreAddress,
-        uint256 _airdropAmount
-    ) Ownable(msg.sender) {
+    constructor(address _semaphoreAddress, uint256 _airdropAmount) Ownable(msg.sender) {
         semaphore = ISemaphore(_semaphoreAddress);
         airdropAmount = _airdropAmount;
         state = AirdropState.Registration;

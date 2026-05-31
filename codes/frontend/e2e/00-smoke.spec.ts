@@ -13,8 +13,9 @@ test.describe('Smoke', () => {
         // Document title set in index.html.
         await expect(page).toHaveTitle('Voting Hub')
 
-        // Hero heading rendered by pages/Home.tsx.
-        const hero = page.getByRole('heading', { level: 1, name: 'Anonymous Voting' })
+        // Hero heading rendered by pages/Home.tsx (Dark Bauhaus renames it
+        // from the old "Anonymous Voting" hero to the giant "POLLS" wordmark).
+        const hero = page.getByRole('heading', { level: 1, name: /POLLS/i })
         await hero.waitFor({ state: 'visible' })
         await expect(hero).toBeVisible()
 

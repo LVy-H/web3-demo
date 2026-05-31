@@ -27,20 +27,12 @@ contract PollRegistry is Ownable2Step {
     PollInfo[] public polls;
 
     event ModuleRegistered(string moduleType, address implementation);
-    event PollCreated(
-        address pollAddress,
-        string moduleType,
-        string title,
-        address creator
-    );
+    event PollCreated(address pollAddress, string moduleType, string title, address creator);
 
     constructor() Ownable(msg.sender) {}
 
     /// @notice Register (or update) a module implementation address
-    function registerModule(
-        string calldata moduleType,
-        address implementation
-    ) external onlyOwner {
+    function registerModule(string calldata moduleType, address implementation) external onlyOwner {
         if (implementation == address(0)) revert ZeroAddress();
         modules[moduleType] = implementation;
         emit ModuleRegistered(moduleType, implementation);

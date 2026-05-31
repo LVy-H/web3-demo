@@ -99,9 +99,7 @@ contract ZkAnonVoting is IZkPoll, Initializable, Ownable {
         return participantCount;
     }
 
-    function verifyParticipation(
-        uint256 nullifierHash
-    ) external view override returns (bool) {
+    function verifyParticipation(uint256 nullifierHash) external view override returns (bool) {
         return isNullifierUsed[nullifierHash];
     }
 
@@ -130,9 +128,7 @@ contract ZkAnonVoting is IZkPoll, Initializable, Ownable {
         emit VoterRegistered(identityCommitment);
     }
 
-    function registerVoters(
-        uint256[] calldata identityCommitments
-    ) external onlyOwner {
+    function registerVoters(uint256[] calldata identityCommitments) external onlyOwner {
         if (state != PollState.Registration) revert NotInRegistration();
         if (identityCommitments.length == 0) revert EmptyBatch();
         if (identityCommitments.length > 100) revert BatchTooLarge();
@@ -165,10 +161,7 @@ contract ZkAnonVoting is IZkPoll, Initializable, Ownable {
 
     // ── Voter: Cast an anonymous vote using Semaphore ───────────────
 
-    function castVote(
-        uint256 vote,
-        ISemaphore.SemaphoreProof calldata proof
-    ) external {
+    function castVote(uint256 vote, ISemaphore.SemaphoreProof calldata proof) external {
         if (state != PollState.Voting) revert NotInVoting();
         if (vote >= options.length) revert InvalidOptionIndex();
         if (isNullifierUsed[proof.nullifier]) revert AlreadyVoted();

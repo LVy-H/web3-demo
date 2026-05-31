@@ -430,15 +430,27 @@ function HeroStat({ phase, category }: { phase: LifecyclePhase; category: Catego
 
 type CategoryFilter = Category | 'all'
 type StatusFilter = LifecyclePhase | 'all'
+type SortBy = 'newest' | 'oldest' | 'title-asc' | 'title-desc'
+
+const SORT_LABEL: Record<SortBy, string> = {
+    'newest': 'Newest first',
+    'oldest': 'Oldest first',
+    'title-asc': 'Title A→Z',
+    'title-desc': 'Title Z→A',
+}
 
 interface FiltersProps {
     cat: CategoryFilter
     setCat: (c: CategoryFilter) => void
     status: StatusFilter
     setStatus: (s: StatusFilter) => void
+    searchQuery: string
+    setSearchQuery: (q: string) => void
+    sortBy: SortBy
+    setSortBy: (s: SortBy) => void
 }
 
-function FilterStrip({ cat, setCat, status, setStatus }: FiltersProps) {
+function FilterStrip({ cat, setCat, status, setStatus, searchQuery, setSearchQuery, sortBy, setSortBy }: FiltersProps) {
     return (
         <nav
             aria-label="Filter polls"
@@ -484,9 +496,36 @@ function FilterStrip({ cat, setCat, status, setStatus }: FiltersProps) {
                 </FilterPill>
             </div>
 
-            <div className="ml-auto inline-flex items-center gap-2 px-4 text-db-mute font-mono text-[11px] tracking-[0.1em]">
-                <Search className="w-3.5 h-3.5" />
-                <span>SEARCH POLLS</span>
+            {/* Search input — was an inert label, now actually filters. */}
+            <div className="ml-auto inline-flex items-center gap-2 px-4 border-l border-db-rule">
+                <Search className="w-3.5 h-3.5 text-db-mute shrink-0" aria-hidden />
+                <input
+                    type="search"
+                    placeholder="SEARCH POLLS"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    aria-label="Search polls by title or description"
+                    className="bg-transparent border-0 focus:outline-none placeholder:text-db-mute font-mono text-[11px] uppercase tracking-[0.1em] text-db-chalk caret-db-segnale py-2 w-40 lg:w-56"
+                />
+            </div>
+
+            {/* Sort dropdown — newest / oldest / title. */}
+            <div className="inline-flex items-center gap-2 px-4 border-l border-db-rule">
+                <label htmlFor="poll-sort" className="font-mono text-[10px] text-db-mute uppercase tracking-[0.18em] shrink-0">
+                    Sort
+                </label>
+                <select
+                    id="poll-sort"
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value as SortBy)}
+                    className="bg-transparent border-0 focus:outline-none font-mono text-[11px] uppercase tracking-[0.1em] text-db-chalk-dim hover:text-db-chalk cursor-pointer py-2 pr-1"
+                >
+                    {(Object.keys(SORT_LABEL) as SortBy[]).map(k => (
+                        <option key={k} value={k} className="bg-db-slate-3 text-db-chalk">
+                            {SORT_LABEL[k]}
+                        </option>
+                    ))}
+                </select>
             </div>
         </nav>
     )
@@ -534,11 +573,14 @@ function FilterPill({ active, onClick, state, children }: PillProps) {
 /* ────────────────────────────────────────────────────────────────────── */
 
 export default function Home() {
-    const { data: polls } = useAllPolls()
+    // wagmi useReadContract returns isLoading too — drives the skeleton state.
+    const { data: polls, isLoading: isLoadingPolls } = useAllPolls()
     const pollsArray = (polls as PollInfo[]) || []
 
     const [cat, setCat] = useState<CategoryFilter>('all')
     const [status, setStatus] = useState<StatusFilter>('active')
+    const [searchQuery, setSearchQuery] = useState('')
+    const [sortBy, setSortBy] = useState<SortBy>('newest')
 
     // Decorate each poll with its derived category + phase once, then filter.
     const decorated = useMemo(
@@ -551,15 +593,39 @@ export default function Home() {
         [pollsArray],
     )
 
-    const filtered = useMemo(
-        () =>
-            decorated.filter(d => {
-                const catMatch = cat === 'all' || d.category === cat
-                const statusMatch = status === 'all' || d.phase === status
-                return catMatch && statusMatch
-            }),
-        [decorated, cat, status],
-    )
+    const filtered = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase()
+        const matchedByCatAndStatus = decorated.filter(d => {
+            const catMatch = cat === 'all' || d.category === cat
+            const statusMatch = status === 'all' || d.phase === status
+            return catMatch && statusMatch
+        })
+        const matchedBySearch = q
+            ? matchedByCatAndStatus.filter(
+                  d =>
+                      d.poll.title.toLowerCase().includes(q) ||
+                      d.poll.description.toLowerCase().includes(q),
+              )
+            : matchedByCatAndStatus
+
+        // Sort — clone first so we don't mutate the memo.
+        const sorted = [...matchedBySearch]
+        switch (sortBy) {
+            case 'newest':
+                sorted.sort((a, b) => Number(b.poll.createdAt - a.poll.createdAt))
+                break
+            case 'oldest':
+                sorted.sort((a, b) => Number(a.poll.createdAt - b.poll.createdAt))
+                break
+            case 'title-asc':
+                sorted.sort((a, b) => a.poll.title.localeCompare(b.poll.title))
+                break
+            case 'title-desc':
+                sorted.sort((a, b) => b.poll.title.localeCompare(a.poll.title))
+                break
+        }
+        return sorted
+    }, [decorated, cat, status, searchQuery, sortBy])
 
     const counts = useMemo(() => {
         let active = 0
@@ -603,10 +669,21 @@ export default function Home() {
             </section>
 
             {/* Filter strip */}
-            <FilterStrip cat={cat} setCat={setCat} status={status} setStatus={setStatus} />
+            <FilterStrip
+                cat={cat}
+                setCat={setCat}
+                status={status}
+                setStatus={setStatus}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+            />
 
-            {/* Card grid */}
-            {filtered.length === 0 ? (
+            {/* Card grid — skeleton while loading; empty state if nothing matches. */}
+            {isLoadingPolls && pollsArray.length === 0 ? (
+                <PollCardSkeletons />
+            ) : filtered.length === 0 ? (
                 <EmptyState totalPolls={pollsArray.length} status={status} cat={cat} />
             ) : (
                 <section
@@ -640,6 +717,47 @@ export default function Home() {
                 </footer>
             )}
         </div>
+    )
+}
+
+/**
+ * Loading skeleton — shown while useAllPolls is fetching its first batch.
+ * Replaces the previous "blank panel until data loads" with shape-matched
+ * shimmers so the user knows content is coming, not broken.
+ */
+function PollCardSkeletons() {
+    return (
+        <section
+            aria-label="Loading polls"
+            aria-busy="true"
+            className="grid gap-4 mb-8"
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}
+        >
+            {[0, 1, 2].map(i => (
+                <div
+                    key={i}
+                    className="relative border border-db-rule bg-db-slate p-5 h-[260px] flex flex-col gap-4 overflow-hidden"
+                >
+                    {/* Top accent strip */}
+                    <div className="absolute left-0 right-0 top-0 h-1 bg-db-rule" />
+                    {/* Header row */}
+                    <div className="flex items-center justify-between">
+                        <div className="h-3 w-16 bg-db-rule animate-pulse" />
+                        <div className="h-3 w-12 bg-db-rule animate-pulse" />
+                    </div>
+                    {/* Title */}
+                    <div className="space-y-2 mt-4">
+                        <div className="h-5 w-3/4 bg-db-rule animate-pulse" />
+                        <div className="h-5 w-1/2 bg-db-rule animate-pulse" />
+                    </div>
+                    {/* Body line */}
+                    <div className="space-y-2 mt-auto">
+                        <div className="h-3 w-2/3 bg-db-rule animate-pulse" />
+                        <div className="h-3 w-1/3 bg-db-rule animate-pulse" />
+                    </div>
+                </div>
+            ))}
+        </section>
     )
 }
 
