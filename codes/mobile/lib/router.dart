@@ -5,6 +5,7 @@ import 'data/repositories/poll_repository.dart';
 import 'ui/features/browse/browse_screen.dart';
 import 'ui/features/browse/browse_view_model.dart';
 import 'ui/features/poll_detail/poll_detail_screen.dart';
+import 'ui/features/poll_detail/poll_detail_view_model.dart';
 
 /// App routes (go_router). Each screen's ViewModel is created at the route and
 /// fed the [PollRepository] from the app-level provider.
@@ -20,8 +21,14 @@ GoRouter buildRouter() => GoRouter(
         ),
         GoRoute(
           path: '/poll/:address',
-          builder: (context, state) =>
-              PollDetailScreen(address: state.pathParameters['address']!),
+          builder: (context, state) {
+            final address = state.pathParameters['address']!;
+            return ChangeNotifierProvider(
+              create: (ctx) =>
+                  PollDetailViewModel(ctx.read<PollRepository>(), address),
+              child: PollDetailScreen(address: address),
+            );
+          },
         ),
       ],
     );

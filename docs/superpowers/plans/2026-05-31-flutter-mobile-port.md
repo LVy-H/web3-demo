@@ -70,15 +70,18 @@ is the operative instruction.
   getResults/owner/getParticipantCount + getAllPolls struct array). Demo poll
   created by `codes/contracts/scripts/demo-poll.ts` → `test/fixtures/local_chain.json`.
   Full suite 40/40; analyze clean. (Local node = MockSemaphoreVerifier, fine for reads.)
-- **PHASE 4 part A DONE ✅** — UI shell: Dark Bauhaus theme (tokens from index.css),
-  go_router, MVVM (provider/ChangeNotifier), `PollRepository` (wraps ChainReader),
-  `BrowseScreen` (loading/empty/error/list) + 3 widget tests. `main.dart` wires it.
-  Full suite 42/42 (now flutter-test-only, counter test removed); analyze clean;
-  **`flutter build web` succeeds** (whole app compiles).
-- **Now:** Phase 4 part B — `PollDetailScreen` (real reads: phase badge, options,
-  live results bars, participant count) replacing the placeholder; then Verify screen.
-- **Later:** Risk B plumbing — Flutter-web JS-interop (Chrome, testable here),
-  then mobile webview; runtime smoke of the app vs the live node.
+- **PHASE 4 DONE ✅ — read-only member app is functional** (browse → detail):
+  - UI shell: Dark Bauhaus theme (index.css tokens), go_router, MVVM (provider).
+  - `BrowseScreen` (loading/empty/error/list, module chips) + 3 widget tests.
+  - `PollDetailScreen` (phase badge, options, live results bars w/ %, participant
+    count, owner) + 2 widget tests. `PollRepository`/`PollDetailViewModel`.
+  - Full suite **44/44**; analyze clean; `flutter build web` succeeds.
+- **Now / next iteration options:**
+  1. **Risk B — ZK plumbing** (the remaining vote-path blocker): bundle Semaphore
+     JS, web `ProofService` via `dart:js_interop` (Chrome, testable here), then a
+     vote screen wired through `relayVote(proof)`. Mobile webview after.
+  2. Verify screen (nullifier lookup via `isNullifierUsed` — small, ZK-independent).
+  3. Runtime smoke: launch app vs live node, confirm the demo poll renders.
 - **Local chain for integration tests:** `cd codes/contracts && npm run deploy:local
   && npx hardhat run scripts/demo-poll.ts --network localhost` (regenerates fixture).
 - **Oracle:** recreate `codes/frontend/src/lib/__vectors.gen.test.ts` + `npx vitest run …`
