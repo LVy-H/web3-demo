@@ -12,6 +12,11 @@ dist-ssr/
 # Playwright E2E (videos + HTML report — generated demo artifacts)
 codes/frontend/test-results/
 codes/frontend/playwright-report/
+codes/frontend/test-results-metamask/
+codes/frontend/playwright-report-metamask/
+# Synpress (real-MetaMask E2E) wallet/browser caches
+codes/frontend/.cache-synpress/
+codes/frontend/.playwright-browsers/
 # Environment
 .env
 .env.local
@@ -40,3 +45,11 @@ coverage.json
 # Nix
 result
 result-*
+# direnv (flake devShell cache)
+.direnv/
+.envrc
+# Local agent / tooling state (Claude Code, skills, scratch — never commit)
+.claude/
+.agents/
+.tmp/
+skills-lock.json
