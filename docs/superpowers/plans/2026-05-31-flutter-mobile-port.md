@@ -102,9 +102,12 @@ store. Fix (one-time, machine-local):
    (ndk, platform-tools, cmdline-tools, platforms/android-36.1, build-tools/36.1.0)
    into writable `platforms/`, `build-tools/`, `cmake/`, copy `licenses/`, then
    `sdkmanager --sdk_root=~/asdk "platforms;android-36" "build-tools;35.0.0" "cmake;3.22.1"`.
-3. Point `android/local.properties` `sdk.dir=/home/hoang/asdk` (gitignored).
-Then `flutter build apk --debug` succeeds. The proper fix is augmenting the Nix
-`androidsdk` derivation, but that needs an `/etc/nixos` rebuild (out of scope).
+3. Build with the overlay via env var (robust — `flutter test`/`pub get`
+   rewrites `local.properties`'s `sdk.dir`, so don't rely on editing it):
+   `ANDROID_SDK_ROOT=$HOME/asdk ANDROID_HOME=$HOME/asdk flutter build apk --debug`.
+Verified: produces `build/app/outputs/flutter-apk/app-debug.apk` (147MB, 3 ABIs).
+The proper fix is augmenting the Nix `androidsdk` derivation, but that needs an
+`/etc/nixos` rebuild (out of scope).
 - **Local chain for integration tests:** `cd codes/contracts && npm run deploy:local
   && npx hardhat run scripts/demo-poll.ts --network localhost` (regenerates fixture).
 - **Oracle:** recreate `codes/frontend/src/lib/__vectors.gen.test.ts` + `npx vitest run …`
