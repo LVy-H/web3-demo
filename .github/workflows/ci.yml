@@ -71,3 +71,22 @@ jobs:
       - run: npm ci
       - run: npm run lint || true
       - run: npm run build
+
+  # Flutter recurring-member app (codes/mobile). Runs the VM test suite
+  # (browser-only ZK test is @TestOn('browser') → skipped here; the on-chain
+  # integration test self-skips with no local node).
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codes/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
