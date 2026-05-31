@@ -67,8 +67,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
         child: SafeArea(
           child: Consumer<BrowseViewModel>(
             builder: (context, vm, _) => switch (vm.state) {
-              ViewState.idle || ViewState.loading => const Center(
-                  child: CircularProgressIndicator(color: Db.segnale)),
+              ViewState.idle || ViewState.loading => const _LoadingView(),
               ViewState.error =>
                 _ErrorView(message: vm.error ?? 'Unknown error', onRetry: vm.load),
               ViewState.loaded => _loaded(context, vm),
@@ -485,6 +484,72 @@ class _EmptyView extends StatelessWidget {
               style: dbSans(18, 700, Db.chalk, letterSpacing: -0.2)),
           const SizedBox(height: 8),
           Text('FILTERS RETURNED 0 RESULTS', style: dbLabel(size: 11, tracking: 0.16)),
+        ]),
+      );
+}
+
+class _LoadingView extends StatelessWidget {
+  const _LoadingView();
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    return SingleChildScrollView(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1180),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+                horizontal: width < 600 ? 16 : 32, vertical: 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(width: 220, height: 56, color: Db.slate),
+                const SizedBox(height: 28),
+                LayoutBuilder(builder: (context, c) {
+                  final cols = (c.maxWidth / 340).floor().clamp(1, 3);
+                  const gap = 16.0;
+                  final itemW = (c.maxWidth - gap * (cols - 1)) / cols;
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      for (var i = 0; i < cols * 2; i++)
+                        SizedBox(width: itemW, child: const _SkeletonCard()),
+                    ],
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SkeletonCard extends StatelessWidget {
+  const _SkeletonCard();
+  static Widget _bar(double w, double h) =>
+      Container(width: w, height: h, color: Db.ruleSoft);
+  @override
+  Widget build(BuildContext context) => Container(
+        height: 232,
+        decoration: BoxDecoration(color: Db.slate, border: Border.all(color: Db.rule)),
+        child: Stack(children: [
+          const Positioned(
+              left: 0, right: 0, top: 0, height: 4, child: ColoredBox(color: Db.rule)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _bar(80, 10),
+              const SizedBox(height: 18),
+              _bar(double.infinity, 18),
+              const SizedBox(height: 8),
+              _bar(150, 18),
+              const Spacer(),
+              _bar(120, 12),
+            ]),
+          ),
         ]),
       );
 }
