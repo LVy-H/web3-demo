@@ -19,6 +19,9 @@ class ChainReader {
   final ContractAbi _anonAbi;
   final EthereumAddress _registryAddress;
 
+  /// Per-call timeout so a hung RPC endpoint can't block the UI indefinitely.
+  final Duration readTimeout;
+
   ChainReader({
     required String rpcUrl,
     required String izkPollAbiJson,
@@ -26,6 +29,7 @@ class ChainReader {
     required String anonVotingAbiJson,
     required String registryAddress,
     http.Client? httpClient,
+    this.readTimeout = const Duration(seconds: 10),
   })  : client = Web3Client(rpcUrl, httpClient ?? http.Client()),
         _pollAbi = ContractAbi.fromJson(izkPollAbiJson, 'IZkPoll'),
         _registryAbi = ContractAbi.fromJson(registryAbiJson, 'PollRegistry'),
@@ -43,7 +47,7 @@ class ChainReader {
       contract: contract,
       function: contract.function(fn),
       params: params,
-    );
+    ).timeout(readTimeout);
   }
 
   // ── IZkPoll reads ─────────────────────────────────────────────────────────
@@ -96,12 +100,14 @@ class ChainReader {
     final contract =
         DeployedContract(_anonAbi, EthereumAddress.fromHex(pollAddress));
     final event = contract.event('VoterRegistered');
-    final logs = await client.getLogs(FilterOptions.events(
-      contract: contract,
-      event: event,
-      fromBlock: const BlockNum.genesis(),
-      toBlock: const BlockNum.current(),
-    ));
+    final logs = await client
+        .getLogs(FilterOptions.events(
+          contract: contract,
+          event: event,
+          fromBlock: const BlockNum.genesis(),
+          toBlock: const BlockNum.current(),
+        ))
+        .timeout(readTimeout);
     return logs
         .map((log) {
           final decoded =

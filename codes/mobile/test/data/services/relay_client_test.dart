@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -222,6 +223,31 @@ void main() {
         client: MockClient((r) async => http.Response('err', 500)),
       );
       expect(await c.fetchStatus(), isNull);
+    });
+  });
+
+  group('timeouts', () {
+    RelayClient slow() => RelayClient(
+          baseUrl: base,
+          timeout: const Duration(milliseconds: 50),
+          client: MockClient((r) async {
+            await Future<void>.delayed(const Duration(milliseconds: 300));
+            return http.Response(jsonEncode({'voters': []}), 200);
+          }),
+        );
+
+    test('fetchQueue throws TimeoutException when the relayer hangs', () async {
+      expect(() => slow().fetchQueue(pollId), throwsA(isA<TimeoutException>()));
+    });
+
+    test('postPending returns ok:false on timeout (never hangs the caller)',
+        () async {
+      final res = await slow().postPending(pollId, 'wire', '1', '0001');
+      expect(res.ok, isFalse);
+    });
+
+    test('fetchStatus returns null on timeout', () async {
+      expect(await slow().fetchStatus(), isNull);
     });
   });
 }

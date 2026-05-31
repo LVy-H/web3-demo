@@ -12,8 +12,17 @@ class RelayClient {
   final http.Client _client;
   final String baseUrl;
 
-  RelayClient({required this.baseUrl, http.Client? client})
-      : _client = client ?? http.Client();
+  /// Per-request timeout for ticket/status calls (parity with the web client's
+  /// 8s) and the slower vote relay (30s — proof relay + tx submission).
+  final Duration timeout;
+  final Duration voteTimeout;
+
+  RelayClient({
+    required this.baseUrl,
+    http.Client? client,
+    this.timeout = const Duration(seconds: 8),
+    this.voteTimeout = const Duration(seconds: 30),
+  }) : _client = client ?? http.Client();
 
   void close() => _client.close();
 
@@ -34,13 +43,16 @@ class RelayClient {
 
   Future<({bool ok, int status, Map<String, dynamic> data})> _postJson(
     String path,
-    Map<String, dynamic> body,
-  ) async {
-    final res = await _client.post(
-      Uri.parse('$baseUrl$path'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    Map<String, dynamic> body, {
+    Duration? timeout,
+  }) async {
+    final res = await _client
+        .post(
+          Uri.parse('$baseUrl$path'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        )
+        .timeout(timeout ?? this.timeout);
     return (
       ok: _is2xx(res.statusCode),
       status: res.statusCode,
@@ -68,23 +80,28 @@ class RelayClient {
     String ephemeralIdentityCommitment,
     String confirmationCode,
   ) async {
-    final r = await _postJson('/api/relay/tickets/pending', {
-      'pollId': pollId,
-      'ticket': ticket,
-      'ephemeralIdentityCommitment': ephemeralIdentityCommitment,
-      'confirmationCode': confirmationCode,
-    });
-    return PostPendingResult(
-      ok: r.ok,
-      status: r.status,
-      error: r.data['error'] is String ? r.data['error'] as String : null,
-    );
+    try {
+      final r = await _postJson('/api/relay/tickets/pending', {
+        'pollId': pollId,
+        'ticket': ticket,
+        'ephemeralIdentityCommitment': ephemeralIdentityCommitment,
+        'confirmationCode': confirmationCode,
+      });
+      return PostPendingResult(
+        ok: r.ok,
+        status: r.status,
+        error: r.data['error'] is String ? r.data['error'] as String : null,
+      );
+    } catch (e) {
+      return PostPendingResult(ok: false, status: 0, error: e.toString());
+    }
   }
 
   /// Organizer dashboard reads the pending-voter queue for a poll.
   Future<List<PendingVoter>> fetchQueue(String pollId) async {
     final res = await _client
-        .get(Uri.parse('$baseUrl/api/relay/tickets/queue?pollId=$pollId'));
+        .get(Uri.parse('$baseUrl/api/relay/tickets/queue?pollId=$pollId'))
+        .timeout(timeout);
     if (!_is2xx(res.statusCode)) {
       throw RelayException('queue failed (HTTP ${res.statusCode})');
     }
@@ -122,7 +139,7 @@ class RelayClient {
         'pollAddress': pollAddress,
         'vote': vote,
         'proof': proof.toJson(),
-      });
+      }, timeout: voteTimeout);
       if (!r.ok) {
         return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
       }
@@ -138,7 +155,9 @@ class RelayClient {
   /// One-shot relayer health/balance probe. Returns null on any error.
   Future<RelayStatus?> fetchStatus() async {
     try {
-      final res = await _client.get(Uri.parse('$baseUrl/api/relay/status'));
+      final res = await _client
+          .get(Uri.parse('$baseUrl/api/relay/status'))
+          .timeout(timeout);
       if (!_is2xx(res.statusCode)) return null;
       final d = _decode(res.body);
       if (d['relayer'] is String && d['balance'] is String) {
