@@ -27,6 +27,34 @@ TS reference via golden vectors. ZK proof generation isolated behind a
 
 ---
 
+## ⏩ CURRENT STATE & AUTONOMOUS LOOP (2026-05-31, unsupervised ~6h run)
+
+**Operating mode (user directive):** dev non-stop; loop = idea → build → test →
+commit/PR. **PR review is a DEFERRED ROUTINE** — do NOT self-review a fresh PR
+(no neutral distance); run `/code-review` on work that's had time to settle and
+fold findings back in. Prioritize VERIFIABLE work; flag device-only work, don't
+fake-verify. Git identity is `Hoang <hoangstlt@gmail.com>` — never override it.
+
+**Shipped & on PR #33 (feat/flutter-mobile → main, MERGEABLE):**
+- Cross-client core (ticket/confirmationCode/orgKeypair) byte-identical to TS.
+- Data layer: RelayClient + ChainReader (web3dart) + group reconstruction, all
+  verified vs a live Hardhat node.
+- ZK: crypto verified vs real vkey; **web vote path verified in-browser**
+  (flutter test --platform chrome); vote UI wired (web).
+- Builds: web ✅, Linux ✅, **Android APK ✅** (3 ABIs); Windows/macOS scaffolded.
+- **Dark Bauhaus redesign** ✅ (Inter/JetBrainsMono, dot-grid, stateful cards,
+  phase strip, palette bars) — fidelity to the React app.
+- CI: added `mobile` job; fixed contracts `.sol` prettier.
+- 47 tests + integration + in-browser proof; analyze clean. Live web preview on :8088.
+
+**Next loop items (verifiable-first):**
+1. Verify screen (nullifier receipt lookup via `isNullifierUsed`) — small, testable.
+2. Identity management (persist a Semaphore member seed) so voting doesn't need pasting.
+3. Responsive polish for desktop/web wide layouts (LayoutBuilder breakpoints).
+4. Deferred neutral `/code-review` pass on PR #33; fold findings back.
+5. Mobile WebView prover (the chosen native voting path) — needs an emulator/device
+   to truly verify; implement + compile-check, flag for device verification.
+
 ## Scope (read first — prevents drift)
 
 The project's own strategy (Agile Plan §2.5) says the **live-meeting voter page
