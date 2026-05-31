@@ -134,6 +134,33 @@ void main() {
       );
       expect(() => c.fetchQueue(pollId), throwsA(isA<RelayException>()));
     });
+
+    test('skips malformed voter entries instead of crashing', () async {
+      // Regression for the review fix: one bad element must not kill the fetch.
+      final c = RelayClient(
+        baseUrl: base,
+        client: MockClient((r) async => http.Response(
+              jsonEncode({
+                'voters': [
+                  {
+                    'ticketNonce': 'aabbccddeeff0011',
+                    'ticket': 'wire',
+                    'ephemeralIdentityCommitment': '12345',
+                    'confirmationCode': '4861',
+                    'status': 'pending',
+                    'createdAt': 1700000000,
+                  },
+                  null,
+                  'garbage',
+                ],
+              }),
+              200,
+            )),
+      );
+      final voters = await c.fetchQueue(pollId);
+      expect(voters, hasLength(1));
+      expect(voters.first.confirmationCode, '4861');
+    });
   });
 
   group('relayVote', () {
