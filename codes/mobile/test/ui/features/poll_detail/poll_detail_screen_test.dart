@@ -48,17 +48,17 @@ void main() {
     await tester.pumpWidget(wrap(FakeRepo(snap: snap)));
     await tester.pumpAndSettle();
 
-    expect(find.text('VOTING'), findsOneWidget);
+    expect(find.text('VOTING'), findsOneWidget); // phase strip current step
     expect(find.text('Yes'), findsOneWidget);
     expect(find.text('No'), findsOneWidget);
     expect(find.text('Abstain'), findsOneWidget);
-    expect(find.textContaining('3 · 75%'), findsOneWidget); // 3 of 4
-    expect(find.textContaining('4 registered'), findsOneWidget);
+    expect(find.text('75.0%'), findsOneWidget); // Yes = 3 of 4
+    expect(find.textContaining('4 REGISTERED'), findsOneWidget);
   });
 
   testWidgets('shows error state on read failure', (tester) async {
     await tester.pumpWidget(wrap(FakeRepo(error: Exception('rpc down'))));
     await tester.pumpAndSettle();
-    expect(find.text("Couldn't load this poll"), findsOneWidget);
+    expect(find.text("COULDN'T LOAD THIS POLL"), findsOneWidget);
   });
 }

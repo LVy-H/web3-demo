@@ -25,9 +25,9 @@ class FakePollRepository implements PollRepository {
   Future<List<String>> fetchGroup(String address) => throw UnimplementedError();
 }
 
-PollInfo _poll(String addr, String title, String mod) => PollInfo(
+PollInfo _poll(String addr, String title) => PollInfo(
       pollAddress: addr,
-      moduleType: mod,
+      moduleType: 'anon-vote',
       title: title,
       description: 'A short description',
       creator: '0x0000000000000000000000000000000000000000',
@@ -42,31 +42,30 @@ Widget _wrap(PollRepository repo) => MaterialApp(
     );
 
 void main() {
-  testWidgets('renders poll cards with module chips after load', (tester) async {
+  testWidgets('renders the hero + poll cards with VOTING state chips',
+      (tester) async {
     await tester.pumpWidget(_wrap(FakePollRepository(polls: [
-      _poll('0x1111111111111111111111111111111111111111', 'Budget 2026', 'anon-vote'),
-      _poll('0x2222222222222222222222222222222222222222', 'Board Seat', 'blind-vote'),
+      _poll('0x1111111111111111111111111111111111111111', 'Budget 2026'),
+      _poll('0x2222222222222222222222222222222222222222', 'Board Seat'),
     ])));
     await tester.pumpAndSettle();
 
+    expect(find.text('POLLS'), findsOneWidget); // hero
     expect(find.text('Budget 2026'), findsOneWidget);
     expect(find.text('Board Seat'), findsOneWidget);
-    expect(find.text('ANONYMOUS'), findsOneWidget);
-    expect(find.text('BLIND'), findsOneWidget);
-    // truncated address rendered
-    expect(find.textContaining('0x1111…1111'), findsOneWidget);
+    expect(find.text('VOTING'), findsNWidgets(2)); // one state chip per card
   });
 
-  testWidgets('renders empty state when there are no polls', (tester) async {
+  testWidgets('renders empty state when no polls match', (tester) async {
     await tester.pumpWidget(_wrap(FakePollRepository(polls: const [])));
     await tester.pumpAndSettle();
-    expect(find.text('No polls yet'), findsOneWidget);
+    expect(find.text('No polls match this filter'), findsOneWidget);
   });
 
-  testWidgets('renders error state with a retry button', (tester) async {
+  testWidgets('renders error state with retry', (tester) async {
     await tester.pumpWidget(_wrap(FakePollRepository(error: Exception('boom'))));
     await tester.pumpAndSettle();
-    expect(find.text("Couldn't load polls"), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Retry'), findsOneWidget);
+    expect(find.text("COULDN'T LOAD POLLS"), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'RETRY'), findsOneWidget);
   });
 }

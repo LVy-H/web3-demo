@@ -4,17 +4,17 @@ import 'package:provider/provider.dart';
 
 import '../../../data/models/poll_snapshot.dart';
 import '../../../data/services/proof_service_factory.dart';
+import '../../core/dot_grid_background.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
 import 'poll_detail_view_model.dart';
 import 'vote_view_model.dart';
 
-/// Poll detail — live phase, options, vote tally, participant count. Read-only
-/// (voting needs the ProofService, landing later).
+/// Poll detail — Dark Bauhaus. Header + phase strip + live results + (web) vote
+/// form. Read-only on platforms without a prover.
 class PollDetailScreen extends StatefulWidget {
   final String address;
   const PollDetailScreen({super.key, required this.address});
-
   @override
   State<PollDetailScreen> createState() => _PollDetailScreenState();
 }
@@ -23,244 +23,266 @@ class _PollDetailScreenState extends State<PollDetailScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<PollDetailViewModel>().load();
-    });
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => context.read<PollDetailViewModel>().load());
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.canPop() ? context.pop() : context.go('/'),
+      body: DotGridBackground(
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 880),
+              child: Consumer<PollDetailViewModel>(
+                builder: (context, vm, _) => switch (vm.state) {
+                  ViewState.idle || ViewState.loading => const Center(
+                      child: CircularProgressIndicator(color: Db.segnale)),
+                  ViewState.error => _ErrorView(
+                      message: vm.error ?? 'Unknown error', onRetry: vm.load),
+                  ViewState.loaded => _Body(snapshot: vm.snapshot!),
+                },
+              ),
+            ),
+          ),
         ),
-        title: const Text('Poll'),
-      ),
-      body: Consumer<PollDetailViewModel>(
-        builder: (context, vm, _) => switch (vm.state) {
-          ViewState.idle ||
-          ViewState.loading =>
-            const Center(child: CircularProgressIndicator(color: Db.segnale)),
-          ViewState.error => _ErrorView(
-              message: vm.error ?? 'Unknown error', onRetry: vm.load),
-          ViewState.loaded => _PollBody(snapshot: vm.snapshot!),
-        },
       ),
     );
   }
 }
 
-class _PollBody extends StatelessWidget {
+class _Body extends StatelessWidget {
   final PollSnapshot snapshot;
-  const _PollBody({required this.snapshot});
+  const _Body({required this.snapshot});
 
-  @override
-  Widget build(BuildContext context) {
-    final total = snapshot.totalVotes;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _PhaseBadge(state: snapshot.state, label: snapshot.phaseLabel),
-        const SizedBox(height: 16),
-        Text(snapshot.address, style: dbMonoLabel),
-        const SizedBox(height: 4),
-        Text(
-          '${snapshot.participantCount} registered · $total votes cast',
-          style: const TextStyle(color: Db.chalkDim, fontSize: 13),
-        ),
-        const SizedBox(height: 24),
-        const Text('RESULTS',
-            style: TextStyle(
-                fontFamily: Db.fontMono,
-                fontSize: 11,
-                letterSpacing: 1.6,
-                color: Db.mute)),
-        const SizedBox(height: 12),
-        for (var i = 0; i < snapshot.options.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _ResultBar(
-              label: snapshot.options[i],
-              count: i < snapshot.results.length
-                  ? snapshot.results[i]
-                  : BigInt.zero,
-              total: total,
-              color: _barColor(i),
-            ),
-          ),
-        if (snapshot.state == 1) ...[
-          const SizedBox(height: 20),
-          _VoteArea(options: snapshot.options),
-        ],
-        const SizedBox(height: 16),
-        const Divider(color: Db.rule),
-        const SizedBox(height: 8),
-        const Text('OWNER',
-            style: TextStyle(
-                fontFamily: Db.fontMono,
-                fontSize: 10,
-                letterSpacing: 1.4,
-                color: Db.mute)),
-        const SizedBox(height: 4),
-        Text(snapshot.owner, style: dbMonoLabel),
-      ],
-    );
+  String get _shortAddr {
+    final a = snapshot.address;
+    return '${a.substring(0, 6)}…${a.substring(a.length - 4)}';
   }
 
-  static const _palette = [
-    Db.oltremare,
-    Db.segnale,
-    Db.success,
-    Color(0xFF8A7359),
-    Color(0xFF946B87),
-  ];
-  Color _barColor(int i) => _palette[i % _palette.length];
-}
-
-class _PhaseBadge extends StatelessWidget {
-  final int state;
-  final String label;
-  const _PhaseBadge({required this.state, required this.label});
-
   @override
   Widget build(BuildContext context) {
-    final color = switch (state) {
-      0 => Db.oltremare, // Registration
-      1 => Db.segnale, // Voting
-      2 => Db.mute, // Ended
-      _ => Db.mute,
-    };
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          border: Border.all(color: color),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          label.toUpperCase(),
-          style: TextStyle(
-            fontFamily: Db.fontMono,
-            fontSize: 11,
-            letterSpacing: 1.6,
-            fontWeight: FontWeight.w700,
-            color: color,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ResultBar extends StatelessWidget {
-  final String label;
-  final BigInt count;
-  final BigInt total;
-  final Color color;
-  const _ResultBar({
-    required this.label,
-    required this.count,
-    required this.total,
-    required this.color,
-  });
-
-  double get _fraction =>
-      total == BigInt.zero ? 0 : count / total;
-
-  int get _pct => (_fraction * 100).round();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Text(label,
-                  style: const TextStyle(
-                      color: Db.chalk, fontWeight: FontWeight.w600)),
+            _Header(shortAddr: _shortAddr),
+            const SizedBox(height: 20),
+            _PhaseStrip(state: snapshot.state),
+            const SizedBox(height: 16),
+            Text(
+              '${snapshot.participantCount} REGISTERED · ${snapshot.totalVotes} VOTES CAST',
+              style: dbLabel(size: 11, tracking: 0.1),
             ),
-            Text('$count · $_pct%', style: dbMonoLabel),
+            const SizedBox(height: 24),
+            _ResultsBars(snapshot: snapshot),
+            if (snapshot.state == 1) ...[
+              const SizedBox(height: 20),
+              _VoteArea(options: snapshot.options),
+            ],
+            const SizedBox(height: 24),
+            Text('OWNER', style: dbLabel(size: 10)),
+            const SizedBox(height: 4),
+            Text(snapshot.owner, style: dbMono(11, Db.mute, letterSpacing: 0.4)),
           ],
         ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: Stack(
-            children: [
-              Container(height: 8, color: Db.ruleSoft),
-              FractionallySizedBox(
-                widthFactor: _fraction.clamp(0.0, 1.0),
-                child: Container(height: 8, color: color),
-              ),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _ErrorView extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-  const _ErrorView({required this.message, required this.onRetry});
-
+class _Header extends StatelessWidget {
+  final String shortAddr;
+  const _Header({required this.shortAddr});
   @override
-  Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.cloud_off, color: Db.segnale, size: 40),
-              const SizedBox(height: 12),
-              const Text("Couldn't load this poll",
-                  style:
-                      TextStyle(color: Db.chalk, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              Text(message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Db.mute, fontSize: 13)),
-              const SizedBox(height: 16),
-              OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
-            ],
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 12),
+        child: Row(children: [
+          InkWell(
+            onTap: () => context.canPop() ? context.pop() : context.go('/'),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.arrow_back, size: 14, color: Db.mute),
+              const SizedBox(width: 6),
+              Text('BACK TO POLLS', style: dbLabel(size: 11, tracking: 0.16)),
+            ]),
           ),
-        ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            color: Db.segnale,
+            child: Text('ZK · ANON',
+                style: dbSans(11, 800, Db.void_, letterSpacing: 2.0)),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: const BoxDecoration(
+              color: Db.slate,
+              border: Border.fromBorderSide(BorderSide(color: Db.rule)),
+            ),
+            child: Text(shortAddr, style: dbMono(11, Db.mute, letterSpacing: 0.5)),
+          ),
+        ]),
       );
 }
 
-/// Vote area shown during the Voting phase. On platforms without client-side
-/// proving (native/desktop now) it shows a read-only note instead of the form.
+class _PhaseStrip extends StatelessWidget {
+  final int state; // 0 reg, 1 voting, 2 ended
+  const _PhaseStrip({required this.state});
+  static const _labels = ['REGISTRATION', 'VOTING', 'ENDED'];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+          border: Border.fromBorderSide(BorderSide(color: Db.rule))),
+      child: Row(
+        children: [
+          for (var i = 0; i < 3; i++)
+            Expanded(
+              child: Container(
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: i == state
+                      ? Db.segnale
+                      : (i < state ? Db.slate : Db.void_),
+                  border: i < 2
+                      ? const Border(right: BorderSide(color: Db.rule))
+                      : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (i < state) ...[
+                      const Icon(Icons.check, size: 13, color: Db.mute),
+                      const SizedBox(width: 6),
+                    ] else if (i > state) ...[
+                      Text('0${i + 1}',
+                          style: dbMono(11, Db.muteDim, wght: 700)),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      _labels[i],
+                      style: dbSans(
+                        11,
+                        800,
+                        i == state
+                            ? Db.void_
+                            : (i < state ? Db.mute : Db.mute),
+                        letterSpacing: 11 * 0.16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResultsBars extends StatelessWidget {
+  final PollSnapshot snapshot;
+  const _ResultsBars({required this.snapshot});
+  @override
+  Widget build(BuildContext context) {
+    final total = snapshot.totalVotes;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        color: Db.slate,
+        border: Border.fromBorderSide(BorderSide(color: Db.rule)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.bar_chart, size: 16, color: Db.mute),
+            const SizedBox(width: 8),
+            Text('LIVE RESULTS', style: dbSectionTitle),
+            const Spacer(),
+            Text('$total VOTES', style: dbLabel(size: 11, tracking: 0.05)),
+          ]),
+          const SizedBox(height: 18),
+          for (var i = 0; i < snapshot.options.length; i++) ...[
+            if (i > 0) const SizedBox(height: 16),
+            _bar(
+              snapshot.options[i],
+              i < snapshot.results.length ? snapshot.results[i] : BigInt.zero,
+              total,
+              Db.optionColor(i),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _bar(String label, BigInt count, BigInt total, Color color) {
+    final frac = total == BigInt.zero ? 0.0 : count / total;
+    final pct = (frac * 100);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic, children: [
+          Expanded(
+            child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: dbSans(14, 800, Db.chalk, letterSpacing: 0.3)),
+          ),
+          Text('$count', style: dbMono(20, Db.chalk, wght: 700, letterSpacing: -0.4)),
+          const SizedBox(width: 8),
+          Text('${pct.toStringAsFixed(1)}%', style: dbMono(11, Db.mute)),
+        ]),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 8,
+          child: Stack(children: [
+            const Positioned.fill(child: ColoredBox(color: Db.rule)),
+            FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: frac.clamp(0.0, 1.0),
+              child: ColoredBox(color: color),
+            ),
+          ]),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Vote area (web has a prover; native/desktop read-only) ────────────────
+
 class _VoteArea extends StatelessWidget {
   final List<String> options;
   const _VoteArea({required this.options});
-
   @override
   Widget build(BuildContext context) {
     if (!proofServiceAvailable) {
       return Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          border: Border.all(color: Db.rule),
-          borderRadius: BorderRadius.circular(12),
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+          color: Db.slate,
+          border: Border.fromBorderSide(BorderSide(color: Db.rule)),
         ),
-        child: const Row(
-          children: [
-            Icon(Icons.lock_outline, color: Db.mute, size: 18),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Voting runs in the web app (mobile coming soon). This build is read-only.',
-                style: TextStyle(color: Db.mute, fontSize: 13),
-              ),
+        child: Row(children: [
+          const Icon(Icons.lock_outline, color: Db.mute, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Voting runs in the web app (mobile coming soon). This build is read-only.',
+              style: dbMono(12, Db.mute, height: 1.5),
             ),
-          ],
-        ),
+          ),
+        ]),
       );
     }
     return _VoteForm(options: options);
@@ -289,132 +311,166 @@ class _VoteFormState extends State<_VoteForm> {
     final vm = context.watch<VoteViewModel>();
     final canCast =
         _selected != null && _seed.text.trim().isNotEmpty && !vm.isBusy;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('CAST YOUR VOTE',
-            style: TextStyle(
-                fontFamily: Db.fontMono,
-                fontSize: 11,
-                letterSpacing: 1.6,
-                color: Db.mute)),
-        const SizedBox(height: 10),
-        for (var i = 0; i < widget.options.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: _OptionTile(
-              label: widget.options[i],
-              selected: _selected == i,
-              onTap: vm.isBusy ? null : () => setState(() => _selected = i),
-            ),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        color: Db.slate,
+        border: Border.fromBorderSide(BorderSide(color: Db.rule)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('CAST YOUR VOTE', style: dbSectionTitle),
+        const SizedBox(height: 14),
+        for (var i = 0; i < widget.options.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
+          _OptionTile(
+            label: widget.options[i],
+            color: Db.optionColor(i),
+            selected: _selected == i,
+            onTap: vm.isBusy ? null : () => setState(() => _selected = i),
           ),
-        const SizedBox(height: 8),
+        ],
+        const SizedBox(height: 14),
         TextField(
           controller: _seed,
           onChanged: (_) => setState(() {}),
-          style: const TextStyle(
-              color: Db.chalk, fontFamily: Db.fontMono, fontSize: 13),
-          decoration: const InputDecoration(
-            labelText: 'Your invite token / identity seed',
-            labelStyle: TextStyle(color: Db.mute),
-            enabledBorder:
-                OutlineInputBorder(borderSide: BorderSide(color: Db.rule)),
-            focusedBorder:
-                OutlineInputBorder(borderSide: BorderSide(color: Db.oltremare)),
+          style: dbMono(13, Db.chalk),
+          cursorColor: Db.segnale,
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            filled: true,
+            fillColor: Db.void_,
+            hintText: 'paste your invite token / identity seed',
+            hintStyle: dbMono(12, Db.mute),
+            enabledBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: Db.rule)),
+            focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: Db.segnale)),
           ),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: Db.segnale, foregroundColor: Db.chalk),
-            onPressed: canCast
-                ? () => context.read<VoteViewModel>().castVote(
-                      identitySeed: _seed.text.trim(),
-                      optionIndex: _selected!,
-                    )
-                : null,
-            child: Text(switch (vm.status) {
-              VoteStatus.proving => 'Generating proof…',
-              VoteStatus.relaying => 'Submitting…',
-              _ => 'Cast anonymous vote',
-            }),
-          ),
+        const SizedBox(height: 14),
+        _CastButton(
+          busyLabel: switch (vm.status) {
+            VoteStatus.proving => 'GENERATING PROOF…',
+            VoteStatus.relaying => 'SUBMITTING…',
+            _ => null,
+          },
+          enabled: canCast,
+          onTap: canCast
+              ? () => context.read<VoteViewModel>().castVote(
+                    identitySeed: _seed.text.trim(),
+                    optionIndex: _selected!,
+                  )
+              : null,
         ),
         if (vm.status == VoteStatus.success)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: _StatusLine(
-                icon: Icons.check_circle,
-                color: Db.success,
-                text: 'Vote counted · ${vm.txHash ?? ''}'),
-          ),
+          _statusLine(Icons.check_circle, Db.success,
+              'VOTE COUNTED · ${vm.txHash ?? ''}'),
         if (vm.status == VoteStatus.error)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: _StatusLine(
-                icon: Icons.error_outline,
-                color: Db.segnale,
-                text: vm.error ?? 'Vote failed'),
-          ),
-      ],
+          _statusLine(Icons.error_outline, Db.segnale, vm.error ?? 'Vote failed'),
+      ]),
     );
   }
+
+  Widget _statusLine(IconData icon, Color color, String text) => Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Row(children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text, style: dbMono(12, color))),
+        ]),
+      );
 }
 
 class _OptionTile extends StatelessWidget {
   final String label;
+  final Color color;
   final bool selected;
   final VoidCallback? onTap;
   const _OptionTile(
-      {required this.label, required this.selected, required this.onTap});
-
+      {required this.label,
+      required this.color,
+      required this.selected,
+      required this.onTap});
   @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          border: Border.all(
-              color: selected ? Db.segnale : Db.rule, width: selected ? 2 : 1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          children: [
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: selected ? color.withValues(alpha: 0.12) : Db.void_,
+            border: Border.all(color: selected ? color : Db.rule, width: selected ? 2 : 1),
+          ),
+          child: Row(children: [
             Icon(
                 selected
                     ? Icons.radio_button_checked
                     : Icons.radio_button_unchecked,
-                color: selected ? Db.segnale : Db.mute,
+                color: selected ? color : Db.mute,
                 size: 18),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Expanded(
-                child: Text(label, style: const TextStyle(color: Db.chalk))),
-          ],
+                child: Text(label, style: dbSans(15, 600, Db.chalk))),
+          ]),
         ),
+      );
+}
+
+class _CastButton extends StatelessWidget {
+  final bool enabled;
+  final String? busyLabel;
+  final VoidCallback? onTap;
+  const _CastButton({required this.enabled, this.busyLabel, this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    final label = busyLabel ?? (enabled ? 'CAST ANONYMOUS VOTE →' : '[ SELECT AN OPTION ]');
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: enabled ? Db.segnale : Db.void_,
+          border: Border.all(color: enabled ? Db.segnale : Db.rule),
+        ),
+        child: Text(label,
+            style: dbSans(13, 800,
+                enabled ? Db.void_ : Db.mute,
+                letterSpacing: 13 * 0.12)),
       ),
     );
   }
 }
 
-class _StatusLine extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String text;
-  const _StatusLine(
-      {required this.icon, required this.color, required this.text});
-
+class _ErrorView extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _ErrorView({required this.message, required this.onRetry});
   @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-              child:
-                  Text(text, style: TextStyle(color: color, fontSize: 13))),
-        ],
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.cloud_off, color: Db.segnale, size: 40),
+            const SizedBox(height: 12),
+            Text("COULDN'T LOAD THIS POLL",
+                style: dbLabel(size: 12, color: Db.chalk)),
+            const SizedBox(height: 8),
+            Text(message, textAlign: TextAlign.center, style: dbMono(12, Db.mute)),
+            const SizedBox(height: 16),
+            OutlinedButton(
+              onPressed: onRetry,
+              style: OutlinedButton.styleFrom(
+                shape: const RoundedRectangleBorder(),
+                side: const BorderSide(color: Db.rule),
+              ),
+              child: Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),
+            ),
+          ]),
+        ),
       );
 }

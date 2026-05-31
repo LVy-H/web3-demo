@@ -47,6 +47,7 @@ dependencies:
   # --- UI / state / routing (per flutter-* architecture skills) ---
   provider: ^6.1.2          # ChangeNotifier DI (MVVM)
   go_router: ^14.6.2        # declarative URL routing + deep links
+  flutter_svg: ^2.3.0       # Dark Bauhaus watermark glyphs / illustrations
 
 dev_dependencies:
   flutter_test:
@@ -74,6 +75,14 @@ flutter:
 
   assets:
     - assets/abi/
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:
