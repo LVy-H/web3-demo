@@ -183,10 +183,22 @@ class _Hero extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 16),
-        _GhostButton(
-          icon: Icons.add,
-          label: 'NEW POLL',
-          onTap: () => context.go('/create'),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _GhostButton(
+              icon: Icons.verified_outlined,
+              label: 'VERIFY',
+              onTap: () => context.go('/verify'),
+            ),
+            const SizedBox(height: 8),
+            _GhostButton(
+              icon: Icons.add,
+              label: 'NEW POLL',
+              onTap: () => context.go('/create'),
+            ),
+          ],
         ),
       ],
     );

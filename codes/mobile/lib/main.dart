@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'config.dart';
 import 'data/repositories/poll_repository.dart';
+import 'data/repositories/verify_repository.dart';
 import 'data/services/chain_reader.dart';
 import 'data/services/proof_service.dart';
 import 'data/services/proof_service_factory.dart';
@@ -32,18 +33,19 @@ Future<void> main() async {
     registryAddress: AppConfig.registryAddress,
   );
 
-  runApp(ZkVoteApp(repository: ChainPollRepository(reader)));
+  runApp(ZkVoteApp(reader: reader));
 }
 
 class ZkVoteApp extends StatelessWidget {
-  final PollRepository repository;
-  const ZkVoteApp({super.key, required this.repository});
+  final ChainReader reader;
+  const ZkVoteApp({super.key, required this.reader});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<PollRepository>.value(value: repository),
+        Provider<PollRepository>(create: (_) => ChainPollRepository(reader)),
+        Provider<VerifyRepository>(create: (_) => ChainVerifyRepository(reader)),
         Provider<RelayClient>(
           create: (_) => RelayClient(baseUrl: AppConfig.relayerUrl),
           dispose: (_, c) => c.close(),

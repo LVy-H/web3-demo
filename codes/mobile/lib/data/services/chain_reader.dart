@@ -76,6 +76,19 @@ class ChainReader {
     return r.first as BigInt;
   }
 
+  /// Public receipt check: has this nullifier (decimal string) voted in the
+  /// poll? Proves participation without revealing the option. Mirrors the web
+  /// Verify page (`isNullifierUsed` on ZkAnonVoting).
+  Future<bool> isNullifierUsed(String pollAddress, String nullifier) async {
+    final r = await _read(
+      _anonAbi,
+      EthereumAddress.fromHex(pollAddress),
+      'isNullifierUsed',
+      [BigInt.parse(nullifier)],
+    );
+    return r.first as bool;
+  }
+
   /// Reconstruct the Semaphore group: all `identityCommitment`s from the poll's
   /// `VoterRegistered(uint256)` events from genesis. This is what a vote proof is
   /// built against (mirrors the web client's useGroupSync). Returns decimal strings.
