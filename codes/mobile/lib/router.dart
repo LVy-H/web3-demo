@@ -7,6 +7,7 @@ import 'data/services/proof_service.dart';
 import 'data/services/relay_client.dart';
 import 'ui/features/browse/browse_screen.dart';
 import 'ui/features/browse/browse_view_model.dart';
+import 'ui/features/create/create_screen.dart';
 import 'ui/features/poll_detail/poll_detail_screen.dart';
 import 'ui/features/poll_detail/poll_detail_view_model.dart';
 import 'ui/features/poll_detail/vote_view_model.dart';
@@ -24,6 +25,10 @@ GoRouter buildRouter() => GoRouter(
             create: (ctx) => BrowseViewModel(ctx.read<PollRepository>()),
             child: const BrowseScreen(),
           ),
+        ),
+        GoRoute(
+          path: '/create',
+          builder: (context, state) => const CreateScreen(),
         ),
         GoRoute(
           path: '/verify',
