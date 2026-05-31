@@ -48,12 +48,13 @@ Contracts: NO CHANGES
 - *Relayer-owned (fully gasless, no organizer wallet)* — rejected for the MVP because it makes the relayer the trusted poll owner (centralisation) and adds relayer surface the codebase doesn't have today. Revisit if "organizer needs no wallet" becomes a hard requirement (Section 8, Q1).
 - *On-chain ticket burn (trustless registration)* — rejected for the MVP because it needs contract changes + tests + audit surface. Tracked as a later evolution (Sprint 2/Backlog) if relayer trust becomes unacceptable.
 
-### 2.2 Two corrections to the original design doc (found by reading the contracts)
+### 2.2 Three corrections to the original design doc (found by reading the contracts)
 
 The 2026-05-14 design doc assumed the relayer registers voters and that polls have an end-time. Reading `codes/contracts/` shows otherwise:
 
 1. **M1 registration is owner-only.** `ZkAnonVoting.registerVoter` / `registerVoters` are `onlyOwner`. So registration must be authorized by the poll owner — which is exactly why the organizer-owned model above is the natural fit. (`ZkBlindVoting.register()` *is* permissionless, but M2 is commit-reveal — a two-step vote+reveal — which is the wrong UX for a single-tap live vote. We use **M1** for live mode.)
 2. **There is no on-chain auto-close.** State transitions (`startVoting`, `endVoting`) are manual owner calls; there is no timestamp gate on the voting window. For a live meeting this is fine — the organizer is physically present and clicks "End." The host page enforces the *display* of the timer; the actual close is a manual `endVoting()`. **No contract change needed for timing.**
+3. **🚩 Registration and Voting are mutually exclusive (discovered during planning, 2026-05-31).** `registerVoter` reverts unless `state == Registration`; `castVote` reverts unless `state == Voting` (`ZkAnonVoting.sol:123` vs `:172`). You **cannot register a new voter once voting has started, and votes cannot tally during registration.** So the design doc's interleaved "voters trickle in, get confirmed, and vote while the tally moves live" is **infeasible without contract changes**. The live host is therefore an explicit **sequential phase machine**: *Registration* (scan → confirm → `registerVoter`) → organizer clicks **Start Voting** → *Voting* (confirmed voters tap; tally moves) → **End Voting**. **Consequence: no continuous late-join — everyone present must be confirmed before voting opens** (see §8 Q7). This is also the cryptographically sound choice: changing Semaphore group membership mid-vote would disturb the Merkle root that in-flight proofs are built against.
 
 ### 2.3 What we reuse vs. build new
 
@@ -156,8 +157,8 @@ Sizes: **S** ≈ a focused sitting, **M** ≈ a day, **L** ≈ multi-day, **XL**
 
 | ID | Story | Size | Acceptance |
 |---|---|---|---|
-| S0.1 | *As a voter, I want my "already voted" state scoped per-poll so voting on poll A doesn't block poll B.* (P0-1) | S | Vote on poll A, navigate to poll B → vote UI available on B. `localStorage` nullifier key is per-poll. |
-| S0.2 | *As a developer, I want group-sync state inside React (not module globals) so navigation between polls can't leak state.* (P0-2) | S | No module-scope `let` in `Poll.tsx`; logic in a `useGroupSync`-style hook; existing E2E passes. |
+| S0.1 | *As a voter, I want my "already voted" state scoped per-poll so voting on poll A doesn't block poll B.* (P0-1) — **already implemented in committed WIP → verify only** | S | Key is already `my-nullifier-${pollAddress}-${commitment}` (Poll.tsx:108/305/371). Verify: vote on poll A, navigate to poll B → vote UI available on B. |
+| S0.2 | *As a developer, I want group-sync state inside React (not module globals) so navigation between polls can't leak state.* (P0-2) — **already implemented → verify only** | S | `useGroupSync.ts` already exists and is used in `Poll.tsx` (9, 156); no module-scope `let` remains. Verify: existing E2E passes. |
 | S0.3 | *Spike: prove organizer-owned registration end-to-end on local Hardhat* — organizer wallet registers an ephemeral commitment, relayer relays that identity's vote, tally updates. | S | A throwaway script or test demonstrates the full loop with **no contract changes**. Documents any surprises in this plan. |
 
 **Demo:** existing flows work; cross-poll bug is gone; the organizer-owned loop is proven.
@@ -172,12 +173,12 @@ Sizes: **S** ≈ a focused sitting, **M** ≈ a day, **L** ≈ multi-day, **XL**
 | S1.1 | *As a developer, I want ticket + code + org-key libs* — `ticket.ts` (sign/verify/encode/decode, ed25519 or secp256k1), `confirmationCode.ts` (4-digit from `hash(nonce ‖ commitment)`), `orgKeypair.ts` (per-poll keypair in `localStorage`). | M | Unit tests: a valid ticket verifies, an expired/forged one is rejected; the same `(nonce, commitment)` yields the same code on both sides. |
 | S1.2 | *As an organizer's dashboard, I want relayer queue + ticket endpoints* — `POST /tickets/issue`, `POST /tickets/pending`, `GET /tickets/queue`, `POST /tickets/redeem`, with an in-memory consumed-tickets set. | M | Endpoints exist behind the existing rate-limiter; a redeemed ticket can't be reused; queue returns pending voters for a poll. |
 | S1.3 | *As an organizer, I want a "Live Meeting Mode" toggle on CreatePoll* that deploys an M1 poll I own and redirects me to `/live/:pollId/host`. | S | Toggling it and deploying lands on the host page; non-live deploys unchanged. |
-| S1.4 | *As an organizer, I want a projector host page* — rotating QR (~25s), pending-voter list with Confirm/Reject, live tally (subscribe `VoteCast`), time-remaining counter. | L | Two voters appear in the queue; Confirm calls `registerVoter` from the organizer wallet; Reject drops them; tally bars update live. |
+| S1.4 | *As an organizer, I want a projector host page* — rotating QR (~25s), pending-voter list with Confirm/Reject, live tally (subscribe `VoteCast`), time-remaining counter, **and explicit Start Voting / End Voting controls** (the page is a sequential phase machine — see §2.2 #3). | L | In **Registration**: two voters appear in the queue, Confirm calls `registerVoter` from the organizer wallet, Reject drops them with no tx. Organizer clicks **Start Voting** → in **Voting**, tally bars update live on `VoteCast`. Register and cast never interleave. |
 | S1.5 | *As a voter, I want a wallet-free vote page* — verify ticket, mint ephemeral identity, show big 4-digit code, poll for "confirmed", then show question + options; tap → ZK proof → relayer vote → receipt modal. | L | On a second browser: scan→code→(confirmed)→tap→vote lands on-chain→receipt shown. No wallet involved. |
 | S1.6 | *As an organizer, I want Confirm to register the voter on-chain* via my wallet (`registerVoter(commitment)`), gating the voter's enablement on the tx. | M | Voter's page flips to "vote enabled" only after the registration tx confirms. |
 | S1.7 | *As a maintainer, I want a two-context E2E* (organizer + voter) covering the happy path **and** the reject path. | M | Playwright spec runs both contexts; happy path tallies a vote; reject path leaves the voter blocked. |
 
-**Demo (the 60-second teacher script from the design doc):** create poll → project QR → two voters scan, show codes, get confirmed, vote → bars move live → a "friend not in the room" scans, gets a code, organizer can't find them → Reject → they can never vote.
+**Demo (the 60-second teacher script, corrected to the sequential phase machine — §2.2 #3):** create poll → project QR → **(Registration phase)** two voters scan, show codes, organizer confirms each face-to-face (each `registerVoter` tx mines) → a "friend not in the room" scans, gets a code, organizer can't find them → Reject (no tx, blocked) → organizer clicks **Start Voting** → **(Voting phase)** the confirmed voters tap options → bars move live → organizer clicks **End Voting**.
 
 ---
 
@@ -281,6 +282,7 @@ Full detail lives in [`docs/design/live-meeting-vote.md`](../../design/live-meet
 4. **Is the async (non-live) mode still a product goal**, or does live become the headline? Affects how much of Sprint P (SP.6/SP.7) is worth doing. *Owner: Hoang.*
 5. **Flutter port scope & sequencing** — which native surface first: the organizer app, or the recurring-member voter app? Out of scope for this plan; needs its own spec once the web API stabilises (end of Sprint 1/2). *Owner: Hoang.*
 6. **Semaphore-proof-on-Dart path** — WebView+snarkjs vs. Rust-FFI vs. Flutter-Web+JS interop (§2.5). Decide at Flutter-spec time; it is the long pole of the port. *Owner: Hoang.*
+7. **🚩 No continuous late-join (from §2.2 #3).** The sequential phase machine means the organizer must confirm everyone present *before* clicking Start Voting; nobody can be added once voting opens. Is "register-all-then-vote" acceptable for the target meetings? If continuous join is a hard requirement, it needs a contract/module change (e.g. an `addMember`-during-Voting path with multi-root proof acceptance) — a Sprint 2+ contract story, not the MVP. **Decide before executing S1.4.** *Owner: Hoang.*
 
 ---
 
