@@ -82,12 +82,15 @@ is the operative instruction.
   go_router) is mobile-clean (also `flutter build linux` native AOT passes). NO
   dep change forced. The only blockers were the read-only Nix Android SDK missing
   components — fixed with a writable overlay (see "Android build in this env").
+- **GROUP RECONSTRUCTION DONE ✅** — `ChainReader.getRegisteredCommitments`
+  (`eth_getLogs` for `VoterRegistered(uint256)`, web3dart `FilterOptions.events`)
+  decodes the member set from real logs; integration test verifies vs 2 voters
+  registered on the demo poll. This is the ZK proof's member-set input. 45 tests.
 - **Now / next iteration options:**
   1. **Risk B — ZK plumbing** (the remaining vote-path blocker): bundle Semaphore
      JS, web `ProofService` via `dart:js_interop` (Chrome, testable here), then a
-     vote screen wired through `relayVote(proof)`. Mobile webview after. NOTE:
-     scope the group-reconstruction path in — `ChainReader` needs `eth_getLogs`
-     for `VoterRegistered` (web client's `useGroupSync`) to build the Semaphore group.
+     vote screen wired through `relayVote(proof)` using `getRegisteredCommitments`
+     as the group. Mobile webview after. (Group-reconstruction input: DONE above.)
   2. Verify screen (nullifier lookup via `isNullifierUsed` — small, ZK-independent).
   3. Runtime smoke: launch app vs live node, confirm the demo poll renders.
 

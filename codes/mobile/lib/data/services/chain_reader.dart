@@ -16,17 +16,20 @@ class ChainReader {
   final Web3Client client;
   final ContractAbi _pollAbi;
   final ContractAbi _registryAbi;
+  final ContractAbi _anonAbi;
   final EthereumAddress _registryAddress;
 
   ChainReader({
     required String rpcUrl,
     required String izkPollAbiJson,
     required String registryAbiJson,
+    required String anonVotingAbiJson,
     required String registryAddress,
     http.Client? httpClient,
   })  : client = Web3Client(rpcUrl, httpClient ?? http.Client()),
         _pollAbi = ContractAbi.fromJson(izkPollAbiJson, 'IZkPoll'),
         _registryAbi = ContractAbi.fromJson(registryAbiJson, 'PollRegistry'),
+        _anonAbi = ContractAbi.fromJson(anonVotingAbiJson, 'ZkAnonVoting'),
         _registryAddress = EthereumAddress.fromHex(registryAddress);
 
   Future<List<dynamic>> _read(
@@ -71,6 +74,25 @@ class ChainReader {
     final r = await _read(
         _pollAbi, EthereumAddress.fromHex(pollAddress), 'getParticipantCount');
     return r.first as BigInt;
+  }
+
+  /// Reconstruct the Semaphore group: all `identityCommitment`s from the poll's
+  /// `VoterRegistered(uint256)` events from genesis. This is what a vote proof is
+  /// built against (mirrors the web client's useGroupSync). Returns decimal strings.
+  Future<List<String>> getRegisteredCommitments(String pollAddress) async {
+    final contract =
+        DeployedContract(_anonAbi, EthereumAddress.fromHex(pollAddress));
+    final event = contract.event('VoterRegistered');
+    final logs = await client.getLogs(FilterOptions.events(
+      contract: contract,
+      event: event,
+      fromBlock: const BlockNum.genesis(),
+      toBlock: const BlockNum.current(),
+    ));
+    return logs.map((log) {
+      final decoded = event.decodeResults(log.topics ?? const [], log.data ?? '0x');
+      return (decoded.first as BigInt).toString();
+    }).toList();
   }
 
   // ── PollRegistry ──────────────────────────────────────────────────────────

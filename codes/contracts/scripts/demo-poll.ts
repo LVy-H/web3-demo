@@ -54,6 +54,12 @@ async function main() {
   }
   if (!pollAddress) throw new Error("Could not determine poll address from PollCreated");
 
+  // Register two voters (owner-only, allowed in Registration state) so the
+  // group-reconstruction read has real VoterRegistered logs to decode.
+  const commitments = ["11111111111111111111", "22222222222222222222"];
+  const poll = await ethers.getContractAt("ZkAnonVoting", pollAddress);
+  await (await poll.registerVoters(commitments.map((c) => BigInt(c)))).wait();
+
   const fixture = {
     _comment:
       "Local Hardhat chain fixture for the Flutter on-chain read integration test. " +
@@ -71,6 +77,8 @@ async function main() {
       options: OPTIONS,
       expectedState: 0, // Registration
       expectedResults: OPTIONS.map(() => 0),
+      registeredCommitments: commitments,
+      expectedParticipantCount: commitments.length,
     },
   };
   fs.mkdirSync(path.dirname(FIXTURE), { recursive: true });

@@ -19,11 +19,13 @@ Future<void> main() async {
 
   final izkPollAbi = await rootBundle.loadString('assets/abi/IZkPoll.json');
   final registryAbi = await rootBundle.loadString('assets/abi/PollRegistry.json');
+  final anonAbi = await rootBundle.loadString('assets/abi/ZkAnonVoting.json');
 
   final reader = ChainReader(
     rpcUrl: AppConfig.rpcUrl,
     izkPollAbiJson: _abiArray(izkPollAbi),
     registryAbiJson: _abiArray(registryAbi),
+    anonVotingAbiJson: _abiArray(anonAbi),
     registryAddress: AppConfig.registryAddress,
   );
 

@@ -37,6 +37,7 @@ void main() {
       rpcUrl: rpc,
       izkPollAbiJson: abiArray('assets/abi/IZkPoll.json'),
       registryAbiJson: abiArray('assets/abi/PollRegistry.json'),
+      anonVotingAbiJson: abiArray('assets/abi/ZkAnonVoting.json'),
       registryAddress: fixture['registry'] as String,
     );
   });
@@ -70,7 +71,20 @@ void main() {
       (await reader.getOwner(pollAddr)).toLowerCase(),
       (fixture['owner'] as String).toLowerCase(),
     );
-    expect(await reader.getParticipantCount(pollAddr), BigInt.zero);
+    expect(
+      await reader.getParticipantCount(pollAddr),
+      BigInt.from(poll['expectedParticipantCount'] as int),
+    );
+  });
+
+  test('getRegisteredCommitments reconstructs the group from event logs',
+      () async {
+    if (!await nodeUp()) {
+      markTestSkipped('local node not reachable at $rpc');
+      return;
+    }
+    final commitments = await reader.getRegisteredCommitments(pollAddr);
+    expect(commitments, (poll['registeredCommitments'] as List).cast<String>());
   });
 
   test('getAllPolls decodes the registry struct array', () async {
