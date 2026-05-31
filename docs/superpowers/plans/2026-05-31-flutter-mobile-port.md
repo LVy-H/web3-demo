@@ -269,3 +269,19 @@ PollDetail test and relax the option-count assertions, OR override
 **Verification (on device):** run on an Android emulator, register a voter, cast
 a vote, confirm the relayed proof verifies (real vkey) — the same bar the web
 path already cleared in-browser.
+
+## /code-review (high) findings — 2026-05-31
+
+Ran `/code-review high` (4 finder angles + verify) on the Flutter app. **No
+correctness crashes survived verification** — all crash candidates were refuted
+(guarded by load/error-handling, mathematically impossible, or already fixed in
+the prior review). Folded back the two clear wins:
+- ✅ `relayVote` maps `TimeoutException` → friendly message (web parity).
+- ✅ shared `shortAddr` helper (ui/core/format.dart) — unified + length-guarded;
+  replaces the two inconsistent inline formatters.
+
+**Queued low-severity cleanup (do in a focused refactor, not urgent):**
+- Extract shared widgets: `DbErrorView` (browse + poll_detail), back-link
+  (browse/poll_detail/verify/create), mono input field (verify + poll_detail).
+- Centralize responsive magic numbers (1180/1040/840/600/340) in a layout consts file.
+- Memoize `browse._filterSort` (recomputed every build; fine for small lists).

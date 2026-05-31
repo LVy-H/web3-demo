@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../data/models/poll_info.dart';
 import '../../core/dot_grid_background.dart';
+import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
 import '../../core/watermark.dart';
@@ -354,12 +355,7 @@ class _PollCard extends StatefulWidget {
 class _PollCardState extends State<_PollCard> {
   bool _hover = false;
 
-  String get _shortCreator {
-    final a = widget.poll.creator;
-    return a.length > 12
-        ? '${a.substring(0, 6)}·${a.substring(a.length - 4)}'.toUpperCase()
-        : a.toUpperCase();
-  }
+  String get _shortCreator => shortAddr(widget.poll.creator).toUpperCase();
 
   @override
   Widget build(BuildContext context) {

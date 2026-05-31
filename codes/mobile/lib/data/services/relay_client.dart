@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -147,6 +148,9 @@ class RelayClient {
         success: true,
         txHash: r.data['txHash'] is String ? r.data['txHash'] as String : null,
       );
+    } on TimeoutException {
+      return const RelayResult(
+          success: false, error: 'Relayer did not respond in time. Try again.');
     } catch (e) {
       return RelayResult(success: false, error: e.toString());
     }

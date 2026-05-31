@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../data/models/poll_snapshot.dart';
 import '../../../data/services/proof_service_factory.dart';
 import '../../core/dot_grid_background.dart';
+import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
 import 'poll_detail_view_model.dart';
@@ -56,10 +57,7 @@ class _Body extends StatelessWidget {
   final PollSnapshot snapshot;
   const _Body({required this.snapshot});
 
-  String get _shortAddr {
-    final a = snapshot.address;
-    return '${a.substring(0, 6)}…${a.substring(a.length - 4)}';
-  }
+  String get _shortAddr => shortAddr(snapshot.address);
 
   @override
   Widget build(BuildContext context) {
