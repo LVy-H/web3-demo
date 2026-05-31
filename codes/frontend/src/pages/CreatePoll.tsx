@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAccount } from 'wagmi'
-import { encodeFunctionData } from 'viem'
+import { useAccount, usePublicClient } from 'wagmi'
+import { encodeFunctionData, parseEventLogs } from 'viem'
 import { SEMAPHORE_ADDRESS } from '../config'
 import { useCreatePoll } from '../hooks/useRegistry'
 import ZkAnonVotingABI from '../abi/ZkAnonVoting.json'
 import ZkBlindVotingABI from '../abi/ZkBlindVoting.json'
+import PollRegistryABI from '../abi/PollRegistry.json'
 import {
     ArrowLeft,
     ShieldCheck,
@@ -14,6 +15,7 @@ import {
     X,
     AlertTriangle,
     Send,
+    Radio,
 } from 'lucide-react'
 import { CreateFeedback } from '../components/create/CreateFeedback'
 import { PreviewPanel } from '../components/create/PreviewPanel'
@@ -27,6 +29,7 @@ type PollType = 'anon-vote' | 'blind-vote'
 export default function CreatePoll() {
     // ---- Data layer (preserved verbatim from pre-Impl-4 implementation) ----
     const { address, isConnected } = useAccount()
+    const publicClient = usePublicClient()
     const navigate = useNavigate()
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
@@ -34,6 +37,9 @@ export default function CreatePoll() {
     const [errorMsg, setErrorMsg] = useState('')
     const [pollType, setPollType] = useState<PollType>('anon-vote')
     const [revealDuration, setRevealDuration] = useState(3600)
+    // Live Meeting Mode: deploy an organizer-owned M1 (anon-vote) poll and jump
+    // straight to the projector host page. Live mode always uses anon-vote.
+    const [liveMode, setLiveMode] = useState(false)
 
     const { createPoll, isPending, isConfirming, isSuccess } = useCreatePoll()
 
@@ -48,8 +54,10 @@ export default function CreatePoll() {
         }
 
         try {
+            // Live Meeting Mode always uses anon-vote (M1) — single-tap voting.
+            const effectiveType: PollType = liveMode ? 'anon-vote' : pollType
             let initData: `0x${string}`
-            if (pollType === 'blind-vote') {
+            if (effectiveType === 'blind-vote') {
                 initData = encodeFunctionData({
                     abi: ZkBlindVotingABI.abi,
                     functionName: 'initialize',
@@ -63,10 +71,29 @@ export default function CreatePoll() {
                 }) as `0x${string}`
             }
 
-            await createPoll(pollType, title, description, initData)
+            const hash = await createPoll(effectiveType, title, description, initData)
             setTitle('')
             setDescription('')
             setOptions(['', ''])
+
+            if (liveMode) {
+                // Resolve the new poll's address from the PollCreated event, then
+                // jump to the organizer projector page. The host page registers
+                // the org ticket-signing pubkey with the relayer on mount.
+                if (!publicClient) throw new Error('No chain client available.')
+                const receipt = await publicClient.waitForTransactionReceipt({ hash })
+                const events = parseEventLogs({
+                    abi: PollRegistryABI.abi,
+                    eventName: 'PollCreated',
+                    logs: receipt.logs,
+                })
+                const created = events[0] as { args?: { pollAddress?: string } } | undefined
+                const newAddr = created?.args?.pollAddress
+                if (!newAddr) throw new Error('Could not determine the new poll address.')
+                navigate(`/live/${newAddr}/host`)
+                return
+            }
+
             // Navigate home after short delay to show success
             setTimeout(() => navigate('/'), 1500)
         } catch (err: unknown) {
@@ -242,8 +269,10 @@ export default function CreatePoll() {
                                     type="button"
                                     role="radio"
                                     aria-checked={pollType === 'blind-vote'}
-                                    onClick={() => setPollType('blind-vote')}
-                                    className={`p-5 flex flex-col gap-3 text-left transition-colors cursor-pointer ${
+                                    disabled={liveMode}
+                                    onClick={() => !liveMode && setPollType('blind-vote')}
+                                    title={liveMode ? 'Live Meeting Mode uses anonymous ZK voting' : undefined}
+                                    className={`p-5 flex flex-col gap-3 text-left transition-colors ${liveMode ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${
                                         pollType === 'blind-vote'
                                             ? 'bg-db-slate border-l-2 border-db-oltremare'
                                             : 'bg-db-void hover:bg-db-slate border-l-2 border-transparent'
@@ -267,8 +296,41 @@ export default function CreatePoll() {
                             </div>
                         </div>
 
+                        {/* 03B · Live Meeting Mode — organizer-owned M1 + projector */}
+                        <div className="flex flex-col gap-3 pb-6 border-b border-db-rule">
+                            <span className="font-mono text-[10px] text-db-mute uppercase tracking-[0.18em]">03B · LIVE MEETING MODE</span>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={liveMode}
+                                onClick={() => {
+                                    const next = !liveMode
+                                    setLiveMode(next)
+                                    if (next) setPollType('anon-vote')
+                                }}
+                                className={`p-5 flex items-start gap-3 text-left transition-colors cursor-pointer border-l-2 ${
+                                    liveMode
+                                        ? 'bg-db-slate border-db-segnale'
+                                        : 'bg-db-void hover:bg-db-slate border-transparent'
+                                }`}
+                            >
+                                <span className="font-mono text-[14px] text-db-segnale mt-0.5" aria-hidden="true">
+                                    {liveMode ? '[x]' : '[ ]'}
+                                </span>
+                                <Radio className={`w-4 h-4 mt-0.5 shrink-0 ${liveMode ? 'text-db-segnale' : 'text-db-mute'}`} />
+                                <span className="space-y-1">
+                                    <span className="block font-sans font-extrabold text-[14px] tracking-[0.05em] uppercase text-db-chalk">
+                                        In-person live vote
+                                    </span>
+                                    <span className="block font-mono text-[11px] text-db-mute leading-relaxed">
+                                        Project a rotating QR; attendees scan, show a 4-digit code, you confirm them face-to-face. Uses anonymous ZK voting (M1). After deploy you land on the projector host page.
+                                    </span>
+                                </span>
+                            </button>
+                        </div>
+
                         {/* 04 · Reveal window — blind only */}
-                        {pollType === 'blind-vote' && (
+                        {!liveMode && pollType === 'blind-vote' && (
                             <div className="flex flex-col gap-2 pb-6 border-b border-db-rule animate-fade-in-up">
                                 <label
                                     htmlFor="reveal-duration"

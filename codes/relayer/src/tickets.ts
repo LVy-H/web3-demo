@@ -25,6 +25,7 @@ export type PendingStatus = "pending" | "confirmed" | "rejected";
 
 export interface PendingVoter {
     ticketNonce: string;
+    ticket: string; // full wire ticket — the host needs it to redeem
     ephemeralIdentityCommitment: string;
     confirmationCode: string;
     status: PendingStatus;
@@ -164,12 +165,14 @@ function handlePending(req: Request, res: Response): void {
     // ticket re-POSTed just refreshes the existing row.
     const existing = s.queue.find((q) => q.ticketNonce === nonce);
     if (existing) {
+        existing.ticket = ticket;
         existing.ephemeralIdentityCommitment = ephemeralIdentityCommitment;
         existing.confirmationCode = confirmationCode;
         existing.status = "pending";
     } else {
         s.queue.push({
             ticketNonce: nonce,
+            ticket,
             ephemeralIdentityCommitment,
             confirmationCode,
             status: "pending",

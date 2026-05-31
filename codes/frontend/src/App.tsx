@@ -22,6 +22,8 @@ import CreatePoll from './pages/CreatePoll'
 import PollRouter from './pages/PollRouter'
 import Verify from './pages/Verify'
 import DemoReceipt from './pages/DemoReceipt'
+import LiveHost from './pages/LiveHost'
+import LiveVote from './pages/LiveVote'
 import { TEST_ACCOUNT_ENABLED } from './config'
 
 const RPC_URL = import.meta.env.VITE_RPC_URL || 'http://127.0.0.1:8545'
@@ -371,6 +373,8 @@ function AppContent() {
                     <Route path="/poll/:address" element={<PollRouter />} />
                     <Route path="/verify" element={<Verify />} />
                     <Route path="/demo/receipt" element={<DemoReceipt />} />
+                    <Route path="/live/:pollId/host" element={<LiveHost />} />
+                    <Route path="/live/:pollId/vote" element={<LiveVote />} />
                 </Routes>
             </main>
 
