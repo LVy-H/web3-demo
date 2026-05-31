@@ -65,11 +65,17 @@ is the operative instruction.
   the local mock), CDN artifacts fetched in 3.7s. Golden proof vector →
   `test/fixtures/zk_proof_vector.json`. `ProofService` seam defined +
   `FakeProofService` (4/4 tests). Remaining ZK = plumbing only (Risk B).
-- **Now:** Phase 2 part B — on-chain reads via `web3dart`, tested against a
-  running Hardhat node (reads are NOT mock-tainted, unlike the verifier).
-- **Next (parallel):** read-only UI (browse/results/verify/identity) — ZK-independent.
+- **PHASE 2 part B DONE ✅** — `ChainReader` (web3dart) + `PollInfo`: integration
+  test decodes REAL values from a live Hardhat node (getState/getOptions/
+  getResults/owner/getParticipantCount + getAllPolls struct array). Demo poll
+  created by `codes/contracts/scripts/demo-poll.ts` → `test/fixtures/local_chain.json`.
+  Full suite 40/40; analyze clean. (Local node = MockSemaphoreVerifier, fine for reads.)
+- **Now:** Phase 4 — read-only UI (Dark Bauhaus theme + go_router + browse/poll-detail/
+  verify) — ZK-independent, the bulk of the member app.
 - **Later:** Risk B plumbing — Flutter-web JS-interop (Chrome, testable here),
   then mobile webview (last mile, do not block the loop on it).
+- **Local chain for integration tests:** `cd codes/contracts && npm run deploy:local
+  && npx hardhat run scripts/demo-poll.ts --network localhost` (regenerates fixture).
 - **Oracle:** recreate `codes/frontend/src/lib/__vectors.gen.test.ts` + `npx vitest run …`
   to regenerate vectors; delete after. Durable artifact = the committed fixture.
 - **Build/test runs via Bash** (`flutter test`/`flutter analyze`) — Dart MCP is
