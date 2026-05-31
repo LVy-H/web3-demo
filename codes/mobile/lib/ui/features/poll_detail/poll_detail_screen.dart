@@ -34,7 +34,7 @@ class _PollDetailScreenState extends State<PollDetailScreen> {
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 880),
+              constraints: const BoxConstraints(maxWidth: 1040),
               child: Consumer<PollDetailViewModel>(
                 builder: (context, vm, _) => switch (vm.state) {
                   ViewState.idle || ViewState.loading => const Center(
@@ -78,11 +78,27 @@ class _Body extends StatelessWidget {
               style: dbLabel(size: 11, tracking: 0.1),
             ),
             const SizedBox(height: 24),
-            _ResultsBars(snapshot: snapshot),
-            if (snapshot.state == 1) ...[
-              const SizedBox(height: 20),
-              _VoteArea(options: snapshot.options),
-            ],
+            LayoutBuilder(builder: (context, c) {
+              final results = _ResultsBars(snapshot: snapshot);
+              if (snapshot.state != 1) return results;
+              final vote = _VoteArea(options: snapshot.options);
+              // Side-by-side on wide screens (desktop/web), stacked on mobile.
+              if (c.maxWidth > 840) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: results),
+                    const SizedBox(width: 16),
+                    Expanded(child: vote),
+                  ],
+                );
+              }
+              return Column(children: [
+                results,
+                const SizedBox(height: 20),
+                vote,
+              ]);
+            }),
             const SizedBox(height: 24),
             Text('OWNER', style: dbLabel(size: 10)),
             const SizedBox(height: 4),
