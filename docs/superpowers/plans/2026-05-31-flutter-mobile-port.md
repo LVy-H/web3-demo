@@ -7,8 +7,13 @@
 
 **Goal:** Build the Flutter **recurring-member app** for the ZK-voting dApp
 (browse polls, manage identity, view/verify receipts, async voting) targeting
-mobile (Android/iOS) + web, reusing the existing relayer HTTP API + contract
-ABIs as the cross-client contract.
+**all platforms — mobile (Android/iOS), desktop (Linux/Windows/macOS), and web**,
+reusing the existing relayer HTTP API + contract ABIs as the cross-client contract.
+
+**Platform status:** all 6 platforms scaffolded. Verified-here builds: web ✅,
+Linux desktop ✅, Android APK ✅. Windows/macOS build on their own OSes (source
+scaffolded; not buildable on this Linux host). The app + data layer are pure
+Dart → uniform across all targets.
 
 **Architecture:** MVVM + Repository (per project `flutter-apply-architecture-best-practices`),
 `go_router` routing, `provider`/`ChangeNotifier` state, `http` for the relayer,

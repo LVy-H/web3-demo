@@ -31,6 +31,10 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+# Native per-platform build/artifact dirs (android/build, linux/build, windows/build, .cxx, .gradle)
+**/build/
+**/.cxx/
+**/.gradle/
 /coverage/
 
 # Symbolication related
