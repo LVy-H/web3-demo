@@ -98,14 +98,15 @@ is the operative instruction.
   go_router) is mobile-clean (also `flutter build linux` native AOT passes). NO
   dep change forced. The only blockers were the read-only Nix Android SDK missing
   components — fixed with a writable overlay (see "Android build in this env").
-- **WEB VOTE-PROOF BRIDGE — bundle verified ✅, js_interop wired ✅** —
-  `web_prover/` bundles Semaphore v4 → `web/zkprover.js` (vite IIFE, deps reused
-  from frontend via symlink). `verify.mjs` loads the EXACT bundle and proves
-  `generateProof→verifyProof == true` against the real vkey. `ProofServiceWeb`
+- **WEB VOTE PATH — proof generation VERIFIED IN-BROWSER ✅** — `web_prover/`
+  bundles Semaphore v4 → `web/zkprover.js` (vite IIFE). `ProofServiceWeb`
   (`dart:js_interop`) + conditional `proof_service_factory` (web→web impl,
-  native→clear `Unsupported` stub) compile; `flutter build web` bundles zkprover.js.
-  **Honest gap:** the in-browser js_interop *round-trip* (Dart→JS marshaling live
-  in Chrome) is not yet auto-verified — next is a browser smoke + a vote button.
+  native→clear `Unsupported` stub). Verified two ways: `verify.mjs` (exact bundle,
+  Node) AND `flutter test --platform chrome` — the full Dart→js_interop→prover
+  round-trip produces a `RelayProof` that **verifies against the real Groth16 vkey
+  in a real browser** (not a false green). Browser test serves the bundle on :8099
+  + auto-skips when absent. **Remaining for web voting:** wire a vote screen
+  (identity seed + `getRegisteredCommitments` group → `ProofService` → `relayVote`).
 - **GROUP RECONSTRUCTION DONE ✅** — `ChainReader.getRegisteredCommitments`
   (`eth_getLogs` for `VoterRegistered(uint256)`, web3dart `FilterOptions.events`)
   decodes the member set from real logs; integration test verifies vs 2 voters
