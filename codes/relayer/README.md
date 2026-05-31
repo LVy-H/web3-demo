@@ -108,6 +108,46 @@ Response:
 The frontend polls this endpoint to decide whether to expose the "Relayer
 (No Wallet)" tab.
 
+### Live Meeting Vote — ticket queue (S1.2)
+
+> **Versioned API contract.** These four endpoints are the coordination channel
+> between the wallet-free voter page and the organizer's host dashboard. Both
+> the web app and any future Flutter client consume them — keep the shapes
+> stable. All sit under `/api/relay/tickets` (behind the same rate limiter).
+>
+> **Registration is NOT done here.** On-chain `registerVoter` is `onlyOwner`, so
+> the **organizer's browser wallet** registers voters. The relayer only tracks
+> tickets — `redeem` marks a ticket consumed; it does not touch the chain. This
+> overrides the original design doc's `/relay/register`.
+>
+> State is **in-memory and per-poll** — lost on relayer restart (fine for a
+> single live meeting; persistence is a Sprint 2 concern, open-Q3). The `queue`
+> endpoint is currently unauthenticated; it only exposes `(code, commitment)`
+> pairs, never votes — org-key auth is a Sprint 2 hardening item.
+
+`POST /api/relay/tickets/issue` — organizer registers the per-poll ed25519
+**public** key (the verification anchor). Ticket *signing* stays in the
+organizer's browser. Body: `{ pollId, orgPubKey }` (orgPubKey = 32-byte hex).
+→ `{ "success": true }`.
+
+`POST /api/relay/tickets/pending` — a voter announces itself. Requires a
+**fresh** (unexpired, correctly-signed) ticket and that `issue` ran first.
+Body: `{ pollId, ticket, ephemeralIdentityCommitment, confirmationCode }`.
+→ `{ "success": true, "status": "pending", "confirmationCode": "0427" }`.
+Errors: `400` (not issued / malformed / expired / bad signature),
+`409` (ticket already redeemed).
+
+`GET /api/relay/tickets/queue?pollId=…` — organizer dashboard reads the
+pending voters. → `{ "pollId", "voters": [{ ticketNonce, ephemeralIdentityCommitment, confirmationCode, status, createdAt }] }`
+(only `status: "pending"` rows).
+
+`POST /api/relay/tickets/redeem` — organizer confirms a voter face-to-face;
+the ticket is marked consumed (exactly once) and its queue row flips to
+`confirmed`. Body: `{ pollId, ticket }`. → `{ "success": true }`.
+Errors: `400` (not issued / malformed / bad signature), `409` (replay — already
+redeemed). Signature is checked but **expiry is not** — redeem legitimately
+happens after the 30s TTL, once the organizer has confirmed.
+
 ## Trust model
 
 The relayer is untrusted by design — using it costs the voter nothing in
