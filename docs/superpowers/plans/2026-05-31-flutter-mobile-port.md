@@ -76,12 +76,35 @@ is the operative instruction.
   - `PollDetailScreen` (phase badge, options, live results bars w/ %, participant
     count, owner) + 2 widget tests. `PollRepository`/`PollDetailViewModel`.
   - Full suite **44/44**; analyze clean; `flutter build web` succeeds.
+- **MOBILE BUILD VALIDATED ✅** — `flutter build apk --debug` produces a real
+  147MB APK with `libflutter.so` for **arm64-v8a / armeabi-v7a / x86_64**; the
+  whole dep stack (web3dart/pointycastle, ed25519_edwards, crypto, http, provider,
+  go_router) is mobile-clean (also `flutter build linux` native AOT passes). NO
+  dep change forced. The only blockers were the read-only Nix Android SDK missing
+  components — fixed with a writable overlay (see "Android build in this env").
 - **Now / next iteration options:**
   1. **Risk B — ZK plumbing** (the remaining vote-path blocker): bundle Semaphore
      JS, web `ProofService` via `dart:js_interop` (Chrome, testable here), then a
-     vote screen wired through `relayVote(proof)`. Mobile webview after.
+     vote screen wired through `relayVote(proof)`. Mobile webview after. NOTE:
+     scope the group-reconstruction path in — `ChainReader` needs `eth_getLogs`
+     for `VoterRegistered` (web client's `useGroupSync`) to build the Semaphore group.
   2. Verify screen (nullifier lookup via `isNullifierUsed` — small, ZK-independent).
   3. Runtime smoke: launch app vs live node, confirm the demo poll renders.
+
+## Android build in this env (read-only Nix SDK)
+
+The Nix `androidsdk` lives in read-only `/nix/store` and ships only NDK
+29.0.14206865, `platforms;android-36.1`, `build-tools;36.1.0` — but AGP wants
+`android-36` + `build-tools;35.0.0` + `cmake;3.22.1` and can't install into the
+store. Fix (one-time, machine-local):
+1. `android/app/build.gradle.kts`: pin `ndkVersion = "29.0.14206865"` (committed).
+2. Writable overlay at `~/asdk`: symlink the read-only components
+   (ndk, platform-tools, cmdline-tools, platforms/android-36.1, build-tools/36.1.0)
+   into writable `platforms/`, `build-tools/`, `cmake/`, copy `licenses/`, then
+   `sdkmanager --sdk_root=~/asdk "platforms;android-36" "build-tools;35.0.0" "cmake;3.22.1"`.
+3. Point `android/local.properties` `sdk.dir=/home/hoang/asdk` (gitignored).
+Then `flutter build apk --debug` succeeds. The proper fix is augmenting the Nix
+`androidsdk` derivation, but that needs an `/etc/nixos` rebuild (out of scope).
 - **Local chain for integration tests:** `cd codes/contracts && npm run deploy:local
   && npx hardhat run scripts/demo-poll.ts --network localhost` (regenerates fixture).
 - **Oracle:** recreate `codes/frontend/src/lib/__vectors.gen.test.ts` + `npx vitest run …`

@@ -8,7 +8,10 @@ plugins {
 android {
     namespace = "ai.mayaresearch.zkvote_mobile"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Pin to the NDK the Nix-managed SDK provides. The Flutter default
+    // (flutter.ndkVersion) is a version Gradle would try to *install* into the
+    // read-only /nix/store and fail. 29.0.14206865 ships with the dev image.
+    ndkVersion = "29.0.14206865"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
