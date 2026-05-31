@@ -7,6 +7,9 @@ import 'package:provider/provider.dart';
 import 'config.dart';
 import 'data/repositories/poll_repository.dart';
 import 'data/services/chain_reader.dart';
+import 'data/services/proof_service.dart';
+import 'data/services/proof_service_factory.dart';
+import 'data/services/relay_client.dart';
 import 'router.dart';
 import 'ui/core/theme.dart';
 
@@ -38,8 +41,15 @@ class ZkVoteApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Provider<PollRepository>.value(
-      value: repository,
+    return MultiProvider(
+      providers: [
+        Provider<PollRepository>.value(value: repository),
+        Provider<RelayClient>(
+          create: (_) => RelayClient(baseUrl: AppConfig.relayerUrl),
+          dispose: (_, c) => c.close(),
+        ),
+        Provider<ProofService>(create: (_) => createProofService()),
+      ],
       child: MaterialApp.router(
         title: 'ZK Vote',
         debugShowCheckedModeBanner: false,
