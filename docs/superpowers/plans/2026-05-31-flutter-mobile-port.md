@@ -54,15 +54,15 @@ is the operative instruction.
 
 ## Current Status (UPDATE EVERY ITERATION)
 
-- **Iteration:** 2 (starting)
-- **PHASE 1 COMPLETE ✅** — cross-client core ported, byte-identical to TS+relayer:
-  - `confirmation_code.dart` — 5/5 tests
-  - `ticket.dart` — 10/10 tests (signTicket emits the EXACT TS wire string →
-    ed25519_edwards == @noble proven)
-  - `org_keypair.dart` — 8/8 tests
-  - Full suite: 24/24 pass; `flutter analyze` clean on lib/core + test/core.
-- **Now:** Phase 2 — data layer (relayer HTTP client + JSON-RPC contract reads + models).
-- **Next:** Phase 3 ZK proof spike (WebView+snarkjs) — advisor check before starting.
+- **Iteration:** 2 (in progress)
+- **PHASE 1 COMPLETE ✅** — cross-client core byte-identical to TS+relayer:
+  `confirmation_code.dart` (5), `ticket.dart` (10, exact wire match), `org_keypair.dart` (8).
+- **PHASE 2 part A DONE ✅** — `RelayClient` + `PendingVoter`/`RelayProof` models:
+  10/10 MockClient tests asserting exact paths/body-keys/parsing for
+  issue/pending/queue/redeem/vote/status (verified vs codes/relayer/src + liveRelay.ts/useRelay.ts).
+- **Now:** Phase 2 part B — on-chain reads (JSON-RPC `eth_call` for IZkPoll +
+  PollRegistry). Deciding `web3dart` vs hand-rolled ABI.
+- **Next:** Phase 3 ZK proof spike (WebView+snarkjs) — **advisor check before starting** (long pole).
 - **Oracle:** recreate `codes/frontend/src/lib/__vectors.gen.test.ts` + `npx vitest run …`
   to regenerate vectors; delete after. Durable artifact = the committed fixture.
 - **Build/test runs via Bash** (`flutter test`/`flutter analyze`) — Dart MCP is
