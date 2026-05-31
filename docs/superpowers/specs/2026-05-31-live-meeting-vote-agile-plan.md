@@ -90,6 +90,22 @@ codes/relayer/src/
 contracts/                    NO CHANGES (Sprint 1)
 ```
 
+### 2.5 Cross-platform strategy (web now, Flutter later)
+
+**Context (decided 2026-05-31):** the product serves *both* ad-hoc meeting voters and recurring members. That splits the surfaces cleanly:
+
+| Surface | Platform | Why |
+|---|---|---|
+| Live-meeting **voter** | **Web / PWA — permanent** | Zero-install is the value prop. A walk-in attendee won't download an app to vote once. Stays web even in a Flutter future. |
+| Live-meeting **organizer / projector** | **Web now**; Flutter-app option later | Projector is a big-screen, web-native surface; a recurring host may later want a native companion. |
+| **Recurring-member** app (async voting, identity, receipts) | **Flutter (future)** | Install cost amortises over many uses; richer native UX is worth it for returning users. |
+
+**The portability boundary is the relayer HTTP API + the contract ABIs.** Both the React web app and any future Flutter client are just HTTP + JSON-RPC consumers. We do **not** build a shared cross-language core now — we keep that API clean, documented, and versioned (see Definition of Done). That is the entire integration contract.
+
+**Honest correction to "this is the last web/React version":** it isn't — and that's fine. The live-meeting voter page is web *by design* and will outlive the React→Flutter shift for everything else. What this plan delivers is (a) the durable zero-install voter surface and (b) the stable API the Flutter apps will consume. **Flutter is a separate epic with its own spec — not part of Sprints 0–4 here.**
+
+**Flagged risk for the Flutter port — Semaphore proofs on Dart.** Proofs are generated client-side with snarkjs/WASM (artifacts fetched at runtime — see P4-24); Dart has no mature native Semaphore prover. Resolve this when the Flutter port is scoped, by choosing one of: (1) a hidden WebView running snarkjs, (2) a Rust-FFI binding (`semaphore-rs`-style), or (3) Flutter Web + JS interop. Don't pick now — just don't let the Flutter spec begin without confronting it.
+
 ---
 
 ## 3. Pain-Point Analysis
@@ -116,6 +132,7 @@ contracts/                    NO CHANGES (Sprint 1)
 | **Trusted organizer** — a dishonest organizer could confirm a confederate. | The pending queue is projected; collusion is socially visible to the room. | Not eliminated. A fully trustless scheme would need on-chain ticket burn (Backlog). |
 | **Trusted relayer** — it enforces single-use tickets and pays gas. | Signed consumed-ticket manifest (Sprint 2) makes misbehaviour auditable. | Full trustlessness needs on-chain ticket consumption — out of MVP scope. |
 | **Scale to big rooms** — face-to-face is O(n) organizer effort. | Multi-QR + bulk-confirm + optional BLE auto-confirm reduce per-voter time. | Inherently doesn't scale to thousands; face-to-face is the bottleneck by design. |
+| **Cross-platform reach / native UX** — users on any device, plus a richer native experience for regulars. | Web/PWA reaches every device with a browser (access: solved); the relayer API is kept clean so a native Flutter client can be added without re-architecting (§2.5). | Native mobile richness is deferred to a separate Flutter epic; Semaphore-proof-on-Dart is unsolved until that port is scoped. Adds a second client surface to maintain. |
 
 ### 3.3 Pains **not yet solved** / explicitly out of scope
 
@@ -250,6 +267,7 @@ Full detail lives in [`docs/design/live-meeting-vote.md`](../../design/live-meet
 - Tests appropriate to the layer: unit for libs, contract tests if contracts change (they don't in 0–4), Playwright E2E for user-visible flows.
 - `npm run lint` passes in the touched package.
 - Relevant docs updated (this plan, module docs, or `findings.md`).
+- **Any relayer endpoint added or changed is documented as a versioned API reference** — it is the cross-client contract both the web app and future Flutter clients consume (§2.5). Keep it explicit and stable.
 - The increment is **demoable** and introduces **no new P0**.
 - Each sprint ends with a short review against the Pain-Point Analysis: did we move any "partial/unsolved" pain, or create a new one?
 
@@ -261,6 +279,8 @@ Full detail lives in [`docs/design/live-meeting-vote.md`](../../design/live-meet
 2. **Ticket expiry sweet spot.** Design recommends 25–30s. Tune with real scanning in Sprint 2. *Owner: Hoang.*
 3. **Relayer state durability.** In-memory is fine for a single meeting; if polls must survive a relayer restart, add persistence. Defer until proven necessary (YAGNI). *Owner: Hoang.*
 4. **Is the async (non-live) mode still a product goal**, or does live become the headline? Affects how much of Sprint P (SP.6/SP.7) is worth doing. *Owner: Hoang.*
+5. **Flutter port scope & sequencing** — which native surface first: the organizer app, or the recurring-member voter app? Out of scope for this plan; needs its own spec once the web API stabilises (end of Sprint 1/2). *Owner: Hoang.*
+6. **Semaphore-proof-on-Dart path** — WebView+snarkjs vs. Rust-FFI vs. Flutter-Web+JS interop (§2.5). Decide at Flutter-spec time; it is the long pole of the port. *Owner: Hoang.*
 
 ---
 
