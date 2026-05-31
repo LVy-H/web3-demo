@@ -1,7 +1,7 @@
 import { http, createConfig } from 'wagmi'
-import { hardhat, localhost, sepolia } from 'wagmi/chains'
+import { hardhat, localhost, mainnet, sepolia } from 'wagmi/chains'
 import type { Chain } from 'wagmi/chains'
-import { metaMask, mock } from 'wagmi/connectors'
+import { injected, mock } from 'wagmi/connectors'
 import deployedAddresses from './deployed-addresses.json'
 
 // ── Network selection ───────────────────────────────────────────────
@@ -35,9 +35,29 @@ if (!RPC_URL) {
 // Two branches kept separate so wagmi can infer the chain-tuple → transports
 // mapping cleanly (a single createConfig with a union of chain tuples breaks
 // the inferred Record<chainId, Transport>).
+//
+// Mock connector activation rules (defense in depth, both must be true):
+//   1. Build-time opt-in via VITE_ENABLE_TEST_ACCOUNT="true" (also set
+//      automatically when running `npm run dev`, see below).
+//   2. VITE_NETWORK must be "hardhat" — mock can never be enabled on real
+//      networks regardless of the opt-in flag.
+//
+// `vite dev` always sets the opt-in (via import.meta.env.DEV) so the in-tree
+// dev workflow keeps the Test Account button without extra config. The docker
+// compose stack (loopback-bound, dev-only) sets the build arg explicitly so
+// the prod nginx image is also usable without MetaMask.
+export const TEST_ACCOUNT_ENABLED =
+    (import.meta.env.DEV || import.meta.env.VITE_ENABLE_TEST_ACCOUNT === 'true') &&
+    VITE_NETWORK === 'hardhat'
+
+// `injected()` talks to `window.ethereum` directly — works with MetaMask,
+// Rabby, Brave Wallet, Frame, any EIP-1193 provider. No external SDK needed
+// (the previous `metaMask()` connector pulled in `@metamask/sdk` as a peer
+// dep — when not installed, connect() silently rejected and the button
+// looked dead).
 const connectors = [
-    metaMask(),
-    ...(import.meta.env.DEV && VITE_NETWORK === 'hardhat'
+    injected({ shimDisconnect: true }),
+    ...(TEST_ACCOUNT_ENABLED
         ? [
               mock({
                   accounts: ['0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'],
@@ -46,20 +66,26 @@ const connectors = [
         : []),
 ]
 
+// Mainnet is added as a SECONDARY chain only so wagmi's useEnsName /
+// useEnsAvatar can resolve names against the canonical ENS registry. The
+// dApp NEVER auto-switches to mainnet — voting always happens on the
+// configured VITE_NETWORK chain.
 export const config = VITE_NETWORK === 'hardhat'
     ? createConfig({
-          chains: [hardhat, localhost],
+          chains: [hardhat, localhost, mainnet],
           connectors,
           transports: {
               [hardhat.id]: http(RPC_URL),
               [localhost.id]: http(RPC_URL),
+              [mainnet.id]: http(),
           },
       })
     : createConfig({
-          chains: [sepolia],
+          chains: [sepolia, mainnet],
           connectors,
           transports: {
               [sepolia.id]: http(RPC_URL),
+              [mainnet.id]: http(),
           },
       })
 

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom'
-import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from 'wagmi'
-import { hardhat, localhost } from 'wagmi/chains'
+import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain, useEnsName, useEnsAvatar } from 'wagmi'
+import { hardhat, localhost, mainnet } from 'wagmi/chains'
+import { normalize } from 'viem/ens'
 import {
     ShieldCheck,
     Wallet,
@@ -19,6 +20,9 @@ import {
 import Home from './pages/Home'
 import CreatePoll from './pages/CreatePoll'
 import PollRouter from './pages/PollRouter'
+import Verify from './pages/Verify'
+import DemoReceipt from './pages/DemoReceipt'
+import { TEST_ACCOUNT_ENABLED } from './config'
 
 const RPC_URL = import.meta.env.VITE_RPC_URL || 'http://127.0.0.1:8545'
 
@@ -60,30 +64,84 @@ function NavLink({ to, icon: Icon, children }: { to: string; icon: React.Compone
 
 function AppContent() {
     const { address, isConnected } = useAccount()
-    const { connect, connectors } = useConnect()
+
+    // ENS resolution always queries mainnet, regardless of which chain the
+    // user is voting on. Returns null for addresses without ENS (e.g. the
+    // 0xf39F... Hardhat test account); the UI falls back to truncated address.
+    const { data: ensName } = useEnsName({ address, chainId: mainnet.id })
+    const { data: ensAvatar } = useEnsAvatar({
+        name: ensName ? normalize(ensName) : undefined,
+        chainId: mainnet.id,
+    })
+    const {
+        connect,
+        connectAsync,
+        connectors,
+        error: connectHookError,
+        reset: resetConnect,
+    } = useConnect()
     const { disconnect } = useDisconnect()
     const chainId = useChainId()
-    const { switchChain } = useSwitchChain()
+    // Same anti-pattern as useConnect: the sync `switchChain()` is fire-and-forget;
+    // rejections (user clicks Reject in MetaMask, or wallet doesn't support
+    // wallet_switchEthereumChain) land in `error`, never in any await chain. Use
+    // switchChainAsync + try/catch + reset to surface them.
+    const {
+        switchChainAsync,
+        error: switchChainHookError,
+        reset: resetSwitchChain,
+    } = useSwitchChain()
 
-    // Dark Bauhaus is the default theme; users can still flip to light via the
-    // toggle (we honour an explicit `theme=light` preference, otherwise dark).
-    const [darkMode, setDarkMode] = useState(() => {
+    // Theme switcher — three remap themes that share the `db-*` token names
+    // (see index.css :root.theme-X blocks). Default = bauhaus.
+    type ThemeName = 'bauhaus' | 'brutalist' | 'cyberpunk'
+    const THEME_LABELS: Record<ThemeName, string> = {
+        bauhaus: 'Dark Bauhaus',
+        brutalist: 'Brutalist',
+        cyberpunk: 'Cyberpunk',
+    }
+    const THEME_ORDER: ThemeName[] = ['bauhaus', 'brutalist', 'cyberpunk']
+    const [theme, setTheme] = useState<ThemeName>(() => {
         if (typeof window !== 'undefined') {
-            const stored = localStorage.getItem('theme')
-            if (stored === 'light') return false
-            return true
+            const stored = localStorage.getItem('theme') as ThemeName | null
+            if (stored && THEME_ORDER.includes(stored)) return stored
         }
-        return true
+        return 'bauhaus'
     })
 
     useEffect(() => {
-        document.documentElement.classList.toggle('dark', darkMode)
-        localStorage.setItem('theme', darkMode ? 'dark' : 'light')
-    }, [darkMode])
+        const root = document.documentElement
+        // `dark` class kept for legacy Tailwind dark: utilities used in the header.
+        // Brutalist is the ONLY light-feeling theme; the others are dark.
+        root.classList.toggle('dark', theme !== 'brutalist')
+        // Strip any prior theme-* class then add the active one.
+        for (const t of THEME_ORDER) root.classList.remove(`theme-${t}`)
+        root.classList.add(`theme-${theme}`)
+        localStorage.setItem('theme', theme)
+    }, [theme])
+
+    const cycleTheme = () => {
+        const i = THEME_ORDER.indexOf(theme)
+        setTheme(THEME_ORDER[(i + 1) % THEME_ORDER.length] as ThemeName)
+    }
 
     const isWrongNetwork = isConnected && chainId !== hardhat.id && chainId !== localhost.id
 
-    const metaMaskConnector = connectors.find(c => c.name === 'MetaMask') ?? connectors[0]
+    // The injected connector wraps window.ethereum (MetaMask, Rabby, Brave, etc.).
+    // Falls back to whatever non-mock connector exists, then connectors[0] as a
+    // last resort (used to be hardcoded to look up by name "MetaMask" — that
+    // matched the now-removed wagmi metaMask() SDK connector and would no longer
+    // resolve even with the old connector list).
+    const injectedConnector =
+        connectors.find(c => c.id === 'injected') ??
+        connectors.find(c => c.id !== 'mock') ??
+        connectors[0]
+
+    // Surfaces the "no injected provider" case to the user. Without this, a
+    // click on Connect Wallet from a browser without MetaMask runs the handler
+    // silently (window.ethereum is undefined → addHardhatNetwork early-returns,
+    // wagmi connector no-ops) and the button looks broken.
+    const [connectError, setConnectError] = useState<string | null>(null)
 
     return (
         <div className="min-h-screen bg-[#FAFAF9] dark:bg-stone-950 dot-grid-bg text-stone-900 dark:text-stone-100 font-sans flex flex-col">
@@ -116,20 +174,26 @@ function AppContent() {
 
                     {/* Right: theme toggle + wallet controls */}
                     <div className="flex items-center gap-3">
-                        {/* Dark mode toggle */}
+                        {/* Theme cycle: Bauhaus → Brutalist → Cyberpunk → ...
+                          * Each click rotates and persists the choice in localStorage.
+                          * Replaces the old dark/light toggle (which only worked in
+                          * the header — page content stayed dark either way). */}
                         <button
-                            onClick={() => setDarkMode(!darkMode)}
-                            className="p-2.5 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 rounded-xl text-sm transition-colors min-h-[44px] cursor-pointer"
-                            aria-label="Toggle dark mode"
+                            onClick={cycleTheme}
+                            className="px-3 py-2.5 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 rounded-xl text-xs font-mono uppercase tracking-wider transition-colors min-h-[44px] cursor-pointer flex items-center gap-2"
+                            aria-label={`Cycle theme (current: ${THEME_LABELS[theme]})`}
+                            title={`Theme: ${THEME_LABELS[theme]} — click to cycle`}
                         >
-                            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                            {theme === 'brutalist' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                            <span className="hidden md:inline">{THEME_LABELS[theme]}</span>
                         </button>
 
                         {!isConnected ? (
                             <>
-                                {import.meta.env.DEV && (
+                                {TEST_ACCOUNT_ENABLED && (
                                     <button
                                         onClick={() => {
+                                            setConnectError(null)
                                             const mockConnector = connectors.find(c => c.id === 'mock')
                                             if (mockConnector) connect({ connector: mockConnector })
                                         }}
@@ -142,8 +206,32 @@ function AppContent() {
                                 )}
                                 <button
                                     onClick={async () => {
+                                        if (typeof window !== 'undefined' && !window.ethereum) {
+                                            setConnectError(
+                                                TEST_ACCOUNT_ENABLED
+                                                    ? 'No wallet detected. Install MetaMask, or click "Test Account" to use a Hardhat dev wallet.'
+                                                    : 'No wallet detected. Install MetaMask (or another EIP-1193 provider) to connect.',
+                                            )
+                                            return
+                                        }
+                                        setConnectError(null)
                                         await addHardhatNetwork()
-                                        if (metaMaskConnector) connect({ connector: metaMaskConnector })
+                                        if (!injectedConnector) {
+                                            setConnectError('No injected connector available. This is a bundling bug; please report it.')
+                                            return
+                                        }
+                                        try {
+                                            // connectAsync surfaces rejections; the sync `connect()` swallows
+                                            // them into useConnect().error which can be missed.
+                                            await connectAsync({ connector: injectedConnector })
+                                        } catch (err) {
+                                            const e = err as { shortMessage?: string; message?: string; name?: string }
+                                            setConnectError(
+                                                e.shortMessage ??
+                                                    e.message ??
+                                                    `Connection failed${e.name ? ` (${e.name})` : ''}.`,
+                                            )
+                                        }
                                     }}
                                     className="inline-flex items-center gap-2 px-5 py-2.5 bg-stone-900 dark:bg-stone-100 hover:bg-stone-800 dark:hover:bg-stone-200 active:bg-stone-950 dark:active:bg-stone-300 text-white dark:text-stone-900 rounded-xl text-sm font-semibold transition-colors min-h-[44px] cursor-pointer"
                                 >
@@ -153,13 +241,28 @@ function AppContent() {
                             </>
                         ) : (
                             <>
-                                {/* Address badge */}
-                                <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl text-sm text-stone-700 dark:text-stone-300 font-mono min-h-[44px]">
-                                    <span className="relative flex items-center justify-center w-2.5 h-2.5">
-                                        <span className="absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75 animate-ping" />
-                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500" />
+                                {/* Address badge — shows ENS name when available, else truncated.
+                                  * Avatar (if ENS has one) replaces the live-status pulse dot. */}
+                                <div
+                                    className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl text-sm text-stone-700 dark:text-stone-300 min-h-[44px]"
+                                    title={address}
+                                >
+                                    {ensAvatar ? (
+                                        <img
+                                            src={ensAvatar}
+                                            alt=""
+                                            className="w-5 h-5 rounded-full object-cover shrink-0"
+                                            referrerPolicy="no-referrer"
+                                        />
+                                    ) : (
+                                        <span className="relative flex items-center justify-center w-2.5 h-2.5 shrink-0">
+                                            <span className="absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75 animate-ping" />
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500" />
+                                        </span>
+                                    )}
+                                    <span className={ensName ? 'font-sans font-medium' : 'font-mono'}>
+                                        {ensName ?? `${address?.slice(0, 6)}...${address?.slice(-4)}`}
                                     </span>
-                                    {address?.slice(0, 6)}...{address?.slice(-4)}
                                 </div>
                                 {/* Disconnect */}
                                 <button
@@ -174,6 +277,50 @@ function AppContent() {
                     </div>
                 </div>
 
+                {/* -- Connect/switch-chain error banner — three sources:
+                  *   1. local state (e.g. no window.ethereum)
+                  *   2. wagmi useConnect().error (rejected, wrong chain, etc.)
+                  *   3. wagmi useSwitchChain().error (rejected switch, unsupported method)
+                  * Dismiss must clear all three; banner shows whenever any one is truthy.
+                  */}
+                {(connectError || connectHookError || switchChainHookError) && (
+                    <div className="bg-rose-50 dark:bg-rose-900/30 border-t border-rose-200 dark:border-rose-700">
+                        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-3 md:px-8">
+                            <p className="flex items-center gap-2 text-sm font-semibold text-rose-800 dark:text-rose-300">
+                                <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" />
+                                {connectError ??
+                                    connectHookError?.message ??
+                                    switchChainHookError?.message ??
+                                    'Connection failed.'}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <a
+                                    href="https://metamask.io/download/"
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-semibold transition-colors min-h-[44px] cursor-pointer whitespace-nowrap"
+                                >
+                                    Install MetaMask
+                                </a>
+                                <button
+                                    onClick={() => {
+                                        // Three error sources need clearing in lockstep —
+                                        // missing any one re-shows the banner instantly because
+                                        // wagmi mutation errors are sticky until reset().
+                                        setConnectError(null)
+                                        resetConnect()
+                                        resetSwitchChain()
+                                    }}
+                                    className="inline-flex items-center gap-2 px-3 py-2 bg-transparent hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 rounded-xl text-sm font-medium transition-colors min-h-[44px] cursor-pointer"
+                                    aria-label="Dismiss connection error"
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* -- Wrong-network banner ------------------------------------ */}
                 {isWrongNetwork && (
                     <div className="bg-amber-50 dark:bg-amber-900/30 border-t border-amber-200 dark:border-amber-700">
@@ -184,8 +331,22 @@ function AppContent() {
                             </p>
                             <button
                                 onClick={async () => {
+                                    setConnectError(null)
+                                    resetSwitchChain()
                                     await addHardhatNetwork()
-                                    switchChain({ chainId: hardhat.id })
+                                    try {
+                                        await switchChainAsync({ chainId: hardhat.id })
+                                    } catch (err) {
+                                        // Falls through to switchChainHookError via the rose
+                                        // banner above, but also set local state so the message
+                                        // is friendly even when wagmi's `error.message` is RPC-shaped.
+                                        const e = err as { shortMessage?: string; message?: string }
+                                        setConnectError(
+                                            e.shortMessage ??
+                                                e.message ??
+                                                'Switching networks failed.',
+                                        )
+                                    }
                                 }}
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold transition-colors min-h-[44px] cursor-pointer whitespace-nowrap"
                             >
@@ -208,6 +369,8 @@ function AppContent() {
                     <Route path="/" element={<Home />} />
                     <Route path="/create" element={<CreatePoll />} />
                     <Route path="/poll/:address" element={<PollRouter />} />
+                    <Route path="/verify" element={<Verify />} />
+                    <Route path="/demo/receipt" element={<DemoReceipt />} />
                 </Routes>
             </main>
 

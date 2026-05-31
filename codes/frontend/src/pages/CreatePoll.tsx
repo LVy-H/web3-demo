@@ -18,6 +18,7 @@ import {
 import { CreateFeedback } from '../components/create/CreateFeedback'
 import { PreviewPanel } from '../components/create/PreviewPanel'
 import { HowItWorks } from '../components/create/HowItWorks'
+import { PollTemplatesPicker, type PollTemplate } from '../components/create/PollTemplates'
 import { getOptionTone } from '../lib/createOptionTone'
 import creativeDesigner from '../assets/illustrations/creative-designer.svg'
 
@@ -87,6 +88,20 @@ export default function CreatePoll() {
         setOptions(options.filter((_, i) => i !== index))
     }
 
+    function applyTemplate(template: PollTemplate) {
+        // Replace ALL form state — the user can edit afterwards.
+        // Confirm only when the form has user-typed content; otherwise just apply.
+        const formIsDirty = title.trim() !== '' || description.trim() !== '' ||
+            options.some(o => o.trim() !== '')
+        if (formIsDirty && !confirm('Apply template? This will replace the current form values.')) return
+
+        setTitle(template.title)
+        setDescription(template.description)
+        setOptions(template.options.length >= 2 ? [...template.options] : ['', ''])
+        setPollType(template.pollType)
+        setErrorMsg('')
+    }
+
     const validOptions = options.filter(o => o.trim() !== '')
     // ---- End preserved data layer ----------------------------------------
 
@@ -146,6 +161,9 @@ export default function CreatePoll() {
 
                     {/* -- Form: hairline-rule fields, no inner card ------- */}
                     <form onSubmit={handleCreatePoll} className="space-y-6 relative">
+                        {/* 00 · Templates — pre-fills the form for common archetypes */}
+                        <PollTemplatesPicker onApply={applyTemplate} />
+
                         {/* 01 · Title — hairline-bottom-rule, 24px Inter 800 echo */}
                         <div className="flex flex-col gap-2 pb-6 border-b border-db-rule">
                             <label

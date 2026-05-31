@@ -8,6 +8,7 @@ import { Clock, Key, Check } from 'lucide-react'
 import { usePollState, usePollOptions, usePollResults, usePollOwner, usePollWrite } from '../hooks/usePoll'
 import { useGroupSync } from '../hooks/useGroupSync'
 import { useRelayVote } from '../hooks/useRelay'
+import { useAllPolls } from '../hooks/useRegistry'
 import ZkAnonVotingABI from '../abi/ZkAnonVoting.json'
 import { friendlyError } from '../lib/pollErrors'
 import { PollHeader } from '../components/poll/PollHeader'
@@ -18,6 +19,7 @@ import { VoteShowdownCard } from '../components/poll/VoteShowdownCard'
 import { ResultsBarsDb } from '../components/poll/ResultsBarsDb'
 import { PrivacyReceiptPanel } from '../components/poll/PrivacyReceiptPanel'
 import { AdminPanel } from '../components/poll/AdminPanel'
+import { ReceiptModal, type VoterReceipt } from '../components/poll/ReceiptModal'
 
 /* -- Helpers -------------------------------------------------------------- */
 
@@ -75,6 +77,18 @@ export default function Poll() {
 
     const [localIdentity, setLocalIdentity] = useState<Identity | null>(null)
     const [hasVoted, setHasVoted] = useState(false)
+
+    // Voter receipt — set on successful vote, drives the ReceiptModal.
+    // Privacy contract: captures nullifier + tx + block; option label is for
+    // the voter's personal record only and is never embedded in the JSON/QR/PDF
+    // exports (see ReceiptModal.tsx for the privacy boundary).
+    const [receiptData, setReceiptData] = useState<VoterReceipt | null>(null)
+
+    // For the receipt's pollTitle field.
+    const { data: allPolls } = useAllPolls()
+    const pollTitle = (allPolls as Array<{ pollAddress: string; title: string }> | undefined)?.find(
+        p => p.pollAddress.toLowerCase() === (pollAddress ?? '').toLowerCase(),
+    )?.title ?? 'Untitled poll'
 
     // Load identity scoped to this poll. The voted-state must be scoped to
     // both poll AND identity commitment so a shared-kiosk scenario (user A
@@ -291,6 +305,22 @@ export default function Poll() {
             localStorage.setItem(`my-nullifier-${pollAddress}-${localIdentity.commitment.toString()}`, fullProof.nullifier.toString())
             setHasVoted(true)
             setStatus("Vote cast successfully! Your anonymity is guaranteed by zero-knowledge cryptography.", 'success')
+
+            // Build the cryptographic receipt — drives the ReceiptModal that
+            // appears immediately. Includes optionLabel for the voter's personal
+            // record; the modal explicitly excludes it from JSON / QR / PDF
+            // (privacy-preserving: the receipt proves participation, not direction).
+            setReceiptData({
+                pollAddress,
+                pollTitle,
+                nullifier: fullProof.nullifier.toString(),
+                txHash,
+                blockNumber: receipt.blockNumber,
+                timestamp: Date.now(),
+                optionLabel: pollOptions[selectedOption] ?? `Option #${selectedOption + 1}`,
+                chainId,
+                appOrigin: window.location.origin,
+            })
         } catch (e: unknown) {
             console.error(e)
             setStatus(friendlyError(e), 'error')
@@ -342,6 +372,20 @@ export default function Poll() {
             setHasVoted(true)
             const txTail = ` Tx: ${result.txHash.slice(0, 10)}...`
             setStatus(`Vote relayed successfully!${txTail} Your anonymity is preserved.`, 'success')
+
+            // Same receipt construction as the direct path — the relayer route
+            // produces the same on-chain artifacts (nullifier + block + tx).
+            setReceiptData({
+                pollAddress,
+                pollTitle,
+                nullifier: fullProof.nullifier.toString(),
+                txHash: result.txHash,
+                blockNumber: receipt.blockNumber,
+                timestamp: Date.now(),
+                optionLabel: pollOptions[selectedOption] ?? `Option #${selectedOption + 1}`,
+                chainId,
+                appOrigin: window.location.origin,
+            })
         } catch (e: unknown) {
             console.error(e)
             setStatus(friendlyError(e), 'error')
@@ -545,6 +589,14 @@ export default function Poll() {
                     )}
                 </section>
             </main>
+
+            {/* Cryptographic vote receipt — appears on successful vote.
+              * Privacy contract: receipt PROVES participation, does NOT reveal
+              * vote direction. Anyone can verify by scanning the QR / opening
+              * /verify with the nullifier. See ReceiptModal.tsx for details. */}
+            {receiptData && (
+                <ReceiptModal receipt={receiptData} onClose={() => setReceiptData(null)} />
+            )}
         </div>
     )
 }
