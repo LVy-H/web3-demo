@@ -26,3 +26,8 @@ class ProofServiceUnsupported implements ProofService {
 
 /// Conditional-import factory hook (non-web build → this stub).
 ProofService createPlatformProofService() => const ProofServiceUnsupported();
+
+/// Native client-side proving isn't wired yet. Per the resolved scope
+/// (web + mobile voting; desktop read-only), mobile will flip this true once the
+/// WebView prover lands; desktop stays false.
+const bool platformProofServiceAvailable = false;

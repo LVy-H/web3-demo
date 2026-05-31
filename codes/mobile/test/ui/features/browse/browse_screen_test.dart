@@ -20,6 +20,9 @@ class FakePollRepository implements PollRepository {
 
   @override
   Future<PollSnapshot> fetchPoll(String address) => throw UnimplementedError();
+
+  @override
+  Future<List<String>> fetchGroup(String address) => throw UnimplementedError();
 }
 
 PollInfo _poll(String addr, String title, String mod) => PollInfo(

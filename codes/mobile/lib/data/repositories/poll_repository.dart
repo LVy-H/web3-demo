@@ -7,6 +7,10 @@ import '../services/chain_reader.dart';
 abstract class PollRepository {
   Future<List<PollInfo>> fetchPolls();
   Future<PollSnapshot> fetchPoll(String address);
+
+  /// The poll's Semaphore group (registered identity commitments) — the member
+  /// set a vote proof is built against.
+  Future<List<String>> fetchGroup(String address);
 }
 
 /// On-chain implementation backed by [ChainReader] (JSON-RPC reads).
@@ -16,6 +20,10 @@ class ChainPollRepository implements PollRepository {
 
   @override
   Future<List<PollInfo>> fetchPolls() => reader.getAllPolls();
+
+  @override
+  Future<List<String>> fetchGroup(String address) =>
+      reader.getRegisteredCommitments(address);
 
   @override
   Future<PollSnapshot> fetchPoll(String address) async {

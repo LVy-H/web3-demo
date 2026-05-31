@@ -7,3 +7,8 @@ import 'proof_service_stub.dart'
 /// Returns the right [ProofService] for the current platform: web → snarkjs via
 /// js_interop; native → unsupported stub (until the native prover is scoped).
 ProofService createProofService() => createPlatformProofService();
+
+/// Whether client-side proving (i.e. voting) is available on this platform.
+/// Web: true. Native: false until the mobile WebView prover lands (desktop is
+/// read-only by design). The vote UI gates on this.
+bool get proofServiceAvailable => platformProofServiceAvailable;

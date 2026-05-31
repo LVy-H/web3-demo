@@ -49,10 +49,10 @@ is the operative instruction.
   or a webview package now (zero runtime evidence yet; the support matrix must be
   re-verified against pub.dev, not memory). It hinges on an open product question:
   **does desktop-native voting (Linux/Windows, no browser) need to work at launch?**
-  Autonomous default (taken per /goal, revise if user objects): **NO** — web +
-  mobile cover voting; desktop = browse/verify/read (already works). If YES, that's
-  a separate native-prover epic (FFI cross-compiled for 5 targets). Bring this back
-  to the user once the web vote reference works. (Open-Q6)
+  **RESOLVED by user (2026-05-31): "Web + mobile voting; desktop read-only."**
+  Native prover = **WebView-only (Android/iOS)** hosting the SAME verified
+  `web/zkprover.js` — NO Rust-FFI epic. Desktop (Linux/Windows/macOS) keeps the
+  `Unsupported` stub (browse/verify only). (Open-Q6 closed.)
   - Known matrix caveats to verify later: `webview_flutter` ≈ Android/iOS only;
     `flutter_inappwebview` ≈ +macOS/Windows but NOT Linux; nothing gives Linux a
     native webview; `flutter_js`/QuickJS can't run snarkjs WASM.

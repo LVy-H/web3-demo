@@ -20,6 +20,9 @@ class FakeRepo implements PollRepository {
     if (error != null) throw error!;
     return snap!;
   }
+
+  @override
+  Future<List<String>> fetchGroup(String address) => throw UnimplementedError();
 }
 
 const addr = '0xd8058efe0198ae9dD7D563e1b4938Dcbc86A1F81';

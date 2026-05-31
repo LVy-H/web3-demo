@@ -46,3 +46,6 @@ class ProofServiceWeb implements ProofService {
 
 /// Conditional-import factory hook (web build → this implementation).
 ProofService createPlatformProofService() => const ProofServiceWeb();
+
+/// Web has a working prover (snarkjs via js_interop, verified in-browser).
+const bool platformProofServiceAvailable = true;
