@@ -91,7 +91,8 @@ class RelayClient {
     final voters = _decode(res.body)['voters'];
     if (voters is List) {
       return voters
-          .map((v) => PendingVoter.fromJson(v as Map<String, dynamic>))
+          .whereType<Map<String, dynamic>>()
+          .map(PendingVoter.fromJson)
           .toList();
     }
     return const [];

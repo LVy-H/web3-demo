@@ -14,10 +14,21 @@ class BrowseViewModel extends ChangeNotifier {
   List<PollInfo> polls = const [];
   String? error;
 
+  bool _disposed = false;
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
   Future<void> load() async {
     state = ViewState.loading;
     error = null;
-    notifyListeners();
+    _notify();
     try {
       polls = await _repo.fetchPolls();
       state = ViewState.loaded;
@@ -25,6 +36,6 @@ class BrowseViewModel extends ChangeNotifier {
       error = e.toString();
       state = ViewState.error;
     }
-    notifyListeners();
+    _notify();
   }
 }

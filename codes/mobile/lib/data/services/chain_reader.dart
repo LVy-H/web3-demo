@@ -102,10 +102,14 @@ class ChainReader {
       fromBlock: const BlockNum.genesis(),
       toBlock: const BlockNum.current(),
     ));
-    return logs.map((log) {
-      final decoded = event.decodeResults(log.topics ?? const [], log.data ?? '0x');
-      return (decoded.first as BigInt).toString();
-    }).toList();
+    return logs
+        .map((log) {
+          final decoded =
+              event.decodeResults(log.topics ?? const [], log.data ?? '0x');
+          return decoded.isEmpty ? null : (decoded.first as BigInt).toString();
+        })
+        .whereType<String>()
+        .toList();
   }
 
   // ── PollRegistry ──────────────────────────────────────────────────────────

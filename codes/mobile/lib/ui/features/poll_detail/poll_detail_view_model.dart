@@ -15,10 +15,21 @@ class PollDetailViewModel extends ChangeNotifier {
   PollSnapshot? snapshot;
   String? error;
 
+  bool _disposed = false;
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
   Future<void> load() async {
     state = ViewState.loading;
     error = null;
-    notifyListeners();
+    _notify();
     try {
       snapshot = await _repo.fetchPoll(address);
       state = ViewState.loaded;
@@ -26,6 +37,6 @@ class PollDetailViewModel extends ChangeNotifier {
       error = e.toString();
       state = ViewState.error;
     }
-    notifyListeners();
+    _notify();
   }
 }

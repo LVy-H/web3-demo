@@ -39,7 +39,8 @@ class ProofServiceWeb implements ProofService {
       nullifier: map['nullifier'] as String,
       message: map['message'] as String,
       scope: map['scope'] as String,
-      points: (map['points'] as List).cast<String>(),
+      points:
+          (map['points'] as List).map((e) => e.toString()).toList(growable: false),
     );
   }
 }

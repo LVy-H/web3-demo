@@ -18,6 +18,17 @@ class VerifyViewModel extends ChangeNotifier {
   String? lastPoll;
   String? lastNullifier;
 
+  bool _disposed = false;
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
   Future<void> verify(String pollAddress, String nullifier) async {
     final poll = pollAddress.trim();
     final nf = nullifier.trim();
@@ -26,18 +37,18 @@ class VerifyViewModel extends ChangeNotifier {
     if (!_addr.hasMatch(poll)) {
       error = 'Invalid poll address (expected 0x + 40 hex)';
       verdict = VerifyVerdict.error;
-      notifyListeners();
+      _notify();
       return;
     }
     if (!_decimal.hasMatch(nf)) {
       error = 'Invalid nullifier (expected a decimal string)';
       verdict = VerifyVerdict.error;
-      notifyListeners();
+      _notify();
       return;
     }
     verdict = VerifyVerdict.checking;
     error = null;
-    notifyListeners();
+    _notify();
     try {
       final used = await _repo.isNullifierUsed(poll, nf);
       verdict = used ? VerifyVerdict.verified : VerifyVerdict.notFound;
@@ -45,6 +56,6 @@ class VerifyViewModel extends ChangeNotifier {
       error = e.toString();
       verdict = VerifyVerdict.error;
     }
-    notifyListeners();
+    _notify();
   }
 }

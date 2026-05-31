@@ -32,6 +32,19 @@ class VoteViewModel extends ChangeNotifier {
   bool get isBusy =>
       status == VoteStatus.proving || status == VoteStatus.relaying;
 
+  bool _disposed = false;
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  // castVote is long-running (proving + relaying); guard against notifying after
+  // the screen popped and disposed this notifier.
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
   Future<void> castVote({
     required String identitySeed,
     required int optionIndex,
@@ -39,7 +52,7 @@ class VoteViewModel extends ChangeNotifier {
     error = null;
     txHash = null;
     status = VoteStatus.proving;
-    notifyListeners();
+    _notify();
     try {
       final group = await _repo.fetchGroup(pollAddress);
       final proof = await _proofService.generateVoteProof(
@@ -49,7 +62,7 @@ class VoteViewModel extends ChangeNotifier {
         scope: pollAddress,
       );
       status = VoteStatus.relaying;
-      notifyListeners();
+      _notify();
       final result = await _relay.relayVote(pollAddress, optionIndex, proof);
       if (result.success) {
         txHash = result.txHash;
@@ -62,6 +75,6 @@ class VoteViewModel extends ChangeNotifier {
       error = e.toString();
       status = VoteStatus.error;
     }
-    notifyListeners();
+    _notify();
   }
 }

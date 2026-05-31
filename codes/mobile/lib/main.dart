@@ -44,7 +44,10 @@ class ZkVoteApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<PollRepository>(create: (_) => ChainPollRepository(reader)),
+        Provider<PollRepository>(
+          create: (_) => ChainPollRepository(reader),
+          dispose: (_, _) => reader.dispose(),
+        ),
         Provider<VerifyRepository>(create: (_) => ChainVerifyRepository(reader)),
         Provider<RelayClient>(
           create: (_) => RelayClient(baseUrl: AppConfig.relayerUrl),
