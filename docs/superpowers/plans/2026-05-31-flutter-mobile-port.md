@@ -43,8 +43,19 @@ is the operative instruction.
 
 - **D1 — Surface first:** recurring-member app (browse → identity → receipts →
   async vote), per §2.5 scope. (Open-Q5)
-- **D2 — ZK-on-Dart path:** hidden WebView + snarkjs (Option 1 in §2.5). Most
-  tractable on-device; reuses the exact web prover artifacts. (Open-Q6)
+- **D2 — ZK-on-Dart path (revised):** **web-first via `dart:js_interop` → snarkjs**
+  (lowest risk, testable in Chrome, reuses the proven crypto). Native proving
+  matrix is **UNRESOLVED and deliberately deferred** — do NOT commit to Rust-FFI
+  or a webview package now (zero runtime evidence yet; the support matrix must be
+  re-verified against pub.dev, not memory). It hinges on an open product question:
+  **does desktop-native voting (Linux/Windows, no browser) need to work at launch?**
+  Autonomous default (taken per /goal, revise if user objects): **NO** — web +
+  mobile cover voting; desktop = browse/verify/read (already works). If YES, that's
+  a separate native-prover epic (FFI cross-compiled for 5 targets). Bring this back
+  to the user once the web vote reference works. (Open-Q6)
+  - Known matrix caveats to verify later: `webview_flutter` ≈ Android/iOS only;
+    `flutter_inappwebview` ≈ +macOS/Windows but NOT Linux; nothing gives Linux a
+    native webview; `flutter_js`/QuickJS can't run snarkjs WASM.
 - **D3 — Placement:** buildable project on ext4 git worktree
   (`/home/hoang/zkvote-flutter-wt`, branch `feat/flutter-mobile`); the NTFS main
   tree can't create symlinks. Source = regular files, checks out fine to NTFS.
@@ -87,6 +98,14 @@ is the operative instruction.
   go_router) is mobile-clean (also `flutter build linux` native AOT passes). NO
   dep change forced. The only blockers were the read-only Nix Android SDK missing
   components — fixed with a writable overlay (see "Android build in this env").
+- **WEB VOTE-PROOF BRIDGE — bundle verified ✅, js_interop wired ✅** —
+  `web_prover/` bundles Semaphore v4 → `web/zkprover.js` (vite IIFE, deps reused
+  from frontend via symlink). `verify.mjs` loads the EXACT bundle and proves
+  `generateProof→verifyProof == true` against the real vkey. `ProofServiceWeb`
+  (`dart:js_interop`) + conditional `proof_service_factory` (web→web impl,
+  native→clear `Unsupported` stub) compile; `flutter build web` bundles zkprover.js.
+  **Honest gap:** the in-browser js_interop *round-trip* (Dart→JS marshaling live
+  in Chrome) is not yet auto-verified — next is a browser smoke + a vote button.
 - **GROUP RECONSTRUCTION DONE ✅** — `ChainReader.getRegisteredCommitments`
   (`eth_getLogs` for `VoterRegistered(uint256)`, web3dart `FilterOptions.events`)
   decodes the member set from real logs; integration test verifies vs 2 voters

@@ -1,0 +1,9 @@
+{
+  "name": "zkvote-web-prover",
+  "private": true,
+  "type": "module",
+  "description": "Semaphore v4 proof bundle for the Flutter web ProofService (built with vite). Reuses the frontend's installed deps via a node_modules symlink; see README.",
+  "scripts": {
+    "build": "vite build"
+  }
+}
