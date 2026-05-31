@@ -238,3 +238,34 @@ Poll detail (results/tally), Verify receipt, Identity. Responsive per
 
 ## Phase 5+ — async voting, receipts, polish, integration tests
 Loop continues: idea → plan → build → test.
+
+## Mobile WebView prover — DESIGN (device-pending, not yet built)
+
+Chosen native-voting path = host the SAME `web/zkprover.js` in a `webview_flutter`
+WebView (Android/iOS) and bridge results to Dart. Held back from the unsupervised
+run because the WebView↔JS proof round-trip can't be verified headlessly and it
+cascades into test churn (below). Implement with a device/emulator on hand.
+
+**Approach:**
+1. dep `webview_flutter: ^4.13.1`; bundle `assets/zkprover/{index.html, zkprover.js}`
+   (copy of `web/zkprover.js`); declare the asset dir.
+2. `index.html` loads `zkprover.js` + a `_run(seed, members, msg, scope)` that
+   `await window.zkGenerateVoteProof(...)` then `ProofChannel.postMessage(JSON.stringify({ok,proof|error}))`.
+3. `ProofServiceMobile`: headless `WebViewController` (`JavaScriptMode.unrestricted`,
+   `addJavaScriptChannel('ProofChannel', …)`, `loadFlutterAsset(index.html)`,
+   await `onPageFinished`); `generateVoteProof` runs `_run(...)` JS and awaits the
+   channel message via a `Completer` (60s timeout); parse → `RelayProof`.
+4. Android: ensure `<uses-permission INTERNET>` (artifacts fetched over https).
+
+**GOTCHA (the reason for test churn):** `proofServiceAvailable` must become a
+runtime getter (true on android/iOS, false on desktop) instead of the current
+const. But `flutter test` runs as `TargetPlatform.android` by default → the
+PollDetail vote form would render in tests and need a `VoteViewModel` provider +
+the option labels would appear in BOTH results and the vote tiles (breaking the
+`findsOneWidget` assertions). When implementing: provide a `VoteViewModel` in the
+PollDetail test and relax the option-count assertions, OR override
+`debugDefaultTargetPlatform` to a desktop value in that test.
+
+**Verification (on device):** run on an Android emulator, register a voter, cast
+a vote, confirm the relayed proof verifies (real vkey) — the same bar the web
+path already cleared in-browser.
