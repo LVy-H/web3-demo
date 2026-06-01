@@ -11,6 +11,7 @@ import 'data/services/chain_reader.dart';
 import 'data/services/proof_service.dart';
 import 'data/services/proof_service_factory.dart';
 import 'data/services/relay_client.dart';
+import 'data/services/wallet_service.dart';
 import 'router.dart';
 import 'ui/core/theme.dart';
 
@@ -25,20 +26,34 @@ Future<void> main() async {
   final registryAbi = await rootBundle.loadString('assets/abi/PollRegistry.json');
   final anonAbi = await rootBundle.loadString('assets/abi/ZkAnonVoting.json');
 
+  final registryAbiArr = _abiArray(registryAbi);
+  final anonAbiArr = _abiArray(anonAbi);
+
   final reader = ChainReader(
     rpcUrl: AppConfig.rpcUrl,
     izkPollAbiJson: _abiArray(izkPollAbi),
-    registryAbiJson: _abiArray(registryAbi),
-    anonVotingAbiJson: _abiArray(anonAbi),
+    registryAbiJson: registryAbiArr,
+    anonVotingAbiJson: anonAbiArr,
     registryAddress: AppConfig.registryAddress,
   );
 
-  runApp(ZkVoteApp(reader: reader));
+  runApp(ZkVoteApp(
+    reader: reader,
+    registryAbiJson: registryAbiArr,
+    anonAbiJson: anonAbiArr,
+  ));
 }
 
 class ZkVoteApp extends StatelessWidget {
   final ChainReader reader;
-  const ZkVoteApp({super.key, required this.reader});
+  final String registryAbiJson;
+  final String anonAbiJson;
+  const ZkVoteApp({
+    super.key,
+    required this.reader,
+    required this.registryAbiJson,
+    required this.anonAbiJson,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +69,12 @@ class ZkVoteApp extends StatelessWidget {
           dispose: (_, c) => c.close(),
         ),
         Provider<ProofService>(create: (_) => createProofService()),
+        ChangeNotifierProvider<WalletService>(
+          create: (_) => WalletService(
+            registryAbiJson: registryAbiJson,
+            anonAbiJson: anonAbiJson,
+          ),
+        ),
       ],
       child: MaterialApp.router(
         title: 'ZK Vote',

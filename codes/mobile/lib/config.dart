@@ -15,6 +15,13 @@ abstract class AppConfig {
     defaultValue: 'http://localhost:3001',
   );
 
+  /// Semaphore verifier address — needed to encode ZkAnonVoting.initialize when
+  /// creating a poll. Matches deployed-addresses.json (chainId 31337).
+  static const semaphoreAddress = String.fromEnvironment(
+    'SEMAPHORE_ADDRESS',
+    defaultValue: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
+  );
+
   /// Reown/WalletConnect project ID (free, from cloud.reown.com). Without it the
   /// Connect-Wallet button shows a hint instead of initializing.
   /// Build with: --dart-define=WC_PROJECT_ID=YOUR_ID

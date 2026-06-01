@@ -15,6 +15,7 @@
 // or:   flutter test integration_test/app_test.dart -d emulator-5554 \
 //         --dart-define RPC_URL=http://10.0.2.2:8545 \
 //         --dart-define RELAYER_URL=http://10.0.2.2:3001
+import 'package:flutter/material.dart' show GestureDetector;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -63,33 +64,38 @@ void main() {
             '${erroring ? " — the error view is showing, so the on-chain read "
                 "failed (host chain unreachable from the device?)" : " (still loading?)"}.');
       }
-      expect(find.text('POLLS'), findsOneWidget, reason: 'Browse hero');
+      expect(find.text('POLLS'), findsWidgets, reason: 'Browse hero + nav tab');
 
-      // --- Open the poll -> /poll/:address ---
-      await tester.tap(demoPoll.first);
+      // --- Open the poll -> /poll/:address (tap the card's InkWell) ---
+      final card = find
+          .ancestor(of: demoPoll, matching: find.byType(GestureDetector))
+          .first;
+      await tester.tap(card);
       await tester.pump(const Duration(seconds: 1));
 
-      // Real per-poll on-chain read: participant count + the three options the
-      // seed registered (Yes / No / Abstain).
-      final registered = find.textContaining('REGISTERED');
+      // Real per-poll on-chain read: the exact participant count (the seed
+      // registers 2 voters) + the three options (Yes / No / Abstain).
+      final registered = find.textContaining('2 REGISTERED');
       expect(
         await pumpUntilFound(tester, registered),
         isTrue,
-        reason: 'poll detail should show the live "N REGISTERED · M VOTES CAST"',
+        reason: 'poll detail shows the live "2 REGISTERED · 0 VOTES CAST"',
       );
       expect(find.text('Yes'), findsOneWidget);
       expect(find.text('No'), findsOneWidget);
       expect(find.text('Abstain'), findsOneWidget);
-      // (The "voting is web-only / read-only" banner lives in the vote area,
-      // which renders only in the Voting phase. The seeded poll is in
-      // Registration, so we assert the phase + participant count + options
-      // instead — all read live from chain.)
+      // Mobile is read-only for voting; in the Voting phase the vote area
+      // renders that banner (the seed advances the poll to Voting).
+      expect(find.textContaining('read-only'), findsWidgets,
+          reason: 'mobile read-only voting banner (Voting phase)');
 
-      // --- Back to Browse, then into Verify ---
+      // --- Back to Browse, then switch to the Verify tab via the nav bar ---
       await tester.tap(find.text('BACK TO POLLS'));
-      expect(await pumpUntilFound(tester, find.text('VERIFY')), isTrue,
-          reason: 'back on Browse, the VERIFY action is present');
+      await tester.pump(const Duration(seconds: 1));
 
+      // The bottom NavigationBar destination labelled VERIFY (persistent chrome).
+      expect(await pumpUntilFound(tester, find.text('VERIFY')), isTrue,
+          reason: 'VERIFY nav tab present');
       await tester.tap(find.text('VERIFY').first);
       expect(
         await pumpUntilFound(tester, find.text('VERIFY RECEIPT')),

@@ -9,7 +9,6 @@ import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
 import '../../core/watermark.dart';
-import '../wallet/wallet_button.dart';
 import 'browse_view_model.dart';
 
 /// Browse all polls — Dark Bauhaus stateful-card grammar (port of web Home.tsx).
@@ -211,73 +210,24 @@ class _Hero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    // Nav (Verify / Create) lives in the bottom NavigationBar and the wallet
+    // button in the drawer now (see AppShell), so the hero is just the title.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('POLLS', style: dbHero(heroSize)),
-              const SizedBox(height: 12),
-              Text.rich(TextSpan(children: [
-                const TextSpan(text: 'Active proposals across the community. '),
-                TextSpan(
-                  text: '$total total · $active active · $upcoming upcoming · $ended ended.',
-                  style: dbSans(14, 400, Db.mute, height: 1.6),
-                ),
-              ]),
-                  style: dbSans(14, 400, Db.chalkDim, height: 1.6)),
-            ],
+        Text('POLLS', style: dbHero(heroSize)),
+        const SizedBox(height: 12),
+        Text.rich(TextSpan(children: [
+          const TextSpan(text: 'Active proposals across the community. '),
+          TextSpan(
+            text: '$total total · $active active · $upcoming upcoming · $ended ended.',
+            style: dbSans(14, 400, Db.mute, height: 1.6),
           ),
-        ),
-        const SizedBox(width: 16),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            const WalletButton(),
-            const SizedBox(height: 8),
-            _GhostButton(
-              icon: Icons.verified_outlined,
-              label: 'VERIFY',
-              onTap: () => context.go('/verify'),
-            ),
-            const SizedBox(height: 8),
-            _GhostButton(
-              icon: Icons.add,
-              label: 'NEW POLL',
-              onTap: () => context.go('/create'),
-            ),
-          ],
-        ),
+        ]),
+            style: dbSans(14, 400, Db.chalkDim, height: 1.6)),
       ],
     );
   }
-}
-
-class _GhostButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _GhostButton(
-      {required this.icon, required this.label, required this.onTap});
-  @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          decoration: const BoxDecoration(
-            color: Db.slate3,
-            border: Border.fromBorderSide(BorderSide(color: Db.rule)),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 13, color: Db.chalkDim),
-            const SizedBox(width: 8),
-            Text(label, style: dbLabel(size: 11, color: Db.chalkDim, tracking: 0.1)),
-          ]),
-        ),
-      );
 }
 
 class _FilterStrip extends StatelessWidget {
@@ -307,40 +257,47 @@ class _FilterStrip extends StatelessWidget {
         color: Db.slate3,
         border: Border.fromBorderSide(BorderSide(color: Db.rule)),
       ),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _stripLabel('CATEGORY'),
-          _Pill('All', cat == -1, () => onCat(-1)),
-          for (var i = 0; i < 4; i++)
-            _Pill(Db.categoryLabels[i].toUpperCase(), cat == i, () => onCat(i),
-                swatch: Db.categoryColor(i)),
-          _stripLabel('STATUS'),
-          _Pill('ACTIVE', status == _Status.active, () => onStatus(_Status.active),
-              activeColor: Db.segnale),
-          _Pill('UPCOMING', status == _Status.upcoming,
-              () => onStatus(_Status.upcoming)),
-          _Pill('ENDED', status == _Status.ended, () => onStatus(_Status.ended)),
-          _Pill('ALL', status == _Status.all, () => onStatus(_Status.all)),
+          // Search on its own full-width row.
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: SizedBox(
-              width: 180,
-              child: TextField(
-                onChanged: onSearch,
-                style: dbMono(11, Db.chalk, letterSpacing: 1.1),
-                cursorColor: Db.segnale,
-                decoration: InputDecoration(
-                  isDense: true,
-                  prefixIcon: const Icon(Icons.search, size: 15, color: Db.mute),
-                  prefixIconConstraints:
-                      const BoxConstraints(minWidth: 28, minHeight: 28),
-                  hintText: 'SEARCH POLLS',
-                  hintStyle: dbLabel(size: 11, tracking: 0.1),
-                  border: InputBorder.none,
-                ),
+            padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
+            child: TextField(
+              onChanged: onSearch,
+              style: dbMono(12, Db.chalk, letterSpacing: 1.0),
+              cursorColor: Db.segnale,
+              decoration: InputDecoration(
+                isDense: true,
+                prefixIcon: const Icon(Icons.search, size: 16, color: Db.mute),
+                prefixIconConstraints:
+                    const BoxConstraints(minWidth: 30, minHeight: 30),
+                hintText: 'SEARCH POLLS',
+                hintStyle: dbLabel(size: 11, tracking: 0.1),
+                border: InputBorder.none,
               ),
             ),
+          ),
+          const Divider(height: 1, color: Db.rule),
+          // Filters as ONE horizontally-scrollable row — never wraps into a
+          // tall, overwhelming block on a phone.
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              _stripLabel('STATUS'),
+              _Pill('ACTIVE', status == _Status.active,
+                  () => onStatus(_Status.active), activeColor: Db.segnale),
+              _Pill('UPCOMING', status == _Status.upcoming,
+                  () => onStatus(_Status.upcoming)),
+              _Pill('ENDED', status == _Status.ended,
+                  () => onStatus(_Status.ended)),
+              _Pill('ALL', status == _Status.all, () => onStatus(_Status.all)),
+              _stripLabel('CATEGORY'),
+              _Pill('All', cat == -1, () => onCat(-1)),
+              for (var i = 0; i < 4; i++)
+                _Pill(Db.categoryLabels[i].toUpperCase(), cat == i,
+                    () => onCat(i), swatch: Db.categoryColor(i)),
+            ]),
           ),
         ],
       ),
