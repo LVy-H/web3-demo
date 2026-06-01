@@ -15,7 +15,7 @@
       "No",
       "Abstain"
     ],
-    "expectedState": 0,
+    "expectedState": 1,
     "expectedResults": [
       0,
       0,

@@ -65,6 +65,12 @@ async function main() {
   const poll = await ethers.getContractAt("ZkAnonVoting", pollAddress);
   await (await poll.registerVoters(commitments.map((c) => BigInt(c)))).wait();
 
+  // Advance Registration -> Voting so the poll shows in the app's default
+  // "Active" Browse view (Registration maps to "upcoming", which the Active
+  // filter hides) and the read-only vote area renders. The registered voters
+  // stay readable via VoterRegistered events.
+  await (await poll.startVoting()).wait();
+
   const fixture = {
     _comment:
       "Local Hardhat chain fixture for the Flutter on-chain read integration test. " +
@@ -80,7 +86,7 @@ async function main() {
       title: TITLE,
       description: DESCRIPTION,
       options: OPTIONS,
-      expectedState: 0, // Registration
+      expectedState: 1, // Voting (advanced above)
       expectedResults: OPTIONS.map(() => 0),
       registeredCommitments: commitments,
       expectedParticipantCount: commitments.length,

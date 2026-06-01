@@ -200,9 +200,8 @@ emu_kill() {
 
 # ── e2e ───────────────────────────────────────────────────────────────────────
 registry_address() {
-  # Robust: read the freshly-deployed registry rather than trusting the app default.
-  grep -A6 "\"$CHAIN_ID\"" "$ADDRESSES" 2>/dev/null \
-    | grep -oE '0x[0-9a-fA-F]{40}' | head -n1
+  # Read the freshly-deployed registry by key (robust to JSON key reordering).
+  jq -r --arg c "$CHAIN_ID" '.[$c].REGISTRY_ADDRESS // empty' "$ADDRESSES" 2>/dev/null
 }
 
 e2e() {

@@ -32,6 +32,18 @@ subprojects {
     pluginManager.withPlugin("com.android.library") { pin() }
 }
 
+// :jni (a reown transitive native plugin) sets `ndkVersion flutter.ndkVersion`,
+// which resolves to an NDK nixpkgs doesn't ship (only 29.0.14206865 exists, and
+// a Google-prebuilt NDK wouldn't run on NixOS anyway). :jni sets it during its
+// own configuration — after the withPlugin hook above — so override it late,
+// once every module is evaluated, onto the one NDK the Nix store provides.
+gradle.projectsEvaluated {
+    subprojects {
+        (extensions.findByName("android") as? com.android.build.gradle.BaseExtension)
+            ?.ndkVersion = "29.0.14206865"
+    }
+}
+
 subprojects {
     project.evaluationDependsOn(":app")
 }

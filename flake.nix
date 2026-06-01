@@ -41,6 +41,13 @@
             # auto-install the unrunnable prebuilt cmake;3.22.1. The app pins
             # this exact version via externalNativeBuild.cmake.version.
             cmakeVersions = [ "4.1.2" ];
+            # Pin NDK + build-tools to EXACTLY what android/app/build.gradle.kts
+            # hard-pins. Otherwise they float to the nixpkgs default; if that
+            # drifts from the Gradle pins, Gradle tries to auto-install the
+            # missing version into the read-only store and the build dies —
+            # the exact failure this overlay exists to prevent.
+            ndkVersions = [ "29.0.14206865" ];
+            buildToolsVersions = [ "36.1.0" ];
           };
           androidSdk = androidComposition.androidsdk;
           sdkRoot = "${androidSdk}/libexec/android-sdk";
@@ -60,6 +67,7 @@
               flutter   # bundles the Dart SDK (>= 3.9 provides `dart mcp-server`)
               git       # flutter shells out to git for SDK / version checks
               unzip     # gradle + sdk tooling unpack archives
+              jq        # dev-stack.sh parses deployed-addresses.json by key
             ] ++ lib.optionals isLinux [
               chromium  # flutter web target -> CHROME_EXECUTABLE
               jdk17     # Android Gradle Plugin 8.x requires JDK 17
@@ -71,6 +79,7 @@
               clang
               gtk3
               glib
+              libsecret # flutter_secure_storage_linux (pulled in by reown) needs libsecret-1
             ];
           } // lib.optionalAttrs isLinux {
             CHROME_EXECUTABLE = "${pkgs.chromium}/bin/chromium";
@@ -103,6 +112,48 @@
                   for _p in "$_nix_sdk"/platforms/*; do
                     _pb="$(basename "$_p")"; ln -sfn "$_p" "$asdk/platforms/$_pb"
                     case "$_pb" in android-*.*) ln -sfn "$_p" "$asdk/platforms/''${_pb%.*}";; esac
+                  done
+                fi
+                # Some Flutter plugins (e.g. :jni, pulled in by reown) pin
+                # `ndkVersion flutter.ndkVersion`, which resolves to an NDK
+                # nixpkgs doesn't ship. nixpkgs has exactly one NDK; expose it
+                # under its real name AND the requested alias, with a matching
+                # source.properties so AGP's version check passes. The toolchain
+                # is the patched store NDK — the thing that must actually run on
+                # NixOS (a Google-downloaded NDK wouldn't).
+                if [ -d "$_nix_sdk/ndk" ]; then
+                  rm -f "$asdk/ndk"; mkdir -p "$asdk/ndk"
+                  _realndk=""
+                  for _n in "$_nix_sdk"/ndk/*; do
+                    ln -sfn "$_n" "$asdk/ndk/$(basename "$_n")"; _realndk="$_n"
+                  done
+                  for _alias in 28.2.13676358; do
+                    if [ ! -e "$asdk/ndk/$_alias" ] && [ -n "$_realndk" ]; then
+                      mkdir -p "$asdk/ndk/$_alias"
+                      for _f in "$_realndk"/*; do ln -sfn "$_f" "$asdk/ndk/$_alias/$(basename "$_f")"; done
+                      rm -f "$asdk/ndk/$_alias/source.properties"
+                      printf 'Pkg.Desc = Android NDK\nPkg.Revision = %s\n' "$_alias" > "$asdk/ndk/$_alias/source.properties"
+                    fi
+                  done
+                fi
+                # Same trick for the SDK CMake: a reown native plugin's
+                # externalNativeBuild uses AGP's default cmake;3.22.1, which
+                # nixpkgs doesn't ship. Expose the shipped CMake (4.1.2, patched)
+                # under that alias. Safe: the plugins' cmake_minimum_required is
+                # 3.10/3.14 (>= 3.5), which CMake 4.x still accepts.
+                if [ -d "$_nix_sdk/cmake" ]; then
+                  rm -f "$asdk/cmake"; mkdir -p "$asdk/cmake"
+                  _realcmake=""
+                  for _c in "$_nix_sdk"/cmake/*; do
+                    ln -sfn "$_c" "$asdk/cmake/$(basename "$_c")"; _realcmake="$_c"
+                  done
+                  for _calias in 3.22.1; do
+                    if [ ! -e "$asdk/cmake/$_calias" ] && [ -n "$_realcmake" ]; then
+                      mkdir -p "$asdk/cmake/$_calias"
+                      for _f in "$_realcmake"/*; do ln -sfn "$_f" "$asdk/cmake/$_calias/$(basename "$_f")"; done
+                      rm -f "$asdk/cmake/$_calias/source.properties"
+                      printf 'Pkg.Desc = Android SDK CMake\nPkg.Revision = %s\n' "$_calias" > "$asdk/cmake/$_calias/source.properties"
+                    fi
                   done
                 fi
                 ln -sfn "$_nix_sdk" "$asdk/.nix-src"
