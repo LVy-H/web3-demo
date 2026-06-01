@@ -6,7 +6,7 @@
   "semaphore": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
   "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
   "demoPoll": {
-    "address": "0x6D544390Eb535d61e196c87d6B9c80dCD8628Acd",
+    "address": "0xd8058efe0198ae9dD7D563e1b4938Dcbc86A1F81",
     "moduleType": "anon-vote",
     "title": "Demo Poll",
     "description": "A demo anon-vote poll for the Flutter on-chain read tests",

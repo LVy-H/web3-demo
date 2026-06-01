@@ -14,8 +14,13 @@ import path from "path";
 const OPTIONS = ["Yes", "No", "Abstain"];
 const TITLE = "Demo Poll";
 const DESCRIPTION = "A demo anon-vote poll for the Flutter on-chain read tests";
-const FIXTURE =
-  "/home/hoang/zkvote-flutter-wt/codes/mobile/test/fixtures/local_chain.json";
+// Resolve relative to this script so the in-repo fixture is refreshed (the old
+// hardcoded absolute path pointed at a worktree that no longer exists, leaving
+// the committed fixture stale → chain_reader_test read a dead poll address).
+const FIXTURE = path.resolve(
+  __dirname,
+  "../../mobile/test/fixtures/local_chain.json",
+);
 
 async function main() {
   const chainId = Number((await ethers.provider.getNetwork()).chainId);
