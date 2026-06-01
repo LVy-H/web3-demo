@@ -14,4 +14,10 @@ abstract class AppConfig {
     'RELAYER_URL',
     defaultValue: 'http://localhost:3001',
   );
+
+  /// Reown/WalletConnect project ID (free, from cloud.reown.com). Without it the
+  /// Connect-Wallet button shows a hint instead of initializing.
+  /// Build with: --dart-define=WC_PROJECT_ID=YOUR_ID
+  static const walletConnectProjectId =
+      String.fromEnvironment('WC_PROJECT_ID', defaultValue: '');
 }

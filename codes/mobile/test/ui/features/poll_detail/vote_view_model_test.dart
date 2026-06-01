@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:zkvote_mobile/data/models/poll_info.dart';
 import 'package:zkvote_mobile/data/models/poll_snapshot.dart';
+import 'package:zkvote_mobile/data/models/poll_summary.dart';
 import 'package:zkvote_mobile/data/models/relay_proof.dart';
 import 'package:zkvote_mobile/data/repositories/poll_repository.dart';
 import 'package:zkvote_mobile/data/services/proof_service.dart';
@@ -20,6 +21,8 @@ class FakeRepo implements PollRepository {
   Future<List<PollInfo>> fetchPolls() => throw UnimplementedError();
   @override
   Future<PollSnapshot> fetchPoll(String address) => throw UnimplementedError();
+  @override
+  Future<PollSummary> fetchSummary(String address) => throw UnimplementedError();
 }
 
 const _proof = RelayProof(

@@ -3,19 +3,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:zkvote_mobile/data/models/poll_info.dart';
 import 'package:zkvote_mobile/data/models/poll_snapshot.dart';
+import 'package:zkvote_mobile/data/models/poll_summary.dart';
 import 'package:zkvote_mobile/data/repositories/poll_repository.dart';
 import 'package:zkvote_mobile/ui/features/browse/browse_screen.dart';
 import 'package:zkvote_mobile/ui/features/browse/browse_view_model.dart';
 
 class FakePollRepository implements PollRepository {
   final List<PollInfo>? polls;
+  final Map<String, PollSummary>? summaries;
   final Object? error;
-  FakePollRepository({this.polls, this.error});
+  FakePollRepository({this.polls, this.summaries, this.error});
 
   @override
   Future<List<PollInfo>> fetchPolls() async {
     if (error != null) throw error!;
     return polls ?? const [];
+  }
+
+  @override
+  Future<PollSummary> fetchSummary(String address) async {
+    final s = summaries?[address];
+    if (s == null) throw StateError('no summary for $address'); // → best-effort skip
+    return s;
   }
 
   @override
@@ -34,6 +43,13 @@ PollInfo _poll(String addr, String title) => PollInfo(
       createdAt: BigInt.zero,
     );
 
+PollSummary _sum(int state, int votes) =>
+    PollSummary(state: state, totalVotes: BigInt.from(votes));
+
+const _a = '0x1111111111111111111111111111111111111111'; // Voting
+const _b = '0x2222222222222222222222222222222222222222'; // Registration
+const _c = '0x3333333333333333333333333333333333333333'; // Ended
+
 Widget _wrap(PollRepository repo) => MaterialApp(
       home: ChangeNotifierProvider(
         create: (_) => BrowseViewModel(repo),
@@ -41,19 +57,94 @@ Widget _wrap(PollRepository repo) => MaterialApp(
       ),
     );
 
+// Three polls, one per phase, with distinct vote tallies.
+FakePollRepository _threePhaseRepo() => FakePollRepository(
+      polls: [
+        _poll(_a, 'Voting Poll'),
+        _poll(_b, 'Registration Poll'),
+        _poll(_c, 'Ended Poll'),
+      ],
+      summaries: {
+        _a: _sum(1, 5), // Voting, 5 votes
+        _b: _sum(0, 0), // Registration
+        _c: _sum(2, 9), // Ended, 9 votes
+      },
+    );
+
+Future<void> _tapPill(WidgetTester tester, String label) async {
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('renders the hero + poll cards with VOTING state chips',
+  testWidgets('default ACTIVE filter shows only Voting polls, with real chip + vote count',
       (tester) async {
+    await tester.pumpWidget(_wrap(_threePhaseRepo()));
+    await tester.pumpAndSettle();
+
+    // Only the Voting-phase poll is visible under the default ACTIVE filter.
+    expect(find.text('Voting Poll'), findsOneWidget);
+    expect(find.text('Registration Poll'), findsNothing);
+    expect(find.text('Ended Poll'), findsNothing);
+
+    // 'VOTING' is unique to the active state chip (no filter pill uses it).
+    expect(find.text('VOTING'), findsOneWidget);
+    // Real vote tally on the card.
+    expect(find.text('5'), findsOneWidget);
+
+    // Hero subtitle counts every poll by real phase.
+    expect(
+      find.textContaining('3 total · 1 active · 1 upcoming · 1 ended', findRichText: true),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('ALL filter reveals every phase with the correct chip + tally',
+      (tester) async {
+    await tester.pumpWidget(_wrap(_threePhaseRepo()));
+    await tester.pumpAndSettle();
+    await _tapPill(tester, 'ALL'); // status filter → all
+
+    expect(find.text('Voting Poll'), findsOneWidget);
+    expect(find.text('Registration Poll'), findsOneWidget);
+    expect(find.text('Ended Poll'), findsOneWidget);
+
+    // 'VOTING' chip is unique; UPCOMING/ENDED each appear once as a filter pill
+    // plus once as a card chip.
+    expect(find.text('VOTING'), findsOneWidget);
+    expect(find.text('UPCOMING'), findsNWidgets(2));
+    expect(find.text('ENDED'), findsNWidgets(2));
+
+    expect(find.text('5'), findsOneWidget); // voting tally
+    expect(find.text('9'), findsOneWidget); // ended tally
+  });
+
+  testWidgets('UPCOMING filter shows only the Registration-phase poll',
+      (tester) async {
+    await tester.pumpWidget(_wrap(_threePhaseRepo()));
+    await tester.pumpAndSettle();
+    await _tapPill(tester, 'UPCOMING');
+
+    expect(find.text('Registration Poll'), findsOneWidget);
+    expect(find.text('Voting Poll'), findsNothing);
+    expect(find.text('Ended Poll'), findsNothing);
+  });
+
+  testWidgets('falls back to an active look when summaries fail to load',
+      (tester) async {
+    // No summaries provided → every fetchSummary throws → best-effort skips
+    // them → cards render with the neutral (active) fallback, list still shows.
     await tester.pumpWidget(_wrap(FakePollRepository(polls: [
-      _poll('0x1111111111111111111111111111111111111111', 'Budget 2026'),
-      _poll('0x2222222222222222222222222222222222222222', 'Board Seat'),
+      _poll(_a, 'Budget 2026'),
+      _poll(_b, 'Board Seat'),
     ])));
     await tester.pumpAndSettle();
 
-    expect(find.text('POLLS'), findsOneWidget); // hero
+    expect(find.text('POLLS'), findsOneWidget);
     expect(find.text('Budget 2026'), findsOneWidget);
     expect(find.text('Board Seat'), findsOneWidget);
-    expect(find.text('VOTING'), findsNWidgets(2)); // one state chip per card
+    expect(find.text('VOTING'), findsNWidgets(2)); // fallback chips
+    expect(find.text('—'), findsNWidgets(2)); // unknown vote tally
   });
 
   testWidgets('renders empty state when no polls match', (tester) async {
