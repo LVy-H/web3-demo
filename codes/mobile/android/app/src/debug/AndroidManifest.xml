@@ -4,4 +4,10 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Debug-only: allow cleartext HTTP so the emulator can reach the local
+         dev-stack at http://10.0.2.2:8545 (Hardhat) and :3001 (relayer).
+         The emulator NATs 10.0.2.2 -> host loopback; Android 9+ blocks
+         cleartext by default. The release manifest stays locked down. -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>

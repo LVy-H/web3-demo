@@ -53,6 +53,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  integration_test:        # on-device e2e (browse→detail→verify on the emulator)
+    sdk: flutter
+
   web: ^1.1.1               # DOM access in the in-browser ProofServiceWeb test
 
   # The "flutter_lints" package below contains a set of recommended lints to
