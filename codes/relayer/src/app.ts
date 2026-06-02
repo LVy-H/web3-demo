@@ -2,9 +2,9 @@ import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { config } from "./config";
-import { relayCastVote, relayClaimAirdrop, checkRelayerBalance } from "./relay";
+import { relayCastVote, relayApprovalVote, relayClaimAirdrop, checkRelayerBalance } from "./relay";
 import { getRelayerInfo } from "./wallet";
-import { validateVoteRequest, validateClaimRequest } from "./validation";
+import { validateVoteRequest, validateApprovalVoteRequest, validateClaimRequest } from "./validation";
 import { createTicketRouter } from "./tickets";
 
 /** Build the Express app WITHOUT listening, so tests (supertest) can import it
@@ -56,6 +56,41 @@ export function createApp(): express.Express {
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
             console.error(`[RELAY] ✗ castVote error:`, message);
+            res.status(500).json({ error: "Internal relayer error" });
+        }
+    });
+
+    // ── POST /api/relay/approval-vote ───────────────────────────────────────
+    // Approval ballots (module "approval-vote"): the vote is a bitmask, and the
+    // tally increments every approved option. Separate from /vote so the anon
+    // single-option path is untouched.
+    app.post("/api/relay/approval-vote", async (req, res) => {
+        try {
+            const validation = validateApprovalVoteRequest(req.body);
+            if (!validation.ok) {
+                res.status(400).json({ error: validation.error });
+                return;
+            }
+
+            const balanceCheck = await checkRelayerBalance();
+            if (!balanceCheck.sufficient) {
+                res.status(503).json({
+                    error: "Relayer has insufficient funds to pay gas",
+                    balance: balanceCheck.balance,
+                });
+                return;
+            }
+
+            const { pollAddress, bitmask, proof } = validation.data;
+            console.log(`[RELAY] approvalVote → poll=${pollAddress} bitmask=${bitmask}`);
+
+            const result = await relayApprovalVote(pollAddress, bitmask, proof);
+            console.log(`[RELAY] ✓ txHash=${result.txHash}`);
+
+            res.json({ success: true, txHash: result.txHash });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[RELAY] ✗ approvalVote error:`, message);
             res.status(500).json({ error: "Internal relayer error" });
         }
     });
