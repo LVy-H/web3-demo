@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'config.dart';
 import 'data/repositories/blind_repository.dart';
+import 'data/repositories/live_host_repository.dart';
 import 'data/repositories/poll_repository.dart';
 import 'data/repositories/verify_repository.dart';
 import 'data/services/blind_commit_store.dart';
@@ -107,6 +108,13 @@ class ZkVoteApp extends StatelessWidget {
           create: (_) => PollCreator(
             writer: writer,
             registryAbiJson: registryAbiJson,
+            anonAbiJson: anonAbiJson,
+          ),
+        ),
+        Provider<LiveHostRepository>(
+          create: (ctx) => LiveHostRepository(
+            relay: ctx.read<RelayClient>(),
+            writer: writer,
             anonAbiJson: anonAbiJson,
           ),
         ),

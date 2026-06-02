@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'data/repositories/blind_repository.dart';
+import 'data/repositories/live_host_repository.dart';
 import 'data/repositories/poll_repository.dart';
 import 'data/repositories/verify_repository.dart';
 import 'data/services/identity_store.dart';
@@ -10,6 +11,8 @@ import 'data/services/relay_client.dart';
 import 'ui/core/app_shell.dart';
 import 'ui/features/blind_poll/blind_poll_screen.dart';
 import 'ui/features/blind_poll/blind_poll_view_model.dart';
+import 'ui/features/live_host/live_host_screen.dart';
+import 'ui/features/live_host/live_host_view_model.dart';
 import 'ui/features/browse/browse_screen.dart';
 import 'ui/features/browse/browse_view_model.dart';
 import 'ui/features/create/create_screen.dart';
@@ -118,6 +121,18 @@ GoRouter buildRouter() => GoRouter(
               ],
             ),
           ],
+        ),
+        // Full-screen organizer dashboard (outside the bottom-nav shell).
+        GoRoute(
+          path: '/live/:address/host',
+          builder: (context, state) {
+            final address = state.pathParameters['address']!;
+            return ChangeNotifierProvider(
+              create: (ctx) =>
+                  LiveHostViewModel(ctx.read<LiveHostRepository>(), address),
+              child: LiveHostScreen(address: address),
+            );
+          },
         ),
       ],
     );

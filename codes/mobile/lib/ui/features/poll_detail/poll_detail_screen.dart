@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/models/poll_snapshot.dart';
+import '../../../data/services/chain_writer.dart';
 import '../../../data/services/identity_store.dart';
 import '../../../data/services/proof_service_factory.dart';
 import '../../core/dot_grid_background.dart';
@@ -76,6 +77,27 @@ class _Body extends StatelessWidget {
               '${snapshot.participantCount} REGISTERED · ${snapshot.totalVotes} VOTES CAST',
               style: dbLabel(size: 11, tracking: 0.1),
             ),
+            if (context.read<ChainWriter>().canSign &&
+                snapshot.state == 0) ...[
+              const SizedBox(height: 14),
+              InkWell(
+                onTap: () => context.go('/live/${snapshot.address}/host'),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Db.void_,
+                    border: Border.all(color: Db.segnale),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.qr_code_2, size: 16, color: Db.segnale),
+                    const SizedBox(width: 10),
+                    Text('ORGANIZE LIVE SESSION  →',
+                        style: dbSans(12, 800, Db.segnale, letterSpacing: 1.0)),
+                  ]),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             LayoutBuilder(builder: (context, c) {
               final results = _ResultsBars(snapshot: snapshot);
