@@ -17,8 +17,10 @@ import 'package:web3dart/web3dart.dart';
 ///
 /// Requires ./dev-stack.sh up. Skips when unreachable.
 void main() {
+  // Hardhat account #2 — distinct from chain_writer_test (#1) and the relayer
+  // (#0) so concurrent `flutter test` isolates don't race on a shared nonce.
   const devKey =
-      '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d';
+      '0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a';
 
   final fixtureFile = File('test/fixtures/local_chain.json');
   if (!fixtureFile.existsSync()) {

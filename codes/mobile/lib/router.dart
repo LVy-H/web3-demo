@@ -1,12 +1,15 @@
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'data/repositories/blind_repository.dart';
 import 'data/repositories/poll_repository.dart';
 import 'data/repositories/verify_repository.dart';
 import 'data/services/identity_store.dart';
 import 'data/services/proof_service.dart';
 import 'data/services/relay_client.dart';
 import 'ui/core/app_shell.dart';
+import 'ui/features/blind_poll/blind_poll_screen.dart';
+import 'ui/features/blind_poll/blind_poll_view_model.dart';
 import 'ui/features/browse/browse_screen.dart';
 import 'ui/features/browse/browse_view_model.dart';
 import 'ui/features/create/create_screen.dart';
@@ -43,6 +46,16 @@ GoRouter buildRouter() => GoRouter(
                       path: 'poll/:address',
                       builder: (context, state) {
                         final address = state.pathParameters['address']!;
+                        // Dispatch by module type (passed by Browse). Blind
+                        // (commit-reveal) polls get their own detail surface.
+                        if (state.uri.queryParameters['module'] ==
+                            'blind-vote') {
+                          return ChangeNotifierProvider(
+                            create: (ctx) => BlindPollViewModel(
+                                ctx.read<BlindRepository>(), address),
+                            child: BlindPollScreen(address: address),
+                          );
+                        }
                         return MultiProvider(
                           providers: [
                             ChangeNotifierProvider(

@@ -384,7 +384,8 @@ class _PollCardState extends State<_PollCard> {
       onExit: (_) => setState(() => _hover = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: () => context.go('/poll/${widget.poll.pollAddress}'),
+        onTap: () => context.go(
+            '/poll/${widget.poll.pollAddress}?module=${widget.poll.moduleType}'),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           transform: Matrix4.translationValues(0, _hover ? -2 : 0, 0),

@@ -35,7 +35,7 @@ abstract class AppConfig {
   /// directly (no mobile wallet needed) — the only way to cast M2 commit-reveal
   /// votes against the host-local Hardhat node that a phone wallet can't reach.
   /// NEVER set this for a real deployment. Build with:
-  ///   --dart-define=DEV_PRIVATE_KEY=0x<hardhat account key>
+  ///   `--dart-define=DEV_PRIVATE_KEY=0x...` (a Hardhat account key)
   static const devPrivateKey =
       String.fromEnvironment('DEV_PRIVATE_KEY', defaultValue: '');
 }
