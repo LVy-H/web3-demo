@@ -43,12 +43,13 @@ A working PoC of a modular ZK voting system runs end-to-end on a local Hardhat n
 
 ## Blocked / known broken
 
-Severity from `improvements/findings.md`:
+**All P0 items resolved (2026-06-02)** — see `improvements/findings.md`:
 
-- **[P0-1]** `localStorage['my-nullifier']` is global, not per-poll → user appears voted across polls.
-- **[P0-2]** Module-scope `let group` / `let isGroupSynced` in `Poll.tsx` leak across navigation.
-- **[P0-3]** `ZkAirdrop` has zero tests.
-- **[P0-4]** Top-level docs (`codes/README.md`, `codes/INSTRUCTIONS.md`, `codes/ZkVotingAirdrop_System_Workflow.md`) describe the old `ZkVotingLottery` design and mislead readers.
+- ~~**[P0-1]** / **[P0-2]**~~ — React `Poll.tsx` bugs, **MOOT** (React frontend deleted; Flutter app supersedes).
+- ~~**[P0-3]**~~ — **Done**: `ZkAirdrop.test.ts` exists; contracts suite 109 passing.
+- ~~**[P0-4]**~~ — **Done**: stale `INSTRUCTIONS.md` / `ZkVotingAirdrop_System_Workflow.md` removed; README rewritten.
+
+*(No open P0 items. Next release gate is Phase 10: Sepolia + real Groth16 verifier → `1.0`.)*
 
 These don't block local dev but block any external use.
 
@@ -69,7 +70,7 @@ These don't block local dev but block any external use.
 | Frontend lint | passes | passes | `npm run lint` in `codes/frontend/` |
 | `npm run deploy:local` reproducible | yes | yes | deterministic Hardhat addresses |
 | CI status | none | green on every PR | — |
-| Open P0 items | 4 | 0 | `improvements/findings.md` |
+| Open P0 items | 0 | 0 | `improvements/findings.md` |
 | Open P1 items | 8 | 0 before any deploy | `improvements/findings.md` |
 
 ## How to update this file
