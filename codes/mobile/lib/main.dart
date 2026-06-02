@@ -92,7 +92,10 @@ class ZkVoteApp extends StatelessWidget {
           create: (_) => RelayClient(baseUrl: AppConfig.relayerUrl),
           dispose: (_, c) => c.close(),
         ),
-        Provider<ProofService>(create: (_) => createProofService()),
+        Provider<ProofService>(
+          create: (_) => createProofService(),
+          dispose: (_, s) => s.dispose(), // kills the desktop Node sidecar
+        ),
         Provider<IdentityStore>(create: (_) => SecureIdentityStore()),
         Provider<ChainWriter>(
           create: (_) => writer,

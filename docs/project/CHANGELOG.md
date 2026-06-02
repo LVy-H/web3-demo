@@ -5,17 +5,37 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
-- *(items in flight — moved into a versioned section at release time)*
+- **Tessera — unified Flutter client** (`codes/mobile/`) across mobile, desktop,
+  AND web, replacing per-platform frontends. Parity with the React app + more:
+  - Browse / poll detail / **M2 blind-vote** (commit-reveal) / verify-receipts /
+    **Create** (wallet or dev-signer).
+  - **Identity** management (secure-storage Semaphore seed; vote prefill).
+  - **Live-meeting**: organizer HOST dashboard (rotating signed-ticket QR +
+    pending queue + face-to-face confirm = on-chain `registerVoter`) and the
+    VOTER flow (ephemeral identity → confirmation code → register → vote).
+  - **Desktop ZK proving** via an opt-in Node sidecar reusing the web prover
+    bundle — verified against the real Groth16 vkey on Linux.
+  - **Local dev-signer** (`DEV_PRIVATE_KEY`) that signs txs directly (bypasses
+    WalletConnect for host-local Hardhat).
+  - **Proximity (BLE/NFC)** capability-gated seam (Android radio impl device-pending).
+- CI `mobile` job (analyze + test) as the Flutter release gate.
 
 ### Changed
+- Project renamed **zkVote → Tessera**; visible + build identity updated.
 
 ### Deprecated
+- The **React/Vite frontend** (`codes/frontend/`) — Flutter-web is now canonical.
+  See `codes/frontend/DEPRECATED.md`.
 
 ### Removed
 
 ### Fixed
+- Linux desktop build: demote the strict-clang `-Werror` deprecation from
+  `flutter_secure_storage_linux`'s vendored `json.hpp`.
 
 ### Security
+- Identity seed + blind-vote salts + org keypair persisted via platform secure
+  storage (Keychain / libsecret / DPAPI), never plaintext prefs.
 
 ---
 

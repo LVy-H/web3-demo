@@ -16,7 +16,10 @@
 
 - [ ] All P0 items closed in `improvements/findings.md`
 - [ ] All P1 items closed (mainnet only — recommended for testnet)
-- [ ] CI green on `main`
+- [ ] CI green on `main` (the **`mobile`** job — `flutter analyze` + `flutter test` — is a hard gate)
+- [ ] **Tessera app**: `flutter analyze` clean; `flutter test` green; `flutter build web` + `flutter build linux` succeed
+- [ ] **Critic-audited**: each merged PR was reviewed by an adversarial critic agent + GitHub Copilot, findings addressed
+- [ ] **Verified-or-fenced**: every shipped path is runtime-verified, or capability-gated so unverified code (e.g. BLE/NFC, opt-in desktop prover) is inert and can't regress a working path
 - [ ] No uncommitted changes on the release branch
 - [ ] CHANGELOG.md has an `## [Unreleased]` section with the actual changes
 - [ ] If contracts changed: ABIs regenerated and committed
@@ -28,7 +31,7 @@
 
 1. Decide the version number per `VERSIONING.md`.
 2. Update `CHANGELOG.md`: rename `## [Unreleased]` → `## [vX.Y.Z] — YYYY-MM-DD`, add a fresh empty `## [Unreleased]` above it.
-3. Update `package.json` `version` in both `codes/contracts/` and `codes/frontend/`.
+3. Update the version: `codes/contracts/package.json` and **`codes/mobile/pubspec.yaml`** (`version: X.Y.Z+N` — the canonical client). `codes/frontend/` is deprecated; skip it.
 4. If applicable, update the `VERSION` constant on each contract (proposed; skip if not adopted).
 5. Commit: `chore: release vX.Y.Z`.
 6. Tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`.

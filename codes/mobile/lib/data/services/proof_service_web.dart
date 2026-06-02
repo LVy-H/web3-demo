@@ -50,6 +50,9 @@ class ProofServiceWeb implements ProofService {
   @override
   Future<String> deriveCommitment(String identitySeed) async =>
       _zkCommitment(identitySeed.toJS).toDart;
+
+  @override
+  void dispose() {}
 }
 
 /// Conditional-import factory hook (web build → this implementation).

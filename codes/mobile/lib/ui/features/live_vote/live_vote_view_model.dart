@@ -110,6 +110,7 @@ class LiveVoteViewModel extends ChangeNotifier {
       }
       stage = LiveVoteStage.pending;
       _notify();
+      _poll?.cancel(); // a re-join must not stack a second polling timer
       _poll = Timer.periodic(
           const Duration(seconds: 3), (_) => _checkRegistered());
     } catch (e) {

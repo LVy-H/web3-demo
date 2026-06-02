@@ -84,8 +84,11 @@ class BlindRepository {
     if (saved == null) {
       throw StateError('No saved commit on this device for $poll');
     }
-    return _send(poll, 'revealVote',
+    final hash = await _send(poll, 'revealVote',
         [BigInt.from(saved.optionIndex), fromHex(saved.saltHex)]);
+    // The salt's only purpose was this reveal; don't retain the vote secret.
+    await commits.clear(poll);
+    return hash;
   }
 
   Future<bool> hasSavedCommit(String poll) async =>
