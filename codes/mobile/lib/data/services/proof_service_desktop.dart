@@ -87,6 +87,15 @@ class ProofServiceDesktop implements ProofService {
     return RelayProof.fromJson(res['proof'] as Map<String, dynamic>);
   }
 
+  @override
+  Future<String> deriveCommitment(String identitySeed) async {
+    final res = await _send({'op': 'commitment', 'seed': identitySeed});
+    if (res['ok'] != true) {
+      throw Exception('desktop prover commitment failed: ${res['error']}');
+    }
+    return res['commitment'] as String;
+  }
+
   /// Verify a proof against the real Groth16 vkey via the sidecar. Beyond the
   /// [ProofService] interface — used by the self-test to prove the proof is real
   /// (the local MockSemaphoreVerifier would accept anything).

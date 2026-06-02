@@ -84,6 +84,9 @@ class ZkVoteApp extends StatelessWidget {
           create: (_) => ChainPollRepository(reader),
           dispose: (_, _) => reader.dispose(),
         ),
+        // The same reader, exposed for the live-vote flow (registration polling +
+        // options). PollRepository owns its disposal.
+        Provider<ChainReader>.value(value: reader),
         Provider<VerifyRepository>(create: (_) => ChainVerifyRepository(reader)),
         Provider<RelayClient>(
           create: (_) => RelayClient(baseUrl: AppConfig.relayerUrl),

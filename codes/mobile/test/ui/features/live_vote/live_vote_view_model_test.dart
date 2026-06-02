@@ -1,0 +1,55 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:tessera/data/models/relay_proof.dart';
+import 'package:tessera/data/services/chain_reader.dart';
+import 'package:tessera/data/services/proof_service.dart';
+import 'package:tessera/data/services/relay_client.dart';
+import 'package:tessera/ui/features/live_vote/live_vote_view_model.dart';
+
+const _proof = RelayProof(
+  merkleTreeDepth: 1,
+  merkleTreeRoot: '0',
+  nullifier: '0',
+  message: '1',
+  scope: '0',
+  points: ['0'],
+);
+
+LiveVoteViewModel _vm() => LiveVoteViewModel(
+      proof: const FakeProofService(_proof),
+      relay: RelayClient(baseUrl: 'http://127.0.0.1:1'),
+      reader: ChainReader(
+        rpcUrl: 'http://127.0.0.1:1',
+        izkPollAbiJson: '[]',
+        registryAbiJson: '[]',
+        anonVotingAbiJson: '[]',
+        registryAddress: '0x0000000000000000000000000000000000000000',
+      ),
+      pollAddress: '0x2222222222222222222222222222222222222222',
+    );
+
+void main() {
+  group('extractTicket', () {
+    test('pulls ?t= out of a full QR URL', () {
+      const url =
+          'https://tessera.app/live/0xabc/vote?t=AAAA-bbbb_cc';
+      expect(LiveVoteViewModel.extractTicket(url), 'AAAA-bbbb_cc');
+    });
+
+    test('returns a bare ticket unchanged (trimmed)', () {
+      expect(LiveVoteViewModel.extractTicket('  rawticket123 '), 'rawticket123');
+    });
+  });
+
+  test('join without a ticket → error stage', () async {
+    final vm = _vm();
+    await vm.join();
+    expect(vm.stage, LiveVoteStage.error);
+    expect(vm.error, isNotNull);
+  });
+
+  test('setTicket extracts and stores the ticket', () {
+    final vm = _vm();
+    vm.setTicket('https://x/live/0xabc/vote?t=tok42');
+    expect(vm.ticket, 'tok42');
+  });
+}

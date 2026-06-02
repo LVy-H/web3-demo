@@ -43,6 +43,19 @@ async function zkVerifyProof(proofJson) {
   })
 }
 
+/**
+ * Derive a Semaphore identity commitment from a seed. Pure identity math
+ * (EdDSA-Poseidon over Baby Jubjub) — NOT the SNARK — so it's cheap and runs
+ * anywhere the bundle does. It's the recurring member's public id the organizer
+ * registers, and the input to the live-meeting confirmation code.
+ * @param {string} seed
+ * @returns {string} decimal commitment
+ */
+function zkCommitment(seed) {
+  return new Identity(seed).commitment.toString()
+}
+
 // Expose on window for dart:js_interop.
 globalThis.zkGenerateVoteProof = zkGenerateVoteProof
 globalThis.zkVerifyProof = zkVerifyProof
+globalThis.zkCommitment = zkCommitment

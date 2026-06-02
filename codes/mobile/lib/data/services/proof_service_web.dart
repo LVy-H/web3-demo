@@ -15,6 +15,9 @@ external JSPromise<JSString> _zkGenerateVoteProof(
   JSString scope,
 );
 
+@JS('zkCommitment')
+external JSString _zkCommitment(JSString seed);
+
 class ProofServiceWeb implements ProofService {
   const ProofServiceWeb();
 
@@ -43,6 +46,10 @@ class ProofServiceWeb implements ProofService {
           (map['points'] as List).map((e) => e.toString()).toList(growable: false),
     );
   }
+
+  @override
+  Future<String> deriveCommitment(String identitySeed) async =>
+      _zkCommitment(identitySeed.toJS).toDart;
 }
 
 /// Conditional-import factory hook (web build → this implementation).

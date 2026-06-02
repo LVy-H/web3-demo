@@ -5,6 +5,7 @@ import 'data/repositories/blind_repository.dart';
 import 'data/repositories/live_host_repository.dart';
 import 'data/repositories/poll_repository.dart';
 import 'data/repositories/verify_repository.dart';
+import 'data/services/chain_reader.dart';
 import 'data/services/identity_store.dart';
 import 'data/services/proof_service.dart';
 import 'data/services/relay_client.dart';
@@ -13,6 +14,8 @@ import 'ui/features/blind_poll/blind_poll_screen.dart';
 import 'ui/features/blind_poll/blind_poll_view_model.dart';
 import 'ui/features/live_host/live_host_screen.dart';
 import 'ui/features/live_host/live_host_view_model.dart';
+import 'ui/features/live_vote/live_vote_screen.dart';
+import 'ui/features/live_vote/live_vote_view_model.dart';
 import 'ui/features/browse/browse_screen.dart';
 import 'ui/features/browse/browse_view_model.dart';
 import 'ui/features/create/create_screen.dart';
@@ -131,6 +134,23 @@ GoRouter buildRouter() => GoRouter(
               create: (ctx) =>
                   LiveHostViewModel(ctx.read<LiveHostRepository>(), address),
               child: LiveHostScreen(address: address),
+            );
+          },
+        ),
+        // Full-screen live VOTER (deep-link target of the host QR).
+        GoRoute(
+          path: '/live/:address/vote',
+          builder: (context, state) {
+            final address = state.pathParameters['address']!;
+            return ChangeNotifierProvider(
+              create: (ctx) => LiveVoteViewModel(
+                proof: ctx.read<ProofService>(),
+                relay: ctx.read<RelayClient>(),
+                reader: ctx.read<ChainReader>(),
+                pollAddress: address,
+                initialTicket: state.uri.queryParameters['t'],
+              ),
+              child: LiveVoteScreen(address: address),
             );
           },
         ),

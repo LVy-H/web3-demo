@@ -49,5 +49,10 @@ void main() {
     final valid = await prover.verifyProof(proof);
     expect(valid, isTrue,
         reason: 'desktop-generated proof verifies against the real Groth16 vkey');
+
+    // Commitment derivation (the live-meeting seam) matches the golden: the
+    // seed's commitment is members[0].
+    final commitment = await prover.deriveCommitment(seed);
+    expect(commitment, members[0]);
   }, timeout: const Timeout(Duration(minutes: 3)));
 }

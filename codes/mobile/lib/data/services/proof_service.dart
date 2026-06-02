@@ -23,6 +23,11 @@ abstract class ProofService {
     required int message,
     required String scope,
   });
+
+  /// Derive the Semaphore identity commitment (decimal string) for
+  /// [identitySeed]. Pure identity math (not the SNARK) — the public id the
+  /// organizer registers and the input to the live-meeting confirmation code.
+  Future<String> deriveCommitment(String identitySeed);
 }
 
 /// A deterministic [ProofService] that returns a fixed, pre-verified proof.
@@ -40,4 +45,8 @@ class FakeProofService implements ProofService {
     required String scope,
   }) async =>
       proof;
+
+  @override
+  Future<String> deriveCommitment(String identitySeed) async =>
+      '1234567890'; // deterministic stand-in for tests
 }

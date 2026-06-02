@@ -30,6 +30,14 @@ class ProofServiceUnsupported implements ProofService {
       'mobile/desktop prover is pending (see plan D2 / Open-Q6).',
     );
   }
+
+  @override
+  Future<String> deriveCommitment(String identitySeed) {
+    throw UnsupportedError(
+      'Commitment derivation needs the prover, which is not available on this '
+      'platform (web, or desktop with DESKTOP_PROVER configured).',
+    );
+  }
 }
 
 /// Conditional-import factory hook (non-web build → this stub). On desktop with

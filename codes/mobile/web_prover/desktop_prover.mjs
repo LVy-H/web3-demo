@@ -48,6 +48,8 @@ rl.on('line', async (raw) => {
     } else if (op === 'verify') {
       const valid = await globalThis.zkVerifyProof(JSON.stringify(req.proof))
       send({ id, ok: true, valid })
+    } else if (op === 'commitment') {
+      send({ id, ok: true, commitment: globalThis.zkCommitment(req.seed) })
     } else if (op === 'ping') {
       send({ id, ok: true, pong: true })
     } else {
