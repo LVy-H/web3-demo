@@ -25,6 +25,7 @@ const CONTRACTS: Record<string, string> = {
     "ZkAirdrop.json": "ZkAirdrop.sol/ZkAirdrop.json",
     "ZkAnonVoting.json": "ZkAnonVoting.sol/ZkAnonVoting.json",
     "ZkApprovalVoting.json": "ZkApprovalVoting.sol/ZkApprovalVoting.json",
+    "ZkRankedVoting.json": "ZkRankedVoting.sol/ZkRankedVoting.json",
     "ZkBlindVoting.json": "ZkBlindVoting.sol/ZkBlindVoting.json",
 };
 

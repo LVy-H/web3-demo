@@ -116,6 +116,20 @@ async function main() {
     await regApprovalTx.wait();
     console.log('Registered "approval-vote" module in PollRegistry');
 
+    // ── 6f. Deploy ZkRankedVoting implementation (bare, uninitialized) ─
+    const ZkRankedVotingFactory = await ethers.getContractFactory("ZkRankedVoting");
+    const zkRankedVotingImpl = await ZkRankedVotingFactory.deploy();
+    await zkRankedVotingImpl.waitForDeployment();
+    const rankedVotingImplAddress = await zkRankedVotingImpl.getAddress();
+    console.log("ZkRankedVoting (impl) deployed to:", rankedVotingImplAddress);
+
+    // ── 6g. Register "ranked-vote" module in PollRegistry ───────────
+    // Canonical module string "ranked-vote" — used IDENTICALLY in the test
+    // harness and the relayer (see docs/superpowers/specs/2026-06-02-ranked-choice-design.md).
+    const regRankedTx = await pollRegistry.registerModule("ranked-vote", rankedVotingImplAddress);
+    await regRankedTx.wait();
+    console.log('Registered "ranked-vote" module in PollRegistry');
+
     console.log("\n==============================================");
 
     // ── 7. Deploy ZkAirdrop (unchanged) ─────────────────────────────
@@ -147,6 +161,7 @@ async function main() {
         ANON_VOTING_IMPL: anonVotingImplAddress,
         BLIND_VOTING_IMPL: blindVotingImplAddress,
         APPROVAL_VOTING_IMPL: approvalVotingImplAddress,
+        RANKED_VOTING_IMPL: rankedVotingImplAddress,
         AIRDROP_ADDRESS: airdropAddress,
     };
 
