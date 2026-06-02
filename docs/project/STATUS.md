@@ -1,10 +1,18 @@
 # Status
 
-> **Snapshot:** 2026-04-27 — keep this date current when editing.
+> **Snapshot:** 2026-06-02 — keep this date current when editing.
 
 ## TL;DR
 
-A working PoC of a modular ZK voting system runs end-to-end on a local Hardhat node. **Two voting modules shipped** (M1 anon-vote, M2 blind-vote), plus a standalone `ZkAirdrop`. Frontend is a React 19 + Wagmi + Viem stack with a registry-driven UI. **No deployment beyond local Hardhat.** No CI. Several known bugs (see `improvements/findings.md` P0).
+A working PoC of a modular ZK voting system runs end-to-end on a local Hardhat node. **Two voting modules shipped** (M1 anon-vote, M2 blind-vote), plus a standalone `ZkAirdrop`. **No deployment beyond local Hardhat.** Several known bugs (see `improvements/findings.md` P0).
+
+> **Canonical client (2026-06-02): the Flutter app `codes/mobile/` — "Tessera" —
+> across mobile, desktop, AND web.** It has reached parity with the old React app
+> (browse / create / M1 / M2 blind-vote / verify-receipts / identity / live-meeting
+> host + voter) and adds desktop ZK proving (Node sidecar) + a dev-signer.
+> The **React 19 + Wagmi + Viem app at `codes/frontend/` is DEPRECATED** (legacy);
+> see `codes/frontend/DEPRECATED.md` for the two dev-toolchain couplings to
+> decouple before it can be removed.
 
 ## Shipped (works today)
 
