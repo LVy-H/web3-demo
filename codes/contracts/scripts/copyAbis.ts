@@ -11,9 +11,9 @@ import path from "path";
 const ARTIFACTS_ROOT = path.resolve(__dirname, "../artifacts/contracts");
 
 // Consumers that need contract ABIs. Skipped silently if the directory
-// doesn't exist (lets a frontend-only checkout still run copy-abis).
+// doesn't exist. (The Flutter app keeps its own committed copies under
+// codes/mobile/assets/abi/; the React frontend is deprecated/removed.)
 const ABI_TARGETS: { name: string; dir: string }[] = [
-    { name: "frontend", dir: path.resolve(__dirname, "../../frontend/src/abi") },
     { name: "relayer", dir: path.resolve(__dirname, "../../relayer/src/abi") },
 ];
 

@@ -123,8 +123,10 @@ async function main() {
     console.log("==============================================\n");
     console.log(`Network: ${networkName} (chainId=${chainId})`);
 
-    // ── 9. Write deployed-addresses.json to frontend ────────────────
+    // ── 9. Write deployed-addresses.json (neutral location) ──────────
     // The file is chainId-keyed so multiple networks can coexist in one file.
+    // Lives under codes/contracts/ (not the deprecated frontend) — the dev-stack
+    // and demo-poll script read it from here.
     const networkEntry = {
         REGISTRY_ADDRESS: registryAddress,
         SEMAPHORE_ADDRESS: semaphoreAddress,
@@ -133,25 +135,19 @@ async function main() {
         AIRDROP_ADDRESS: airdropAddress,
     };
 
-    const frontendSrcDir = path.resolve(__dirname, "../../frontend/src");
-    if (fs.existsSync(frontendSrcDir)) {
-        const addressesPath = path.join(frontendSrcDir, "deployed-addresses.json");
-        // Merge with existing entries so deploying to one network does not wipe others.
-        let existing: Record<string, unknown> = {};
-        if (fs.existsSync(addressesPath)) {
-            try {
-                existing = JSON.parse(fs.readFileSync(addressesPath, "utf-8"));
-            } catch {
-                existing = {};
-            }
+    const addressesPath = path.resolve(__dirname, "../deployed-addresses.json");
+    // Merge with existing entries so deploying to one network does not wipe others.
+    let existing: Record<string, unknown> = {};
+    if (fs.existsSync(addressesPath)) {
+        try {
+            existing = JSON.parse(fs.readFileSync(addressesPath, "utf-8"));
+        } catch {
+            existing = {};
         }
-        const merged = { ...existing, [String(chainId)]: networkEntry };
-        fs.writeFileSync(addressesPath, JSON.stringify(merged, null, 2) + "\n");
-        console.log(`Saved deployed addresses to frontend/src/deployed-addresses.json (chainId ${chainId})`);
-    } else {
-        console.warn("WARNING: frontend/src/ not found at", frontendSrcDir);
-        console.log("Deployed addresses (copy manually):");
     }
+    const merged = { ...existing, [String(chainId)]: networkEntry };
+    fs.writeFileSync(addressesPath, JSON.stringify(merged, null, 2) + "\n");
+    console.log(`Saved deployed addresses to codes/contracts/deployed-addresses.json (chainId ${chainId})`);
 
     console.log(JSON.stringify({ [String(chainId)]: networkEntry }, null, 2));
 }

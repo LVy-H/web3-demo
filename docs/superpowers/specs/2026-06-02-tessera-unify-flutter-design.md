@@ -108,11 +108,12 @@ Re-ordered for **visible-first**:
   `ProximityService`; inert no-op on every radio-less platform (face-to-face code
   is the baseline). Android radio impl is **device-pending** (can't verify on a
   headless box; needs flutter_blue_plus/nfc_manager + a beacon + a phone).
-- **SP7 — retire React ✅ (deprecated)**. `flutter build web` verified canonical;
-  React app deprecated (`codes/frontend/DEPRECATED.md`) + STATUS updated. Physical
-  deletion is gated on decoupling two dev-toolchain ties (the deployed-addresses
-  fixture path in `dev-stack.sh`; the prover-bundle rebuild's frontend
-  `node_modules` symlink) — documented as the next step.
+- **SP7 — retire React ✅ REMOVED**. `flutter build web` verified canonical; then
+  fully decoupled + deleted `codes/frontend/` (124 files): prover bundle made
+  self-contained (`web_prover/` own deps, standalone rebuild vkey-verified);
+  deployed-addresses fixture moved to `codes/contracts/` (deploy/demo-poll/
+  dev-stack repointed, verified by `dev-stack down && up` + integration tests);
+  copyAbis frontend target + the CI frontend job removed.
 
 ## Done-when (this effort)
 

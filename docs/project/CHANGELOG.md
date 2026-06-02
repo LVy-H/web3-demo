@@ -24,10 +24,11 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 - Project renamed **zkVote → Tessera**; visible + build identity updated.
 
 ### Deprecated
-- The **React/Vite frontend** (`codes/frontend/`) — Flutter-web is now canonical.
-  See `codes/frontend/DEPRECATED.md`.
 
 ### Removed
+- The **React/Vite frontend** (`codes/frontend/`) — the Flutter app is the sole
+  client. The prover bundle is self-contained (`codes/mobile/web_prover/` has its
+  own deps) and the deployed-addresses fixture moved to `codes/contracts/`.
 
 ### Fixed
 - Linux desktop build: demote the strict-clang `-Werror` deprecation from
