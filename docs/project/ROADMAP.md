@@ -89,13 +89,32 @@ These ride alongside every phase:
   sidecar, real-vkey-verified); local **dev-signer**; **BLE/NFC** proximity seam.
 - React frontend **deprecated** (Flutter-web canonical).
 
-## Phase 9: Release readiness & product polish — **NEXT**
+## Phase 9: Release readiness & product polish — **PARTIAL**
 
 - Cut **v0.2.0** (the Tessera milestone) per `RELEASING.md` once guardrails pass.
 - App polish: **Settings** (network/relayer/theme), browse **search/filter/
   pagination**, responsive desktop layouts, onboarding/empty states, a11y.
-- **Mobile WebView prover** (so phones vote natively) — device-pending.
-- Decouple `codes/frontend` (address fixture + prover node_modules) → delete it.
+- ~~**Mobile WebView prover** (so phones vote natively)~~ — promoted to a dedicated
+  effort: **Phase 11** (and reframed as emulator-verifiable, not device-pending).
+- ~~Decouple `codes/frontend`~~ — **DONE** (React removed; prover self-contained).
+
+## Phase 11: Close the loop on mobile — scan + native proving — **NEXT**
+
+> Spec: `docs/superpowers/specs/2026-06-02-mobile-scan-and-native-proving-design.md`.
+> Makes the live-meeting flow complete device-to-device on a phone.
+
+- **In-app QR scanner** (`mobile_scanner`) on the live-vote `needsTicket` stage —
+  scan the host's rotating QR instead of pasting; paste stays as the fallback.
+- **Native on-device proving** (`ProofServiceMobile`): a headless `webview_flutter`
+  hosting the same `zkprover.js`, with the Semaphore depth-16 artifacts **bundled**
+  (~5.2 MB). `entry.js` gets an *additive* artifact-override arg — **web/desktop
+  provers untouched** (LeanIMT root is member-derived, so depth need not match
+  across clients).
+- **Milestone gate:** M1 is a WebView-proving **go/no-go spike** (blob-URL artifact
+  injection; loopback-server fallback; native FFI is out of scope) before the rest.
+- **Verified-or-fenced:** proving is **emulator-verified** against the real Groth16
+  vkey; the **camera** is the only real-device/fenced piece (paste = verified
+  fallback). Real-device confirmation is a follow-up gate.
 
 ## Phase 10: Public testnet (Sepolia) + real verifier — **PLANNED**
 
