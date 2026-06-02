@@ -9,20 +9,20 @@ native.
 
 ## Why it's still here (not deleted yet)
 
-Two dev-toolchain couplings must be decoupled before `codes/frontend/` can be
-removed without breaking a working path:
+One dev-toolchain coupling remains before `codes/frontend/` can be removed
+without breaking a working path:
 
-1. **`dev-stack.sh`** reads/writes the deployed-addresses fixture at
-   `codes/frontend/src/deployed-addresses.json` (written by
-   `codes/contracts/scripts/deploy.ts`). Move this to a neutral location (e.g.
-   `codes/contracts/`) and repoint `dev-stack.sh` + the contracts deploy script.
-2. **The web prover bundle** (`codes/mobile/web/zkprover.js`) is rebuilt by
-   `codes/mobile/web_prover/` reusing the frontend's installed Semaphore deps via
-   a `node_modules` symlink. Give `web_prover/` its own `package.json` with the
-   `@semaphore-protocol/*` deps so it rebuilds standalone. (The bundle itself is
-   committed, so a checkout already runs without this.)
+1. **`dev-stack.sh` + `codes/contracts/scripts/{deploy,demo-poll,copyAbis}.ts`**
+   read/write the deployed-addresses fixture and ABIs under
+   `codes/frontend/src/`. Move these to a neutral location (e.g.
+   `codes/contracts/`) and repoint the scripts + `dev-stack.sh`'s `ADDRESSES`.
 
-Once both are decoupled, `codes/frontend/` can be deleted.
+2. ~~The web prover bundle reused the frontend's `node_modules` via a symlink.~~
+   **DONE** — `codes/mobile/web_prover/` now has its own `package.json`
+   (`@semaphore-protocol/*` + vite) and rebuilds standalone (verified: the
+   rebuilt bundle still produces a vkey-valid proof + correct commitment).
+
+Once coupling 1 is decoupled, `codes/frontend/` can be deleted.
 
 ## Running the web app today
 
