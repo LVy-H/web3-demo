@@ -2,9 +2,9 @@ import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { config } from "./config";
-import { relayCastVote, relayApprovalVote, relayClaimAirdrop, checkRelayerBalance } from "./relay";
+import { relayCastVote, relayApprovalVote, relayRankedVote, relayClaimAirdrop, checkRelayerBalance } from "./relay";
 import { getRelayerInfo } from "./wallet";
-import { validateVoteRequest, validateApprovalVoteRequest, validateClaimRequest } from "./validation";
+import { validateVoteRequest, validateApprovalVoteRequest, validateRankedVoteRequest, validateClaimRequest } from "./validation";
 import { createTicketRouter } from "./tickets";
 
 /** Build the Express app WITHOUT listening, so tests (supertest) can import it
@@ -91,6 +91,42 @@ export function createApp(): express.Express {
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
             console.error(`[RELAY] ✗ approvalVote error:`, message);
+            res.status(500).json({ error: "Internal relayer error" });
+        }
+    });
+
+    // ── POST /api/relay/ranked-vote ─────────────────────────────────────────
+    // Ranked-choice ballots (module "ranked-vote"): the vote is a PACKED RANKING
+    // (4-bit rank slots). The contract tallies round-1 first preferences only and
+    // emits the full ballot; the IRV winner is computed OFF-CHAIN. Separate from
+    // /vote and /approval-vote so those paths are untouched.
+    app.post("/api/relay/ranked-vote", async (req, res) => {
+        try {
+            const validation = validateRankedVoteRequest(req.body);
+            if (!validation.ok) {
+                res.status(400).json({ error: validation.error });
+                return;
+            }
+
+            const balanceCheck = await checkRelayerBalance();
+            if (!balanceCheck.sufficient) {
+                res.status(503).json({
+                    error: "Relayer has insufficient funds to pay gas",
+                    balance: balanceCheck.balance,
+                });
+                return;
+            }
+
+            const { pollAddress, packedRanking, proof } = validation.data;
+            console.log(`[RELAY] rankedVote → poll=${pollAddress} packedRanking=${packedRanking}`);
+
+            const result = await relayRankedVote(pollAddress, packedRanking, proof);
+            console.log(`[RELAY] ✓ txHash=${result.txHash}`);
+
+            res.json({ success: true, txHash: result.txHash });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[RELAY] ✗ rankedVote error:`, message);
             res.status(500).json({ error: "Internal relayer error" });
         }
     });

@@ -4,6 +4,7 @@ import { config } from "./config";
 import type { SemaphoreProof } from "./validation";
 import ZkAnonVotingABI from "./abi/ZkAnonVoting.json";
 import ZkApprovalVotingABI from "./abi/ZkApprovalVoting.json";
+import ZkRankedVotingABI from "./abi/ZkRankedVoting.json";
 import ZkAirdropABI from "./abi/ZkAirdrop.json";
 
 function toProofStruct(proof: SemaphoreProof) {
@@ -86,6 +87,47 @@ export async function relayApprovalVote(
     const proofStruct = toProofStruct(proof);
 
     const tx = await contract.castVote(bitmask, proofStruct, {
+        gasLimit: config.maxGasLimit,
+    });
+
+    const receipt = await tx.wait();
+    return { txHash: receipt.hash };
+}
+
+export async function relayRankedVote(
+    pollAddress: string,
+    packedRanking: number,
+    proof: SemaphoreProof
+): Promise<{ txHash: string }> {
+    const wallet = getRelayerWallet();
+    const contract = new ethers.Contract(pollAddress, ZkRankedVotingABI.abi, wallet);
+
+    // Pre-check: poll must be in Voting state (state == 1)
+    const state = await contract.getState();
+    if (Number(state) !== 1) {
+        throw new Error("Poll is not in voting phase");
+    }
+
+    // Pre-check: the first-preference slot must reference a real option. The
+    // contract owns full slot validation (prefix/distinct/in-range/no-gap/no
+    // high-bits); here we only fast-reject the cheapest off-chain check.
+    const optionCount = Number(await contract.getOptionCount());
+    const firstChoice = packedRanking & 0xf; // slot0, value = option index + 1
+    if (firstChoice < 1 || firstChoice > optionCount) {
+        throw new Error(
+            `Invalid ranked ballot: first preference slot ${firstChoice} out of range for poll with ${optionCount} options`
+        );
+    }
+
+    // Pre-check: nullifier not already used
+    const isUsed = await contract.isNullifierUsed(BigInt(proof.nullifier));
+    if (isUsed) {
+        throw new Error("This vote token has already been used (nullifier consumed)");
+    }
+
+    const proofStruct = toProofStruct(proof);
+
+    const tx = await contract.castVote(packedRanking, proofStruct, {
         gasLimit: config.maxGasLimit,
     });
 

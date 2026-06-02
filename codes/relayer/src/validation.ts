@@ -21,6 +21,12 @@ export interface ApprovalVoteRequest {
     proof: SemaphoreProof;
 }
 
+export interface RankedVoteRequest {
+    pollAddress: string;
+    packedRanking: number;
+    proof: SemaphoreProof;
+}
+
 export interface ClaimAirdropRequest {
     airdropAddress: string;
     receiver: string;
@@ -163,6 +169,78 @@ export function validateApprovalVoteRequest(
         data: {
             pollAddress: b.pollAddress as string,
             bitmask: b.bitmask as number,
+            proof,
+        },
+    };
+}
+
+// Max packed-ranking value (exclusive). A ranked ballot packs up to 8 rank
+// slots of 4 bits each ⇒ 32 bits ⇒ valid range is [1, 2^32). The contract
+// re-validates the slot structure (prefix/distinct/in-range/no-gap); the relayer
+// only fast-rejects empty / out-of-word-range values and binds message+scope.
+// See docs/superpowers/specs/2026-06-02-ranked-choice-design.md.
+const MAX_PACKED_RANKING = 2 ** 32;
+
+/** Validate a RANKED-vote relay request. The ballot is a packed ranking (4-bit
+ *  rank slots in the low 32 bits). Mirrors validateApprovalVoteRequest but for
+ *  the packedRanking field: rejects empty/out-of-32-bit-range values and binds
+ *  message==packedRanking, scope==poll. The contract owns slot-structure
+ *  validation (gap/dupe/range) and the off-chain IRV owns the winner. */
+export function validateRankedVoteRequest(
+    body: unknown
+): { ok: true; data: RankedVoteRequest } | { ok: false; error: string } {
+    if (!body || typeof body !== "object") {
+        return { ok: false, error: "Request body must be a JSON object" };
+    }
+
+    const b = body as Record<string, unknown>;
+
+    if (!isValidAddress(b.pollAddress)) {
+        return { ok: false, error: "Invalid pollAddress: must be a valid Ethereum address" };
+    }
+
+    // packedRanking must be a positive integer that fits in 32 bits. 0 is an
+    // empty ballot (rejected on-chain as EmptyBallot); >= 2^32 can never be a
+    // valid packed ranking. The contract still enforces the per-poll slot rules.
+    if (typeof b.packedRanking !== "number" || !Number.isInteger(b.packedRanking)) {
+        return { ok: false, error: "Invalid packedRanking: must be an integer" };
+    }
+    if (b.packedRanking <= 0) {
+        return { ok: false, error: "Invalid packedRanking: must be > 0 (empty ballot is not allowed)" };
+    }
+    if (b.packedRanking >= MAX_PACKED_RANKING) {
+        return { ok: false, error: "Invalid packedRanking: must fit in 32 bits (< 2^32)" };
+    }
+
+    if (!isValidProof(b.proof)) {
+        return {
+            ok: false,
+            error: "Invalid proof: must include merkleTreeDepth, merkleTreeRoot, nullifier, message, scope, and points (array of 8 strings)",
+        };
+    }
+
+    const proof = b.proof as SemaphoreProof;
+
+    if (proof.message !== String(b.packedRanking)) {
+        return {
+            ok: false,
+            error: `Proof message (${proof.message}) does not match packedRanking (${b.packedRanking})`,
+        };
+    }
+
+    const expectedScope = BigInt(b.pollAddress as string).toString();
+    if (proof.scope !== expectedScope) {
+        return {
+            ok: false,
+            error: `Proof scope does not match pollAddress. Expected ${expectedScope}, got ${proof.scope}`,
+        };
+    }
+
+    return {
+        ok: true,
+        data: {
+            pollAddress: b.pollAddress as string,
+            packedRanking: b.packedRanking as number,
             proof,
         },
     };
