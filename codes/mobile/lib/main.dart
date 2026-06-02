@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'config.dart';
 import 'data/repositories/blind_repository.dart';
+import 'data/repositories/live_host_repository.dart';
 import 'data/repositories/poll_repository.dart';
 import 'data/repositories/verify_repository.dart';
 import 'data/services/blind_commit_store.dart';
@@ -83,6 +84,9 @@ class ZkVoteApp extends StatelessWidget {
           create: (_) => ChainPollRepository(reader),
           dispose: (_, _) => reader.dispose(),
         ),
+        // The same reader, exposed for the live-vote flow (registration polling +
+        // options). PollRepository owns its disposal.
+        Provider<ChainReader>.value(value: reader),
         Provider<VerifyRepository>(create: (_) => ChainVerifyRepository(reader)),
         Provider<RelayClient>(
           create: (_) => RelayClient(baseUrl: AppConfig.relayerUrl),
@@ -107,6 +111,13 @@ class ZkVoteApp extends StatelessWidget {
           create: (_) => PollCreator(
             writer: writer,
             registryAbiJson: registryAbiJson,
+            anonAbiJson: anonAbiJson,
+          ),
+        ),
+        Provider<LiveHostRepository>(
+          create: (ctx) => LiveHostRepository(
+            relay: ctx.read<RelayClient>(),
+            writer: writer,
             anonAbiJson: anonAbiJson,
           ),
         ),

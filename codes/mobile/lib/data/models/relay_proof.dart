@@ -29,4 +29,13 @@ class RelayProof {
         'scope': scope,
         'points': points,
       };
+
+  factory RelayProof.fromJson(Map<String, dynamic> j) => RelayProof(
+        merkleTreeDepth: (j['merkleTreeDepth'] as num).toInt(),
+        merkleTreeRoot: j['merkleTreeRoot'].toString(),
+        nullifier: j['nullifier'].toString(),
+        message: j['message'].toString(),
+        scope: j['scope'].toString(),
+        points: (j['points'] as List).map((e) => e.toString()).toList(),
+      );
 }

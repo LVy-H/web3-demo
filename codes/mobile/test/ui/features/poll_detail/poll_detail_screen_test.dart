@@ -5,6 +5,7 @@ import 'package:tessera/data/models/poll_info.dart';
 import 'package:tessera/data/models/poll_snapshot.dart';
 import 'package:tessera/data/models/poll_summary.dart';
 import 'package:tessera/data/repositories/poll_repository.dart';
+import 'package:tessera/data/services/chain_writer.dart';
 import 'package:tessera/ui/features/poll_detail/poll_detail_screen.dart';
 import 'package:tessera/ui/features/poll_detail/poll_detail_view_model.dart';
 
@@ -32,8 +33,14 @@ class FakeRepo implements PollRepository {
 const addr = '0xd8058efe0198ae9dD7D563e1b4938Dcbc86A1F81';
 
 Widget wrap(PollRepository repo) => MaterialApp(
-      home: ChangeNotifierProvider(
-        create: (_) => PollDetailViewModel(repo, addr),
+      home: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => PollDetailViewModel(repo, addr)),
+          // No dev key → canSign false → the "organize live session" entry hides.
+          Provider<ChainWriter>(
+              create: (_) =>
+                  ChainWriter(rpcUrl: 'http://127.0.0.1:1', chainId: 31337)),
+        ],
         child: const PollDetailScreen(address: addr),
       ),
     );

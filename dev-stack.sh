@@ -40,6 +40,11 @@ EMU_PID=/tmp/zkvote-emulator.pid
 
 AVD_NAME="${ZK_AVD_NAME:-zkvote}"
 EMU_SERIAL="${ZK_EMU_SERIAL:-emulator-5554}"
+# Derive the emulator console port from the serial (emulator-5554 -> 5554) so a
+# custom ZK_EMU_SERIAL boots on the matching port. Fall back to 5554 if the
+# serial isn't the exact emulator-<port> form (else -port would be invalid).
+EMU_PORT="${EMU_SERIAL#emulator-}"
+case "$EMU_PORT" in ''|*[!0-9]*) EMU_PORT=5554 ;; esac
 CHAIN_ID=31337
 
 rpc() { curl -s --max-time 3 -X POST http://127.0.0.1:8545 \
@@ -168,7 +173,7 @@ emu() {
   # earlier crash/OOM loop (symptom: pm/am "DELETE_FAILED_INTERNAL_ERROR").
   local wipe=""; [ "${ZK_EMU_WIPE:-0}" = "1" ] && wipe="-wipe-data"
   ( emulator -avd "$AVD_NAME" -no-window -no-audio -no-boot-anim -no-snapshot $wipe \
-      -memory 4096 -gpu swiftshader_indirect -port 5554 >"$EMU_LOG" 2>&1 </dev/null & echo $! >"$EMU_PID" )
+      -memory 4096 -gpu swiftshader_indirect -port "$EMU_PORT" >"$EMU_LOG" 2>&1 </dev/null & echo $! >"$EMU_PID" )
 
   # Bounded boot wait: poll sys.boot_completed (works while offline — returns
   # empty), and bail fast if the emulator process dies (a boot crash) rather

@@ -1,5 +1,13 @@
+import 'dart:io' show Platform;
+
+import '../../config.dart';
 import '../models/relay_proof.dart';
 import 'proof_service.dart';
+import 'proof_service_desktop.dart';
+
+bool get _desktopProver =>
+    AppConfig.desktopProverEnabled &&
+    (Platform.isLinux || Platform.isWindows || Platform.isMacOS);
 
 /// Native (mobile/desktop) [ProofService] placeholder. Client-side Semaphore
 /// proving on native targets is the UNRESOLVED part of the plan (D2/Open-Q6):
@@ -22,12 +30,28 @@ class ProofServiceUnsupported implements ProofService {
       'mobile/desktop prover is pending (see plan D2 / Open-Q6).',
     );
   }
+
+  @override
+  Future<String> deriveCommitment(String identitySeed) {
+    throw UnsupportedError(
+      'Commitment derivation needs the prover, which is not available on this '
+      'platform (web, or desktop with DESKTOP_PROVER configured).',
+    );
+  }
 }
 
-/// Conditional-import factory hook (non-web build → this stub).
-ProofService createPlatformProofService() => const ProofServiceUnsupported();
+/// Conditional-import factory hook (non-web build → this stub). On desktop with
+/// the Node sidecar configured (SP4), use it; otherwise the Unsupported stub.
+ProofService createPlatformProofService() => _desktopProver
+    ? ProofServiceDesktop(
+        nodePath: AppConfig.desktopProverNode,
+        sidecarPath: AppConfig.desktopProverSidecar,
+        bundlePath: AppConfig.desktopProverBundle,
+      )
+    : const ProofServiceUnsupported();
 
-/// Native client-side proving isn't wired yet. Per the resolved scope
-/// (web + mobile voting; desktop read-only), mobile will flip this true once the
-/// WebView prover lands; desktop stays false.
-const bool platformProofServiceAvailable = false;
+/// Native client-side proving availability. Web is handled by the web impl.
+/// Desktop is true ONLY when the opt-in Node sidecar is configured; mobile stays
+/// false until the WebView prover lands. Default (unconfigured) is false, so the
+/// vote UI is unchanged everywhere it was before.
+bool get platformProofServiceAvailable => _desktopProver;
