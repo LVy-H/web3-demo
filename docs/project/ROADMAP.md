@@ -78,12 +78,36 @@ These ride alongside every phase:
 - **Tests** — no untested contract reaches `main`
 - **Standards drift** — review `standards/` quarterly; if reality has moved, update them
 
+## Phase 8: Tessera — Unified Flutter Client — **DONE**
+
+> Supersedes "Mobile-native client — responsive web only" below. One Flutter
+> codebase (`codes/mobile/`) is now the canonical client across mobile, desktop,
+> AND web. See `docs/superpowers/specs/2026-06-02-tessera-unify-flutter-design.md`.
+
+- Linux/desktop launch; Identity management; **M2 blind-vote** UI (commit-reveal);
+  Receipts via Verify; live-meeting **host + voter**; **desktop ZK proving** (Node
+  sidecar, real-vkey-verified); local **dev-signer**; **BLE/NFC** proximity seam.
+- React frontend **deprecated** (Flutter-web canonical).
+
+## Phase 9: Release readiness & product polish — **NEXT**
+
+- Cut **v0.2.0** (the Tessera milestone) per `RELEASING.md` once guardrails pass.
+- App polish: **Settings** (network/relayer/theme), browse **search/filter/
+  pagination**, responsive desktop layouts, onboarding/empty states, a11y.
+- **Mobile WebView prover** (so phones vote natively) — device-pending.
+- Decouple `codes/frontend` (address fixture + prover node_modules) → delete it.
+
+## Phase 10: Public testnet (Sepolia) + real verifier — **PLANNED**
+
+- Deploy Registry + modules to Sepolia with a **real Groth16 SemaphoreVerifier**
+  (replace the local Mock). Per-network `deployed-addresses.<net>.json`.
+- This + "no open P0/P1" is the bar to move from `0.x` to **`1.0.0`**.
+
 ## Out of scope (explicit)
 
 - DAO governance over the Registry — owner-only is intentional for v1
 - Cross-chain support — single-chain deployment per release
 - On-chain identity systems beyond Semaphore
-- Mobile-native client — responsive web only
 
 ## How to update this file
 
