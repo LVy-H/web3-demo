@@ -21,6 +21,7 @@ class ProofServiceDesktop implements ProofService {
   final Duration timeout;
 
   Process? _proc;
+  Future<void>? _starting;
   int _nextId = 1;
   final _pending = <int, Completer<Map<String, dynamic>>>{};
 
@@ -31,10 +32,34 @@ class ProofServiceDesktop implements ProofService {
     this.timeout = const Duration(seconds: 120),
   });
 
-  Future<void> _ensure() async {
-    if (_proc != null) return;
+  // Single-flight: concurrent first-callers share one spawn instead of racing
+  // two Node processes (one would be orphaned).
+  Future<void> _ensure() {
+    if (_proc != null) return Future<void>.value();
+    return _starting ??= () async {
+      try {
+        await _start();
+      } finally {
+        _starting = null;
+      }
+    }();
+  }
+
+  Future<void> _start() async {
     final p = await Process.start(nodePath, [sidecarPath, bundlePath]);
     _proc = p;
+    // If the sidecar dies, drop the handle (so the next call re-spawns) and fail
+    // any in-flight requests instead of letting their Completers hang to timeout.
+    unawaited(p.exitCode.then((_) {
+      _proc = null;
+      final inflight = List.of(_pending.values);
+      _pending.clear();
+      for (final c in inflight) {
+        if (!c.isCompleted) {
+          c.completeError(Exception('desktop prover process exited'));
+        }
+      }
+    }));
     p.stdout
         .transform(utf8.decoder)
         .transform(const LineSplitter())
@@ -107,6 +132,7 @@ class ProofServiceDesktop implements ProofService {
     return res['valid'] == true;
   }
 
+  @override
   void dispose() {
     _proc?.kill();
     _proc = null;

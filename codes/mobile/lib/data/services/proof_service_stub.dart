@@ -38,6 +38,9 @@ class ProofServiceUnsupported implements ProofService {
       'platform (web, or desktop with DESKTOP_PROVER configured).',
     );
   }
+
+  @override
+  void dispose() {}
 }
 
 /// Conditional-import factory hook (non-web build → this stub). On desktop with

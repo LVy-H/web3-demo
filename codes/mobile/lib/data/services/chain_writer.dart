@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:http/http.dart' as http;
 import 'package:wallet/wallet.dart' show EthereumAddress; // web3dart 3.x moved it here
 import 'package:web3dart/web3dart.dart';
@@ -29,9 +31,37 @@ class ChainWriter {
   bool get canSign => _creds != null;
   String? get signerAddress => _creds?.address.eip55With0x;
 
+  // Serializes sends so two concurrent callers on this shared signer can't fetch
+  // the same nonce (which would drop/replace one tx).
+  Future<void> _queue = Future<void>.value();
+
   /// Encode + sign + send a contract call, wait for the receipt, return the tx
-  /// hash. Throws if the tx reverts or no signer is configured.
+  /// hash. Throws if the tx reverts or no signer is configured. Calls are
+  /// serialized per [ChainWriter] to avoid nonce races.
   Future<String> send({
+    required String to,
+    required String abiJson,
+    required String abiName,
+    required String function,
+    List<dynamic> params = const [],
+  }) {
+    final completer = Completer<String>();
+    _queue = _queue.then((_) async {
+      try {
+        completer.complete(await _doSend(
+            to: to,
+            abiJson: abiJson,
+            abiName: abiName,
+            function: function,
+            params: params));
+      } catch (e, st) {
+        completer.completeError(e, st);
+      }
+    });
+    return completer.future;
+  }
+
+  Future<String> _doSend({
     required String to,
     required String abiJson,
     required String abiName,

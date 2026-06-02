@@ -28,6 +28,9 @@ abstract class ProofService {
   /// [identitySeed]. Pure identity math (not the SNARK) — the public id the
   /// organizer registers and the input to the live-meeting confirmation code.
   Future<String> deriveCommitment(String identitySeed);
+
+  /// Release resources (e.g. a spawned prover subprocess). No-op for most impls.
+  void dispose();
 }
 
 /// A deterministic [ProofService] that returns a fixed, pre-verified proof.
@@ -49,4 +52,7 @@ class FakeProofService implements ProofService {
   @override
   Future<String> deriveCommitment(String identitySeed) async =>
       '1234567890'; // deterministic stand-in for tests
+
+  @override
+  void dispose() {}
 }
