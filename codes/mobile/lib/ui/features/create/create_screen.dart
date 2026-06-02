@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../data/services/poll_creator.dart';
 import '../../../data/services/wallet_service.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
@@ -38,6 +39,7 @@ class _CreateScreenState extends State<CreateScreen> {
   }
 
   Future<void> _deploy(WalletService w) async {
+    final creator = context.read<PollCreator>();
     final title = _title.text.trim();
     final opts =
         _options.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
@@ -47,8 +49,12 @@ class _CreateScreenState extends State<CreateScreen> {
     }
     setState(() => _busy = true);
     try {
-      final tx = await w.createPoll(
-          title: title, description: _desc.text.trim(), options: opts);
+      // Dev-signer (DEV_PRIVATE_KEY) bypasses wallet connection for local dev.
+      final tx = creator.canSign
+          ? await creator.createAnonPoll(
+              title: title, description: _desc.text.trim(), options: opts)
+          : await w.createPoll(
+              title: title, description: _desc.text.trim(), options: opts);
       if (!mounted) return;
       _snack('Deploy sent · ${shortAddr(tx)}');
       context.canPop() ? context.pop() : context.go('/');
@@ -67,6 +73,7 @@ class _CreateScreenState extends State<CreateScreen> {
   @override
   Widget build(BuildContext context) {
     final w = context.watch<WalletService>();
+    final devSigner = context.read<PollCreator>().canSign;
     return Scaffold(
       body: DotGridBackground(
         child: SafeArea(
@@ -83,7 +90,7 @@ class _CreateScreenState extends State<CreateScreen> {
                     style: dbSans(13, 400, Db.chalkDim, height: 1.5),
                   ),
                   const SizedBox(height: 20),
-                  _walletBanner(w),
+                  _walletBanner(w, devSigner),
                   const SizedBox(height: 22),
                   _field('TITLE', _title, 'Adopt the new logo?'),
                   const SizedBox(height: 16),
@@ -95,12 +102,16 @@ class _CreateScreenState extends State<CreateScreen> {
                   const SizedBox(height: 6),
                   _addOptionButton(),
                   const SizedBox(height: 28),
-                  _deployButton(w),
+                  _deployButton(w, devSigner),
                   const SizedBox(height: 14),
                   Text(
-                    'Creating a poll signs an on-chain transaction. A phone wallet '
-                    'can only broadcast to a chain it can reach — use a public '
-                    'testnet, not the host-local Hardhat node.',
+                    devSigner
+                        ? 'Dev signer active (DEV_PRIVATE_KEY) — deploys are '
+                            'signed locally and broadcast straight to the '
+                            'configured RPC. No wallet needed.'
+                        : 'Creating a poll signs an on-chain transaction. A phone '
+                            'wallet can only broadcast to a chain it can reach — '
+                            'use a public testnet, not the host-local Hardhat node.',
                     style: dbMono(10, Db.muteDim, height: 1.6),
                   ),
                 ],
@@ -112,7 +123,25 @@ class _CreateScreenState extends State<CreateScreen> {
     );
   }
 
-  Widget _walletBanner(WalletService w) {
+  Widget _walletBanner(WalletService w, bool devSigner) {
+    if (devSigner) {
+      final addr = context.read<PollCreator>().signer ?? '';
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+          color: Db.slate,
+          border: Border(left: BorderSide(color: Db.success, width: 3)),
+        ),
+        child: Row(children: [
+          const Icon(Icons.vpn_key_outlined, size: 18, color: Db.success),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text('Dev signer active\n$addr',
+                style: dbMono(11, Db.chalkDim, height: 1.5)),
+          ),
+        ]),
+      );
+    }
     final connected = w.isConnected;
     return Container(
       padding: const EdgeInsets.all(16),
@@ -216,8 +245,9 @@ class _CreateScreenState extends State<CreateScreen> {
         ),
       );
 
-  Widget _deployButton(WalletService w) {
-    final enabled = w.isConnected && !_busy;
+  Widget _deployButton(WalletService w, bool devSigner) {
+    final canDeploy = devSigner || w.isConnected;
+    final enabled = canDeploy && !_busy;
     return SizedBox(
       width: double.infinity,
       child: FilledButton(
@@ -232,8 +262,10 @@ class _CreateScreenState extends State<CreateScreen> {
         child: Text(
           _busy
               ? 'DEPLOYING…'
-              : (w.isConnected ? 'DEPLOY POLL' : 'CONNECT WALLET FIRST'),
-          style: dbSans(13, 800, w.isConnected ? Db.chalk : Db.mute,
+              : (devSigner
+                  ? 'DEPLOY POLL (DEV SIGNER)'
+                  : (w.isConnected ? 'DEPLOY POLL' : 'CONNECT WALLET FIRST')),
+          style: dbSans(13, 800, canDeploy ? Db.chalk : Db.mute,
               letterSpacing: 1.4),
         ),
       ),

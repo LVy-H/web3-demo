@@ -12,6 +12,7 @@ import 'data/services/blind_commit_store.dart';
 import 'data/services/chain_reader.dart';
 import 'data/services/chain_writer.dart';
 import 'data/services/identity_store.dart';
+import 'data/services/poll_creator.dart';
 import 'data/services/proof_service.dart';
 import 'data/services/proof_service_factory.dart';
 import 'data/services/relay_client.dart';
@@ -100,6 +101,13 @@ class ZkVoteApp extends StatelessWidget {
             writer: writer,
             commits: ctx.read<BlindCommitStore>(),
             blindAbiJson: blindAbiJson,
+          ),
+        ),
+        Provider<PollCreator>(
+          create: (_) => PollCreator(
+            writer: writer,
+            registryAbiJson: registryAbiJson,
+            anonAbiJson: anonAbiJson,
           ),
         ),
         ChangeNotifierProvider<WalletService>(
