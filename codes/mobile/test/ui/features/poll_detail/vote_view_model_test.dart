@@ -36,8 +36,10 @@ const _proof = RelayProof(
 
 const addr = '0x1111111111111111111111111111111111111111';
 
+// The group includes FakeProofService.deriveCommitment()'s value ('1234567890')
+// so the membership pre-check passes — i.e. this fake voter is registered.
 VoteViewModel _vm(http.Client relayClient) => VoteViewModel(
-      repository: FakeRepo(const ['111', '222']),
+      repository: FakeRepo(const ['111', '1234567890', '222']),
       proofService: const FakeProofService(_proof),
       relayClient: RelayClient(baseUrl: 'http://relayer.test', client: relayClient),
       pollAddress: addr,
@@ -61,6 +63,28 @@ void main() {
     expect(body['pollAddress'], addr);
     expect(body['vote'], 2);
     expect((body['proof'] as Map)['points'], hasLength(8));
+  });
+
+  test('castVote: identity not in the group → clear "not registered" error',
+      () async {
+    var relayed = false;
+    final vm = VoteViewModel(
+      repository: FakeRepo(const ['999']), // does NOT contain '1234567890'
+      proofService: const FakeProofService(_proof),
+      relayClient: RelayClient(
+          baseUrl: 'http://relayer.test',
+          client: MockClient((r) async {
+            relayed = true;
+            return http.Response('{}', 200);
+          })),
+      pollAddress: addr,
+    );
+
+    await vm.castVote(identitySeed: 'seed', optionIndex: 1);
+
+    expect(vm.status, VoteStatus.error);
+    expect(vm.error, contains("isn't registered"));
+    expect(relayed, isFalse, reason: 'must not relay when not a member');
   });
 
   test('castVote: relayer error → error status, no txHash', () async {

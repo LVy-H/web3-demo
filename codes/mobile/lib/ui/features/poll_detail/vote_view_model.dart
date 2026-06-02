@@ -55,6 +55,18 @@ class VoteViewModel extends ChangeNotifier {
     _notify();
     try {
       final group = await _repo.fetchGroup(pollAddress);
+      // Membership pre-check: proving over a group you're not a member of fails
+      // deep in Semaphore with a cryptic "leaf at index -1". Surface a clear
+      // message instead (you can only vote anonymously once registered).
+      final commitment = await _proofService.deriveCommitment(identitySeed);
+      if (!group.contains(commitment)) {
+        error = "This identity isn't registered in this poll yet. Ask the "
+            "organizer to confirm you (scan the live-meeting QR), or have your "
+            "commitment registered first.";
+        status = VoteStatus.error;
+        _notify();
+        return;
+      }
       final proof = await _proofService.generateVoteProof(
         identitySeed: identitySeed,
         memberCommitments: group,
