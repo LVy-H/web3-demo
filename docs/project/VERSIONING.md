@@ -41,9 +41,9 @@ Each deployment is permanently identified by its on-chain address on a given cha
 
 | Network | Source of truth |
 |---------|----------------|
-| Hardhat (local) | `codes/frontend/src/deployed-addresses.json` (overwritten per `npm run deploy:local`) |
-| Sepolia (future) | `codes/frontend/src/deployed-addresses.sepolia.json` (committed) |
-| Mainnet (future) | `codes/frontend/src/deployed-addresses.mainnet.json` (committed, multisig-owned) |
+| Hardhat (local) | `codes/contracts/deployed-addresses.json` (overwritten per `npm run deploy:local`) |
+| Sepolia (future) | `codes/contracts/deployed-addresses.sepolia.json` (committed) |
+| Mainnet (future) | `codes/contracts/deployed-addresses.mainnet.json` (committed, multisig-owned) |
 
 Each per-network file should also include the git tag at which the contracts were deployed:
 ```json

@@ -33,7 +33,7 @@ The `Semaphore` contract is linked at deploy time. The artifact name is exactly 
 They're generated from `contracts/artifacts/` — but the copy is **manual** today (a `npm run copy-abis` script is referenced in `package.json` but the underlying script may be missing). When you change a Solidity ABI, you must regenerate and re-copy or the frontend breaks at runtime.
 
 ### 5. `deployed-addresses.json` is overwritten by the deploy script
-`codes/frontend/src/deployed-addresses.json` is the handoff between contracts and frontend. The deploy script writes it. On a fresh Hardhat node, the addresses are deterministic — restart the node, redeploy, and you get identical addresses. Don't edit this file by hand.
+`codes/contracts/deployed-addresses.json` is the handoff between contracts and frontend. The deploy script writes it. On a fresh Hardhat node, the addresses are deterministic — restart the node, redeploy, and you get identical addresses. Don't edit this file by hand.
 
 ### 6. Two voting modules, two state machines
 | Module | Registration | Voting | Ended |

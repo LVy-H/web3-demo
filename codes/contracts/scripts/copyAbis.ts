@@ -3,7 +3,8 @@ import path from "path";
 
 /**
  * Reads compiled Hardhat artifacts and extracts ABI arrays
- * into every consumer's src/abi/ directory (frontend + relayer).
+ * into every consumer's src/abi/ directory (the relayer; the Flutter app keeps
+ * its own committed copies under codes/mobile/assets/abi/).
  *
  * Usage:  npx ts-node scripts/copyAbis.ts
  */

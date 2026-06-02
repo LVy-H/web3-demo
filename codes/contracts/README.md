@@ -16,7 +16,7 @@ npm run deploy:local             # in another
 
 `deploy:local` deploys the full stack (with `MockSemaphoreVerifier`,
 which accepts any proof — local dev only) and writes the resulting
-addresses into `codes/frontend/src/deployed-addresses.json`, keyed by
+addresses into `codes/contracts/deployed-addresses.json`, keyed by
 chain ID. Re-deploying to a different network merges into the same
 file rather than overwriting it.
 
@@ -42,7 +42,7 @@ When real-verifier wiring lands, the runbook is:
    USE_REAL_VERIFIER=true npm run deploy:sepolia
    ```
    The script prints all deployed addresses and merges them into
-   `codes/frontend/src/deployed-addresses.json` under the
+   `codes/contracts/deployed-addresses.json` under the
    `"11155111"` (Sepolia) key.
 4. **(Optional) Verify sources on Etherscan.**
    ```bash

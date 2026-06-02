@@ -16,18 +16,21 @@ cd contracts && npm install && npm run node
 # Terminal 2 — deploy contracts to the running node
 cd contracts && npm run deploy:local
 
-# Terminal 3 — frontend dev server (http://localhost:5173)
-cd frontend && npm install && npm run dev
+# Terminal 3 — the Tessera app (Flutter; canonical client for mobile/desktop/web)
+cd mobile && flutter run -d linux   # or -d chrome, -d <android-serial>
 
 # Terminal 4 (optional) — gasless relayer (http://localhost:3001)
 cd relayer && npm install && npm start
 
-# Terminal 5 (optional) — end-to-end tests
-cd frontend && npx playwright test
+# Terminal 5 (optional) — Flutter tests
+cd mobile && flutter test
 ```
 
-`deploy:local` writes addresses to `frontend/src/deployed-addresses.json`,
-which the dev server picks up automatically.
+> Tip: `../dev-stack.sh up` does node → deploy → demo poll → relayer in one step.
+
+`deploy:local` writes addresses to `codes/contracts/deployed-addresses.json`.
+The React frontend has been removed — the Flutter app (`codes/mobile`) is the
+sole client.
 
 ## Architecture at a glance
 

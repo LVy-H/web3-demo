@@ -14,28 +14,9 @@ services:
       retries: 30
       start_period: 10s
 
-  frontend:
-    build:
-      context: ./codes/frontend
-      args:
-        # VITE_* values are baked into the bundle at build-time and run in the
-        # browser. URLs MUST be reachable from the user's browser, NOT from
-        # other compose services. `localhost` here means "the host that ran
-        # docker compose up" — which works because contracts/relayer publish
-        # their ports to 127.0.0.1.
-        VITE_NETWORK: hardhat
-        VITE_RPC_URL: http://localhost:8545
-        VITE_RELAYER_URL: http://localhost:3001
-        # Compose stack is loopback-bound DEV ONLY (see top of file). Bake
-        # the Test Account button into the prod bundle so the demo is usable
-        # without installing MetaMask. NEVER set true for non-dev builds.
-        VITE_ENABLE_TEST_ACCOUNT: "true"
-    ports:
-      # External 5173 preserved for existing docs/bookmarks; container serves
-      # on 8080 (nginx-unprivileged default).
-      - "127.0.0.1:5173:8080"
-    depends_on:
-      - contracts
+  # (The React frontend service was removed — the frontend is deleted; the
+  # canonical client is the Flutter app `codes/mobile` (run with `flutter run`,
+  # not docker). The local stack is `./dev-stack.sh up`.)
 
   # T-D: relayer service wiring. The image is built from codes/relayer/.
   # Defaults mirror codes/relayer/src/config.ts (port 3001, hardhat dev key).
