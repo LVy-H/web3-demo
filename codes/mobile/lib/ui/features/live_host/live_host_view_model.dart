@@ -42,10 +42,15 @@ class LiveHostViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _cancelTimers();
+    super.dispose();
+  }
+
+  void _cancelTimers() {
     _rotateTimer?.cancel();
     _pollTimer?.cancel();
     _tickTimer?.cancel();
-    super.dispose();
+    _rotateTimer = _pollTimer = _tickTimer = null;
   }
 
   void _notify() {
@@ -55,13 +60,16 @@ class LiveHostViewModel extends ChangeNotifier {
   int get _now => DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
   Future<void> load() async {
+    _cancelTimers(); // calling load() again must not stack timers
     state = ViewState.loading;
     error = null;
     _notify();
     try {
       _kp = await _repo.ensureOrgKeypair(pollAddress);
+      if (_disposed) return; // navigated away during the async load
       _mint();
       await _refreshQueue();
+      if (_disposed) return;
       state = ViewState.loaded;
       _rotateTimer = Timer.periodic(_rotate, (_) => _mint());
       _pollTimer = Timer.periodic(_pollEvery, (_) => _refreshQueue());

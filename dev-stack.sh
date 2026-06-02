@@ -41,8 +41,10 @@ EMU_PID=/tmp/zkvote-emulator.pid
 AVD_NAME="${ZK_AVD_NAME:-zkvote}"
 EMU_SERIAL="${ZK_EMU_SERIAL:-emulator-5554}"
 # Derive the emulator console port from the serial (emulator-5554 -> 5554) so a
-# custom ZK_EMU_SERIAL boots on the matching port instead of always 5554.
+# custom ZK_EMU_SERIAL boots on the matching port. Fall back to 5554 if the
+# serial isn't the exact emulator-<port> form (else -port would be invalid).
 EMU_PORT="${EMU_SERIAL#emulator-}"
+case "$EMU_PORT" in ''|*[!0-9]*) EMU_PORT=5554 ;; esac
 CHAIN_ID=31337
 
 rpc() { curl -s --max-time 3 -X POST http://127.0.0.1:8545 \

@@ -229,7 +229,12 @@ class _QueuePanel extends StatelessWidget {
               style: dbMono(11, Db.mute, height: 1.5))
         else
           for (final v in pending) ...[
-            _VoterRow(v: v, busy: vm.busy, onConfirm: () => vm.confirm(v)),
+            // Disabled when hosting isn't allowed (no dev signer) — confirm()
+            // would otherwise throw "No dev signer configured".
+            _VoterRow(
+                v: v,
+                busy: vm.busy || !vm.canHost,
+                onConfirm: () => vm.confirm(v)),
             const SizedBox(height: 10),
           ],
       ]),
