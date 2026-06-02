@@ -87,6 +87,32 @@ void main() {
     expect(relayed, isFalse, reason: 'must not relay when not a member');
   });
 
+  test('checkRegistration: identity in the group → isRegistered true', () async {
+    // FakeProofService.deriveCommitment() returns '1234567890', which the
+    // default _vm group contains.
+    final vm = _vm(MockClient((r) async => http.Response('{}', 200)));
+    await vm.checkRegistration('seed');
+    expect(vm.myCommitment, '1234567890');
+    expect(vm.isRegistered, isTrue);
+    expect(vm.checkingRegistration, isFalse);
+  });
+
+  test('checkRegistration: identity not in the group → isRegistered false',
+      () async {
+    final vm = VoteViewModel(
+      repository: FakeRepo(const ['999']), // no '1234567890'
+      proofService: const FakeProofService(_proof),
+      relayClient: RelayClient(
+          baseUrl: 'http://relayer.test',
+          client: MockClient((r) async => http.Response('{}', 200))),
+      pollAddress: addr,
+    );
+    await vm.checkRegistration('seed');
+    expect(vm.myCommitment, '1234567890');
+    expect(vm.isRegistered, isFalse);
+    expect(vm.checkingRegistration, isFalse);
+  });
+
   test('castVote: relayer error → error status, no txHash', () async {
     final vm = _vm(MockClient(
       (r) async => http.Response(jsonEncode({'error': 'Poll is not in voting phase'}), 500),

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -351,6 +354,7 @@ class _VoteFormState extends State<_VoteForm> {
   final _seed = TextEditingController();
   int? _selected;
   bool _fromSavedIdentity = false;
+  Timer? _regDebounce;
 
   @override
   void initState() {
@@ -365,14 +369,39 @@ class _VoteFormState extends State<_VoteForm> {
         _seed.text = saved;
         _fromSavedIdentity = true;
       });
+      // A programmatic `text =` doesn't fire onChanged, so the common path
+      // (a saved identity) would never get checked — kick it off explicitly.
+      context.read<VoteViewModel>().checkRegistration(saved);
     });
+  }
+
+  // Debounce the registration check on each keystroke; an empty field clears
+  // any prior status (and cancels a pending check) so no stale panel lingers.
+  void _onSeedChanged(String value) {
+    setState(() => _fromSavedIdentity = false);
+    _regDebounce?.cancel();
+    final seed = value.trim();
+    final vm = context.read<VoteViewModel>();
+    if (seed.isEmpty) {
+      vm.isRegistered = null;
+      vm.checkingRegistration = false;
+      return;
+    }
+    _regDebounce = Timer(const Duration(milliseconds: 600),
+        () => vm.checkRegistration(seed));
   }
 
   @override
   void dispose() {
+    _regDebounce?.cancel();
     _seed.dispose();
     super.dispose();
   }
+
+  void _snack(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(m, style: dbMono(12, Db.chalk)),
+        backgroundColor: Db.slate,
+      ));
 
   @override
   Widget build(BuildContext context) {
@@ -410,7 +439,7 @@ class _VoteFormState extends State<_VoteForm> {
           ),
         TextField(
           controller: _seed,
-          onChanged: (_) => setState(() => _fromSavedIdentity = false),
+          onChanged: _onSeedChanged,
           style: dbMono(13, Db.chalk),
           cursorColor: Db.segnale,
           decoration: InputDecoration(
@@ -429,6 +458,7 @@ class _VoteFormState extends State<_VoteForm> {
                 borderSide: BorderSide(color: Db.segnale)),
           ),
         ),
+        _RegistrationStatus(vm: vm, onCopy: _snack),
         const SizedBox(height: 14),
         _CastButton(
           busyLabel: switch (vm.status) {
@@ -461,6 +491,102 @@ class _VoteFormState extends State<_VoteForm> {
           Expanded(child: Text(text, style: dbMono(12, color))),
         ]),
       );
+}
+
+// Proactive registration status shown above the CAST button: a spinner while
+// checking, a green "ready" chip when registered, or an amber panel with the
+// voter's commitment (copyable) to hand the organizer when they're not.
+class _RegistrationStatus extends StatelessWidget {
+  final VoteViewModel vm;
+  final void Function(String) onCopy;
+  const _RegistrationStatus({required this.vm, required this.onCopy});
+
+  @override
+  Widget build(BuildContext context) {
+    if (vm.checkingRegistration) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Row(children: [
+          const SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Db.mute),
+          ),
+          const SizedBox(width: 10),
+          Text('checking…', style: dbMono(11, Db.mute)),
+        ]),
+      );
+    }
+    if (vm.isRegistered == true) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Db.success.withValues(alpha: 0.10),
+            border: Border.all(color: Db.success),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.check, size: 14, color: Db.success),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text('Registered — ready to vote',
+                  style: dbMono(11, Db.success, height: 1.4)),
+            ),
+          ]),
+        ),
+      );
+    }
+    if (vm.isRegistered == false && vm.myCommitment != null) {
+      final commitment = vm.myCommitment!;
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: const BoxDecoration(
+            color: Db.slate,
+            border: Border(left: BorderSide(color: Db.amber, width: 3)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Icon(Icons.error_outline, size: 16, color: Db.amber),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Not registered in this poll. Share your identity commitment '
+                  'with the organizer to be added:',
+                  style: dbMono(11, Db.chalkDim, height: 1.4),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 10),
+            SelectableText(commitment, style: dbMono(11, Db.chalk, height: 1.4)),
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: commitment));
+                onCopy('Commitment copied to clipboard.');
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: const BoxDecoration(
+                  color: Db.void_,
+                  border: Border.fromBorderSide(BorderSide(color: Db.rule)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.copy_outlined, size: 14, color: Db.chalkDim),
+                  const SizedBox(width: 7),
+                  Text('COPY', style: dbLabel(size: 10, color: Db.chalkDim)),
+                ]),
+              ),
+            ),
+          ]),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
 }
 
 class _OptionTile extends StatelessWidget {
