@@ -9,14 +9,6 @@ typechain/
 dist/
 dist-ssr/
 *.local
-# Playwright E2E (videos + HTML report — generated demo artifacts)
-codes/frontend/test-results/
-codes/frontend/playwright-report/
-codes/frontend/test-results-metamask/
-codes/frontend/playwright-report-metamask/
-# Synpress (real-MetaMask E2E) wallet/browser caches
-codes/frontend/.cache-synpress/
-codes/frontend/.playwright-browsers/
 # Environment
 .env
 .env.local
