@@ -13,6 +13,7 @@ import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
+import '../../widgets/results_bars.dart';
 import 'poll_detail_view_model.dart';
 import 'vote_view_model.dart';
 
@@ -264,51 +265,20 @@ class _ResultsBars extends StatelessWidget {
             Text('$total VOTES', style: dbLabel(size: 11, tracking: 0.05)),
           ]),
           const SizedBox(height: 18),
-          for (var i = 0; i < snapshot.options.length; i++) ...[
-            if (i > 0) const SizedBox(height: 16),
-            _bar(
-              snapshot.options[i],
-              i < snapshot.results.length ? snapshot.results[i] : BigInt.zero,
-              total,
-              Db.optionColor(i),
-            ),
-          ],
+          ResultsBars(
+            options: [
+              for (var i = 0; i < snapshot.options.length; i++)
+                (
+                  label: snapshot.options[i],
+                  count: i < snapshot.results.length
+                      ? snapshot.results[i]
+                      : BigInt.zero,
+                ),
+            ],
+            total: total,
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _bar(String label, BigInt count, BigInt total, Color color) {
-    final frac = total == BigInt.zero ? 0.0 : count / total;
-    final pct = (frac * 100);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic, children: [
-          Expanded(
-            child: Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: dbSans(14, 800, Db.chalk, letterSpacing: 0.3)),
-          ),
-          Text('$count', style: dbMono(20, Db.chalk, wght: 700, letterSpacing: -0.4)),
-          const SizedBox(width: 8),
-          Text('${pct.toStringAsFixed(1)}%', style: dbMono(11, Db.mute)),
-        ]),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 8,
-          child: Stack(children: [
-            const Positioned.fill(child: ColoredBox(color: Db.rule)),
-            FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: frac.clamp(0.0, 1.0),
-              child: ColoredBox(color: color),
-            ),
-          ]),
-        ),
-      ],
     );
   }
 }
