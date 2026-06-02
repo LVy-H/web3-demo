@@ -89,19 +89,61 @@ These ride alongside every phase:
   sidecar, real-vkey-verified); local **dev-signer**; **BLE/NFC** proximity seam.
 - React frontend **deprecated** (Flutter-web canonical).
 
-## Phase 9: Release readiness & product polish — **NEXT**
+## Phase 9: Release readiness & product polish — **PARTIAL**
 
 - Cut **v0.2.0** (the Tessera milestone) per `RELEASING.md` once guardrails pass.
 - App polish: **Settings** (network/relayer/theme), browse **search/filter/
-  pagination**, responsive desktop layouts, onboarding/empty states, a11y.
-- **Mobile WebView prover** (so phones vote natively) — device-pending.
-- Decouple `codes/frontend` (address fixture + prover node_modules) → delete it.
+  pagination**, responsive desktop layouts, onboarding/empty states, **results
+  charts** on poll detail (spec:
+  `docs/superpowers/specs/2026-06-02-results-charts-design.md`), a11y.
+- ~~**Mobile WebView prover** (so phones vote natively)~~ — promoted to a dedicated
+  effort: **Phase 11** (and reframed as emulator-verifiable, not device-pending).
+- ~~Decouple `codes/frontend`~~ — **DONE** (React removed; prover self-contained).
+
+## Phase 11: Close the loop on mobile — scan + native proving — **NEXT**
+
+> Spec: `docs/superpowers/specs/2026-06-02-mobile-scan-and-native-proving-design.md`.
+> Makes the live-meeting flow complete device-to-device on a phone.
+
+- **In-app QR scanner** (`mobile_scanner`) on the live-vote `needsTicket` stage —
+  scan the host's rotating QR instead of pasting; paste stays as the fallback.
+- **Native on-device proving** (`ProofServiceMobile`): a headless `webview_flutter`
+  hosting the same `zkprover.js`, with the Semaphore depth-16 artifacts **bundled**
+  (~5.2 MB). `entry.js` gets an *additive* artifact-override arg — **web/desktop
+  provers untouched** (LeanIMT root is member-derived, so depth need not match
+  across clients).
+- **Milestone gate:** M1 is a WebView-proving **go/no-go spike** (blob-URL artifact
+  injection; loopback-server fallback; native FFI is out of scope) before the rest.
+- **Verified-or-fenced:** proving is **emulator-verified** against the real Groth16
+  vkey; the **camera** is the only real-device/fenced piece (paste = verified
+  fallback). Real-device confirmation is a follow-up gate.
 
 ## Phase 10: Public testnet (Sepolia) + real verifier — **PLANNED**
 
 - Deploy Registry + modules to Sepolia with a **real Groth16 SemaphoreVerifier**
   (replace the local Mock). Per-network `deployed-addresses.<net>.json`.
 - This + "no open P0/P1" is the bar to move from `0.x` to **`1.0.0`**.
+
+## Phase 12: Richer voting types — **PLANNED (epic — own design per sub-module)**
+
+> User-requested (2026-06-02): all four. Each is a **new on-chain module** (new
+> Solidity + tests + ABIs + `PollRegistry` registration + deploy wiring) behind
+> the existing `IZkPoll`/module-type dispatch, plus a Flutter repository + screen.
+> Contracts are audit-sensitive → designed carefully, built **serially-ish** (not
+> rushed into parallel worktrees), each with `architecture/module-*.md` + tests
+> before `main`. Recommended order is smallest→largest:
+
+- **12a — Approval voting** — voters select any number of options; highest-approved
+  wins. Smallest contract delta (closest to current single-choice). **First.**
+- **12b — Ranked-choice (IRV)** — voters rank options; instant-runoff elimination.
+  Heavier tally (decide on-chain vs verifiable off-chain).
+- **12c — Weighted / quadratic** — votes carry weight (token-weighted or quadratic
+  cost); needs a weight/credit source. Governance-oriented.
+- **12d — Multi-question survey ("Google-Forms")** — a poll = several questions,
+  each single-choice / multi-select / rating. **Redefines the poll data model**;
+  largest scope; depends on lessons from 12a–12c.
+
+Each sub-module gets its own design spec before implementation.
 
 ## Out of scope (explicit)
 
