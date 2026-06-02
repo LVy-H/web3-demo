@@ -90,3 +90,5 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+      # Release guardrail: the canonical web build must compile.
+      - run: flutter build web --no-tree-shake-icons
