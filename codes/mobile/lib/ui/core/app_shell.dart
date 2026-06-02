@@ -34,7 +34,7 @@ class AppShell extends StatelessWidget {
         title: Row(mainAxisSize: MainAxisSize.min, children: [
           Container(width: 13, height: 13, color: Db.segnale),
           const SizedBox(width: 10),
-          Text('ZKVOTE', style: dbSans(15, 800, Db.chalk, letterSpacing: 2.2)),
+          Text('TESSERA', style: dbSans(15, 800, Db.chalk, letterSpacing: 2.2)),
         ]),
         actions: [
           Center(
@@ -105,6 +105,10 @@ class _NavBar extends StatelessWidget {
                   icon: Icon(Icons.add_box_outlined),
                   selectedIcon: Icon(Icons.add_box),
                   label: 'CREATE'),
+              NavigationDestination(
+                  icon: Icon(Icons.fingerprint_outlined),
+                  selectedIcon: Icon(Icons.fingerprint),
+                  label: 'IDENTITY'),
             ],
           ),
         ),
@@ -129,7 +133,7 @@ class _AppDrawer extends StatelessWidget {
                 child: Row(children: [
                   Container(width: 18, height: 18, color: Db.segnale),
                   const SizedBox(width: 12),
-                  Text('ZKVOTE', style: dbSans(20, 800, Db.chalk, letterSpacing: 1.5)),
+                  Text('TESSERA', style: dbSans(20, 800, Db.chalk, letterSpacing: 1.5)),
                 ]),
               ),
               Padding(

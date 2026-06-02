@@ -8,6 +8,7 @@ import 'config.dart';
 import 'data/repositories/poll_repository.dart';
 import 'data/repositories/verify_repository.dart';
 import 'data/services/chain_reader.dart';
+import 'data/services/identity_store.dart';
 import 'data/services/proof_service.dart';
 import 'data/services/proof_service_factory.dart';
 import 'data/services/relay_client.dart';
@@ -69,6 +70,7 @@ class ZkVoteApp extends StatelessWidget {
           dispose: (_, c) => c.close(),
         ),
         Provider<ProofService>(create: (_) => createProofService()),
+        Provider<IdentityStore>(create: (_) => SecureIdentityStore()),
         ChangeNotifierProvider<WalletService>(
           create: (_) => WalletService(
             registryAbiJson: registryAbiJson,
@@ -77,7 +79,7 @@ class ZkVoteApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp.router(
-        title: 'ZK Vote',
+        title: 'Tessera',
         debugShowCheckedModeBanner: false,
         theme: buildDarkBauhausTheme(),
         routerConfig: buildRouter(),
