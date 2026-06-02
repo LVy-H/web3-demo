@@ -74,6 +74,18 @@ set_target_properties(${BINARY_NAME}
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# --- NixOS / strict-clang compatibility -------------------------------------
+# flutter_secure_storage_linux (pulled in transitively by reown_appkit) vendors
+# an old nlohmann/json.hpp that trips -Wdeprecated-literal-operator on modern
+# clang. apply_standard_settings() promotes that to a hard error via -Werror.
+# Keep -Werror for our own code; demote just this one deprecation, and only for
+# the third-party plugin target. target_compile_options appends, so this lands
+# after the plugin's own -Werror on the command line and wins (last flag wins).
+if(TARGET flutter_secure_storage_linux_plugin)
+  target_compile_options(flutter_secure_storage_linux_plugin
+    PRIVATE -Wno-error=deprecated-literal-operator)
+endif()
+
 
 # === Installation ===
 # By default, "installing" just makes a relocatable bundle in the build
