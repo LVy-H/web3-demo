@@ -43,6 +43,7 @@ dependencies:
   # --- Data layer ---
   http: ^1.2.2              # relayer HTTP client (cross-client API, spec §2.5)
   web3dart: ^3.0.1          # JSON-RPC eth_call + ABI codec for on-chain reads
+  pointycastle: ^4.0.0      # keccak256 for M2 blind-vote commit hashes
 
   # --- UI / state / routing (per flutter-* architecture skills) ---
   provider: ^6.1.2          # ChangeNotifier DI (MVVM)
