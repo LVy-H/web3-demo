@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -23,6 +24,44 @@ class FakeRepo implements PollRepository {
   Future<PollSnapshot> fetchPoll(String address) => throw UnimplementedError();
   @override
   Future<PollSummary> fetchSummary(String address) => throw UnimplementedError();
+}
+
+/// A [PollRepository] whose [fetchGroup] throws, to exercise the failure path
+/// of [VoteViewModel.checkRegistration].
+class ThrowingRepo implements PollRepository {
+  @override
+  Future<List<String>> fetchGroup(String address) async =>
+      throw Exception('boom');
+  @override
+  Future<List<PollInfo>> fetchPolls() => throw UnimplementedError();
+  @override
+  Future<PollSnapshot> fetchPoll(String address) => throw UnimplementedError();
+  @override
+  Future<PollSummary> fetchSummary(String address) => throw UnimplementedError();
+}
+
+/// A [ProofService] whose [deriveCommitment] resolves only when [completer]
+/// completes — lets a test suspend a checkRegistration() mid-flight so a
+/// superseding clearRegistration() can interleave deterministically.
+class GatedProofService implements ProofService {
+  final RelayProof proof;
+  final Completer<String> completer;
+  const GatedProofService(this.proof, this.completer);
+
+  @override
+  Future<String> deriveCommitment(String identitySeed) => completer.future;
+
+  @override
+  Future<RelayProof> generateVoteProof({
+    required String identitySeed,
+    required List<String> memberCommitments,
+    required int message,
+    required String scope,
+  }) async =>
+      proof;
+
+  @override
+  void dispose() {}
 }
 
 const _proof = RelayProof(
@@ -110,6 +149,52 @@ void main() {
     await vm.checkRegistration('seed');
     expect(vm.myCommitment, '1234567890');
     expect(vm.isRegistered, isFalse);
+    expect(vm.checkingRegistration, isFalse);
+  });
+
+  test(
+      'checkRegistration: lookup throws → isRegistered null, checking false',
+      () async {
+    final vm = VoteViewModel(
+      repository: ThrowingRepo(), // fetchGroup throws
+      proofService: const FakeProofService(_proof),
+      relayClient: RelayClient(
+          baseUrl: 'http://relayer.test',
+          client: MockClient((r) async => http.Response('{}', 200))),
+      pollAddress: addr,
+    );
+
+    await vm.checkRegistration('seed');
+
+    expect(vm.isRegistered, isNull, reason: 'failure leaves status unknown');
+    expect(vm.checkingRegistration, isFalse, reason: 'spinner must clear');
+  });
+
+  test(
+      'checkRegistration: a stale result cannot resurrect a cleared panel',
+      () async {
+    // deriveCommitment is gated on this completer so the first check suspends
+    // at its first await; we then clear (superseding it) and let the stale
+    // result arrive — it must be dropped, not written.
+    final gate = Completer<String>();
+    final vm = VoteViewModel(
+      repository: FakeRepo(const ['111', '1234567890', '222']),
+      proofService: GatedProofService(_proof, gate),
+      relayClient: RelayClient(
+          baseUrl: 'http://relayer.test',
+          client: MockClient((r) async => http.Response('{}', 200))),
+      pollAddress: addr,
+    );
+
+    final pending = vm.checkRegistration('seed'); // suspends at deriveCommitment
+    expect(vm.checkingRegistration, isTrue);
+
+    vm.clearRegistration(); // bumps token, nulls fields
+    gate.complete('1234567890'); // stale result now arrives
+    await pending; // resumes, hits the token guard, returns without writing
+
+    expect(vm.myCommitment, isNull, reason: 'stale commitment must not return');
+    expect(vm.isRegistered, isNull, reason: 'cleared panel stays cleared');
     expect(vm.checkingRegistration, isFalse);
   });
 

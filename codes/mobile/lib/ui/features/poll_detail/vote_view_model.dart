@@ -35,6 +35,11 @@ class VoteViewModel extends ChangeNotifier {
   bool? isRegistered; // null = unknown / check failed
   bool checkingRegistration = false;
 
+  // Monotonic token: each checkRegistration() call captures the current value;
+  // a late result from a superseded call (re-typed seed, or cleared field) is
+  // dropped so it can't resurrect/overwrite newer state.
+  int _regToken = 0;
+
   bool get isBusy =>
       status == VoteStatus.proving || status == VoteStatus.relaying;
 
@@ -57,16 +62,35 @@ class VoteViewModel extends ChangeNotifier {
   Future<void> checkRegistration(String identitySeed) async {
     checkingRegistration = true;
     _notify();
+    final token = ++_regToken;
     try {
-      myCommitment = await _proofService.deriveCommitment(identitySeed);
+      // Capture into locals and gate ALL state writes on the token AFTER the
+      // awaits — a superseded call resumes here with a stale result and must
+      // not clobber newer state (type→clear, or type A→type B).
+      final commitment = await _proofService.deriveCommitment(identitySeed);
       final group = await _repo.fetchGroup(pollAddress);
-      isRegistered = group.contains(myCommitment);
+      if (token != _regToken) return;
+      myCommitment = commitment;
+      isRegistered = group.contains(commitment);
     } catch (_) {
-      isRegistered = null;
+      if (token == _regToken) isRegistered = null;
     } finally {
-      checkingRegistration = false;
-      _notify();
+      if (token == _regToken) {
+        checkingRegistration = false;
+        _notify();
+      }
     }
+  }
+
+  /// Clear any registration status (e.g. the seed field was emptied) and
+  /// supersede any in-flight [checkRegistration] so its late result can't
+  /// resurrect the panel.
+  void clearRegistration() {
+    _regToken++; // supersede any in-flight check
+    myCommitment = null;
+    isRegistered = null;
+    checkingRegistration = false;
+    _notify();
   }
 
   Future<void> castVote({

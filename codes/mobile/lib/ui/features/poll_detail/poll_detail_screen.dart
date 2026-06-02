@@ -371,7 +371,8 @@ class _VoteFormState extends State<_VoteForm> {
       });
       // A programmatic `text =` doesn't fire onChanged, so the common path
       // (a saved identity) would never get checked — kick it off explicitly.
-      context.read<VoteViewModel>().checkRegistration(saved);
+      // Trim for symmetry with _onSeedChanged and castVote (both .trim()).
+      context.read<VoteViewModel>().checkRegistration(saved.trim());
     });
   }
 
@@ -383,8 +384,7 @@ class _VoteFormState extends State<_VoteForm> {
     final seed = value.trim();
     final vm = context.read<VoteViewModel>();
     if (seed.isEmpty) {
-      vm.isRegistered = null;
-      vm.checkingRegistration = false;
+      vm.clearRegistration();
       return;
     }
     _regDebounce = Timer(const Duration(milliseconds: 600),
