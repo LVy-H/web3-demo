@@ -75,9 +75,11 @@ class _IdentityScreenState extends State<IdentityScreen> {
                       _seedPanel(vm.seed!),
                       const SizedBox(height: 18),
                       _dangerButton('CLEAR IDENTITY', () async {
-                        await context.read<IdentityViewModel>().clear();
+                        final vm = context.read<IdentityViewModel>();
+                        await vm.clear();
+                        if (!mounted) return;
                         setState(() => _revealed = false);
-                        _snack('Identity cleared.');
+                        if (vm.error == null) _snack('Identity cleared.');
                       }),
                     ] else
                       _createButton(),
@@ -169,8 +171,10 @@ class _IdentityScreenState extends State<IdentityScreen> {
         width: double.infinity,
         child: FilledButton(
           onPressed: () async {
-            await context.read<IdentityViewModel>().createNew();
-            _snack('New identity created.');
+            final vm = context.read<IdentityViewModel>();
+            await vm.createNew();
+            if (!mounted) return;
+            if (vm.error == null) _snack('New identity created.');
           },
           style: FilledButton.styleFrom(
             backgroundColor: Db.segnale,
@@ -228,9 +232,10 @@ class _IdentityScreenState extends State<IdentityScreen> {
           width: double.infinity,
           child: OutlinedButton(
             onPressed: () async {
-              final ok =
-                  await context.read<IdentityViewModel>().import(_import.text);
-              if (ok) {
+              final vm = context.read<IdentityViewModel>();
+              final ok = await vm.import(_import.text);
+              if (!mounted) return;
+              if (ok && vm.error == null) {
                 _import.clear();
                 setState(() => _revealed = false);
                 _snack('Identity imported.');

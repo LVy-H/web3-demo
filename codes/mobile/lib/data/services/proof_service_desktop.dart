@@ -81,11 +81,15 @@ class ProofServiceDesktop implements ProofService {
 
   Future<Map<String, dynamic>> _send(Map<String, dynamic> req) async {
     await _ensure();
+    final proc = _proc;
+    if (proc == null) {
+      throw Exception('desktop prover exited during start');
+    }
     final id = _nextId++;
     req['id'] = id;
     final c = Completer<Map<String, dynamic>>();
     _pending[id] = c;
-    _proc!.stdin.writeln(jsonEncode(req));
+    proc.stdin.writeln(jsonEncode(req));
     return c.future.timeout(timeout, onTimeout: () {
       _pending.remove(id);
       throw TimeoutException('desktop prover timed out after $timeout');

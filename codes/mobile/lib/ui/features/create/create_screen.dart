@@ -59,7 +59,7 @@ class _CreateScreenState extends State<CreateScreen> {
       _snack('Deploy sent · ${shortAddr(tx)}');
       context.canPop() ? context.pop() : context.go('/');
     } catch (e) {
-      _snack('Deploy failed: $e');
+      if (mounted) _snack('Deploy failed: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }

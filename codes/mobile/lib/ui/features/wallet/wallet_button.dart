@@ -19,8 +19,9 @@ class _WalletButtonState extends State<WalletButton> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(
-        (_) => context.read<WalletService>().ensureInit(context));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<WalletService>().ensureInit(context);
+    });
   }
 
   @override
