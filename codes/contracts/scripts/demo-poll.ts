@@ -24,7 +24,7 @@ const FIXTURE = path.resolve(
 
 async function main() {
   const chainId = Number((await ethers.provider.getNetwork()).chainId);
-  const addrPath = path.resolve(__dirname, "../../frontend/src/deployed-addresses.json");
+  const addrPath = path.resolve(__dirname, "../deployed-addresses.json");
   const all = JSON.parse(fs.readFileSync(addrPath, "utf-8"));
   const entry = all[String(chainId)];
   if (!entry) throw new Error(`No deployed addresses for chainId ${chainId}`);

@@ -1,9 +1,17 @@
 {
-  "name": "zkvote-web-prover",
+  "name": "tessera-web-prover",
   "private": true,
   "type": "module",
-  "description": "Semaphore v4 proof bundle for the Flutter web ProofService (built with vite). Reuses the frontend's installed deps via a node_modules symlink; see README.",
+  "description": "Self-contained Semaphore v4 proof bundle for Tessera's web + desktop ProofService. Build: `npm install && npm run build` -> ../web/zkprover.js. Decoupled from the deprecated React frontend.",
   "scripts": {
     "build": "vite build"
+  },
+  "dependencies": {
+    "@semaphore-protocol/group": "^4.14.2",
+    "@semaphore-protocol/identity": "^4.14.2",
+    "@semaphore-protocol/proof": "^4.14.2"
+  },
+  "devDependencies": {
+    "vite": "^8.0.12"
   }
 }

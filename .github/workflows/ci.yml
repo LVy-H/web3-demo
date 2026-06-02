@@ -32,29 +32,8 @@ jobs:
       - run: npm test
         continue-on-error: true
 
-  # TODO(P3-16): the frontend job is provisional. The frontend's package.json,
-  # tsconfig*.json, eslint.config.js, and vite.config.ts are currently
-  # untracked on main (same Sprint 2 modernize-foundations dependency as
-  # above). Until those land, every step here will fail at `npm ci`.
-  # Job-level `continue-on-error: true` keeps the overall CI run green so
-  # the contracts side isn't blocked. Drop the flag once the frontend
-  # toolchain is tracked.
-  frontend:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    defaults:
-      run:
-        working-directory: codes/frontend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: codes/frontend/package-lock.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npx tsc --noEmit -p tsconfig.app.json
+  # (The React/Vite frontend job was removed — the frontend is deprecated and
+  # deleted; the Flutter app `mobile` job below is the canonical web/client gate.)
 
   relayer:
     runs-on: ubuntu-latest

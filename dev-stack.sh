@@ -29,7 +29,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTRACTS="$ROOT/codes/contracts"
 RELAYER="$ROOT/codes/relayer"
 MOBILE="$ROOT/codes/mobile"
-ADDRESSES="$ROOT/codes/frontend/src/deployed-addresses.json"
+ADDRESSES="$ROOT/codes/contracts/deployed-addresses.json"
 
 NODE_LOG=/tmp/zkvote-hardhat.log
 RELAYER_LOG=/tmp/zkvote-relayer.log
