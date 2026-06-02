@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!--
+  Headless WebView prover host for the mobile ProofService (Phase 11, M1 spike).
+  Loaded by webview_flutter; includes the SAME web/zkprover.js bundle the web
+  build uses. Dart drives it via runJavaScript and receives results on the
+  `Prover` JavaScript channel (postMessage is string-only, so everything crosses
+  as a JSON string). No network needed: artifacts are handed in as blob: or
+  http://127.0.0.1 URLs that snarkjs fetch()es locally.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="zkprover.js"></script>
+    <script>
+      // Post a tagged JSON message back to Dart. Channel name must match the
+      // JavaScriptChannel registered in proof_webview_host.dart.
+      function _post(obj) {
+        if (window.Prover && window.Prover.postMessage) {
+          window.Prover.postMessage(JSON.stringify(obj));
+        }
+      }
+
+      // Build a blob: URL from base64 bytes handed over by Dart. Returns the URL
+      // (the WebView's own origin), which snarkjs can fetch() locally.
+      function blobUrlFromBase64(b64, mime) {
+        const bin = atob(b64);
+        const len = bin.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+        return URL.createObjectURL(new Blob([bytes], { type: mime }));
+      }
+
+      // Generate a proof. `artifacts` is {wasm, zkey} URLs (blob: or http://).
+      // Posts {tag:'proof', id, ok, proof|error} back to Dart.
+      async function runProof(id, seed, members, message, scope, depth, artifacts) {
+        try {
+          const json = await window.zkGenerateVoteProof(
+            seed, members, Number(message), scope,
+            { depth: depth, wasm: artifacts.wasm, zkey: artifacts.zkey }
+          );
+          _post({ tag: 'proof', id: id, ok: true, proof: JSON.parse(json) });
+        } catch (e) {
+          _post({ tag: 'proof', id: id, ok: false, error: String((e && e.message) || e) });
+        }
+      }
+
+      // Signal readiness once the bundle's globals are present.
+      function announceReady() {
+        const ok = typeof window.zkGenerateVoteProof === 'function';
+        _post({ tag: 'ready', ok: ok });
+      }
+      window.addEventListener('load', announceReady);
+    </script>
+  </head>
+  <body></body>
+</html>

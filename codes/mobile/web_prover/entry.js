@@ -14,12 +14,24 @@ import { generateProof, verifyProof } from '@semaphore-protocol/proof'
  * @param {string[]} memberCommitments  decimal-string commitments (the group)
  * @param {number|string} message  option index
  * @param {string} scope           poll address (0x-hex)
+ * @param {{depth?: number, wasm?: string, zkey?: string}} [opts]
+ *   OPTIONAL, mobile-only. When present, fixes the circuit tree `depth` and
+ *   loads the Groth16 `wasm`/`zkey` from the given URLs (blob: or http://
+ *   localhost) instead of fetching them from the PSE CDN. Web/desktop callers
+ *   pass nothing → behaviour is byte-identical to before (CDN fetch, dynamic
+ *   depth). Purely additive: this is the only prover-bundle change for the
+ *   mobile WebView prover (see 2026-06-02-mobile-scan-and-native-proving-design).
  * @returns {Promise<string>} JSON matching Dart RelayProof
  */
-async function zkGenerateVoteProof(identitySeed, memberCommitments, message, scope) {
+async function zkGenerateVoteProof(identitySeed, memberCommitments, message, scope, opts) {
   const id = new Identity(identitySeed)
   const group = new Group(memberCommitments.map((c) => BigInt(c)))
-  const proof = await generateProof(id, group, Number(message), scope)
+  // undefined (never null) so generateProof's own defaults kick in for web/desktop.
+  const depth = opts?.depth
+  const artifacts = (opts?.wasm && opts?.zkey)
+    ? { wasm: opts.wasm, zkey: opts.zkey }
+    : undefined
+  const proof = await generateProof(id, group, Number(message), scope, depth, artifacts)
   return JSON.stringify({
     merkleTreeDepth: proof.merkleTreeDepth,
     merkleTreeRoot: proof.merkleTreeRoot.toString(),
