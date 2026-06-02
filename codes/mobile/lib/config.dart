@@ -38,4 +38,21 @@ abstract class AppConfig {
   ///   `--dart-define=DEV_PRIVATE_KEY=0x...` (a Hardhat account key)
   static const devPrivateKey =
       String.fromEnvironment('DEV_PRIVATE_KEY', defaultValue: '');
+
+  // ── Desktop ZK prover (SP4) — opt-in Node sidecar ──────────────────────────
+  // Lets the desktop app (Linux/Windows/macOS) cast Semaphore votes by spawning
+  // Node on the SAME web/zkprover.js bundle the web build uses. OFF unless both
+  // paths are set, so it never changes default web/mobile/desktop behavior. Set:
+  //   --dart-define=DESKTOP_PROVER_SIDECAR=/abs/web_prover/desktop_prover.mjs
+  //   --dart-define=DESKTOP_PROVER_BUNDLE=/abs/web/zkprover.js
+  static const desktopProverNode =
+      String.fromEnvironment('DESKTOP_PROVER_NODE', defaultValue: 'node');
+  static const desktopProverSidecar =
+      String.fromEnvironment('DESKTOP_PROVER_SIDECAR', defaultValue: '');
+  static const desktopProverBundle =
+      String.fromEnvironment('DESKTOP_PROVER_BUNDLE', defaultValue: '');
+
+  /// Desktop proving is enabled only when the sidecar + bundle paths are set.
+  static bool get desktopProverEnabled =>
+      desktopProverSidecar.isNotEmpty && desktopProverBundle.isNotEmpty;
 }
