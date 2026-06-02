@@ -73,6 +73,31 @@ Re-ordered for **visible-first**:
 - `ProofService` interface with per-platform impls (web ✅ / mobile webview /
   desktop Node-sidecar). Conditional `proof_service_factory` selects the impl.
 
+## Progress log
+
+- **SP1 — Linux launch ✅** (commit 2009430). Fixed the strict-clang
+  `flutter_secure_storage_linux` `-Werror` blocker; app launches + the
+  browse→detail→verify integration test passes on `-d linux` vs the live chain.
+- **SP2 — Identity ✅** (d0b958c, ff46f08). IDENTITY tab (create/import/reveal/
+  copy/clear) via `flutter_secure_storage`; vote form prefills the saved seed.
+  Verified on `-d linux` against the real secure store.
+- **Rename → Tessera ✅** (d0c738c). Dart package `zkvote_mobile`→`tessera`, plus
+  Linux/web/Windows display + build identity. Android `applicationId`
+  (`com.zkvote.mobile`) + iOS/macOS bundle ids deliberately left (harness/memory
+  coupling) — revisit when those targets are built.
+- **SP3 — M2 blind-vote ✅** (7fd7fdc, e59a5a4, 7291b24, a078b0b, 376c280).
+  commit-hash crypto (viem-golden), `ChainWriter` dev-signer, blind reads +
+  `BlindRepository` + `BlindCommitStore`, `BlindPollScreen` + module routing.
+  Full commit-reveal lifecycle (create→register→startVoting→commit→endVoting→
+  reveal→tally) **lands on-chain** via the dev-signer (integration-tested). M3
+  Receipts: covered by the existing Verify screen (`isNullifierUsed`); a
+  shareable receipt artifact is a later nicety.
+- **Dev-signer wallet bypass ✅** (e8df790). `DEV_PRIVATE_KEY` makes Create (and
+  all blind actions) sign locally — no WalletConnect needed for local dev.
+- **Next:** SP5 live-meeting (QR scan + ephemeral identity + face-to-face code +
+  organizer dashboard), then SP4 desktop Node-sidecar prover (anon/M1 + live ZK),
+  SP6 BLE/NFC, SP7 retire React.
+
 ## Done-when (this effort)
 
 - App **launches and renders on Linux desktop** against the local stack.
