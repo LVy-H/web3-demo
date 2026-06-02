@@ -1,6 +1,8 @@
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'data/repositories/approval_repository.dart';
 import 'data/repositories/blind_repository.dart';
 import 'data/repositories/live_host_repository.dart';
 import 'data/repositories/poll_repository.dart';
@@ -10,6 +12,8 @@ import 'data/services/identity_store.dart';
 import 'data/services/proof_service.dart';
 import 'data/services/relay_client.dart';
 import 'ui/core/app_shell.dart';
+import 'ui/features/approval_poll/approval_poll_screen.dart';
+import 'ui/features/approval_poll/approval_vote_view_model.dart';
 import 'ui/features/blind_poll/blind_poll_screen.dart';
 import 'ui/features/blind_poll/blind_poll_view_model.dart';
 import 'ui/features/live_host/live_host_screen.dart';
@@ -27,6 +31,56 @@ import 'ui/features/poll_detail/poll_detail_view_model.dart';
 import 'ui/features/poll_detail/vote_view_model.dart';
 import 'ui/features/verify/verify_screen.dart';
 import 'ui/features/verify/verify_view_model.dart';
+
+/// Build the poll-detail surface for `/poll/:address`, dispatching on the
+/// `?module=` query parameter that Browse passes from the on-chain `PollInfo`.
+/// Each module type gets its own screen + view-model; the default is the M1
+/// anon single-choice screen.
+///
+/// This is a top-level function (not an inline route closure) so a router test
+/// can drive the REAL dispatch — the `approval-vote` branch in particular MUST
+/// route to [ApprovalPollScreen]; if it fell through to the anon screen it would
+/// cast a single-index vote instead of a bitmask ballot (wrong ballot).
+Widget buildPollDetail(BuildContext context, GoRouterState state) {
+  final address = state.pathParameters['address']!;
+  final module = state.uri.queryParameters['module'];
+  // Blind (commit-reveal) polls.
+  if (module == 'blind-vote') {
+    return ChangeNotifierProvider(
+      create: (ctx) => BlindPollViewModel(ctx.read<BlindRepository>(), address),
+      child: BlindPollScreen(address: address),
+    );
+  }
+  // Approval (multi-select bitmask ballot) polls.
+  if (module == 'approval-vote') {
+    return ChangeNotifierProvider(
+      create: (ctx) => ApprovalVoteViewModel(
+        repository: ctx.read<ApprovalRepository>(),
+        proofService: ctx.read<ProofService>(),
+        relayClient: ctx.read<RelayClient>(),
+        pollAddress: address,
+      ),
+      child: ApprovalPollScreen(address: address),
+    );
+  }
+  // Default: M1 anon single-choice.
+  return MultiProvider(
+    providers: [
+      ChangeNotifierProvider(
+        create: (ctx) => PollDetailViewModel(ctx.read<PollRepository>(), address),
+      ),
+      ChangeNotifierProvider(
+        create: (ctx) => VoteViewModel(
+          repository: ctx.read<PollRepository>(),
+          proofService: ctx.read<ProofService>(),
+          relayClient: ctx.read<RelayClient>(),
+          pollAddress: address,
+        ),
+      ),
+    ],
+    child: PollDetailScreen(address: address),
+  );
+}
 
 /// App routes (go_router). A StatefulShellRoute gives the mobile app a
 /// persistent bottom NavigationBar (Polls / Verify / Create) + Drawer via
@@ -51,36 +105,7 @@ GoRouter buildRouter() => GoRouter(
                   routes: [
                     GoRoute(
                       path: 'poll/:address',
-                      builder: (context, state) {
-                        final address = state.pathParameters['address']!;
-                        // Dispatch by module type (passed by Browse). Blind
-                        // (commit-reveal) polls get their own detail surface.
-                        if (state.uri.queryParameters['module'] ==
-                            'blind-vote') {
-                          return ChangeNotifierProvider(
-                            create: (ctx) => BlindPollViewModel(
-                                ctx.read<BlindRepository>(), address),
-                            child: BlindPollScreen(address: address),
-                          );
-                        }
-                        return MultiProvider(
-                          providers: [
-                            ChangeNotifierProvider(
-                              create: (ctx) => PollDetailViewModel(
-                                  ctx.read<PollRepository>(), address),
-                            ),
-                            ChangeNotifierProvider(
-                              create: (ctx) => VoteViewModel(
-                                repository: ctx.read<PollRepository>(),
-                                proofService: ctx.read<ProofService>(),
-                                relayClient: ctx.read<RelayClient>(),
-                                pollAddress: address,
-                              ),
-                            ),
-                          ],
-                          child: PollDetailScreen(address: address),
-                        );
-                      },
+                      builder: buildPollDetail,
                     ),
                   ],
                 ),

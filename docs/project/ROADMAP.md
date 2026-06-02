@@ -94,7 +94,8 @@ These ride alongside every phase:
 - Cut **v0.2.0** (the Tessera milestone) per `RELEASING.md` once guardrails pass.
 - App polish: **Settings** (network/relayer/theme), browse **search/filter/
   pagination**, responsive desktop layouts, onboarding/empty states, **results
-  charts** on poll detail (spec:
+  charts** on poll detail — **DONE** (themed tally bars `ResultsBars` on M1/M2,
+  reused by M3 approval; spec:
   `docs/superpowers/specs/2026-06-02-results-charts-design.md`), a11y.
 - ~~**Mobile WebView prover** (so phones vote natively)~~ — promoted to a dedicated
   effort: **Phase 11** (and reframed as emulator-verifiable, not device-pending).
@@ -124,7 +125,7 @@ These ride alongside every phase:
   (replace the local Mock). Per-network `deployed-addresses.<net>.json`.
 - This + "no open P0/P1" is the bar to move from `0.x` to **`1.0.0`**.
 
-## Phase 12: Richer voting types — **PLANNED (epic — own design per sub-module)**
+## Phase 12: Richer voting types — **PARTIAL (epic — own design per sub-module)**
 
 > User-requested (2026-06-02): all four. Each is a **new on-chain module** (new
 > Solidity + tests + ABIs + `PollRegistry` registration + deploy wiring) behind
@@ -133,10 +134,15 @@ These ride alongside every phase:
 > rushed into parallel worktrees), each with `architecture/module-*.md` + tests
 > before `main`. Recommended order is smallest→largest:
 
-- **12a — Approval voting** — voters select any number of options; highest-approved
-  wins. Smallest contract delta (closest to current single-choice). **First.**
+- **12a — Approval voting** — voters select any number of options; the tally
+  counts per-option approvals. **DONE / SHIPPED** — backend (`ZkApprovalVoting`
+  bitmask-ballot module + `approval-vote` relayer route, spec:
+  `docs/superpowers/specs/2026-06-02-approval-voting-design.md`) **and** the
+  Flutter UI (module-type picker in Create, `?module=approval-vote` router
+  dispatch → multi-select checkbox `ApprovalPollScreen` → bitmask cast, results
+  as per-option approvals over the voter count).
 - **12b — Ranked-choice (IRV)** — voters rank options; instant-runoff elimination.
-  Heavier tally (decide on-chain vs verifiable off-chain).
+  Heavier tally (decide on-chain vs verifiable off-chain). **NEXT** in the epic.
 - **12c — Weighted / quadratic** — votes carry weight (token-weighted or quadratic
   cost); needs a weight/credit source. Governance-oriented.
 - **12d — Multi-question survey ("Google-Forms")** — a poll = several questions,

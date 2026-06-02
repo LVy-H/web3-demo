@@ -64,6 +64,26 @@ void main() {
       expect(find.text('30.0%'), findsOneWidget);
     });
 
+    testWidgets('count exceeding total clamps to widthFactor 1.0 / 100.0%',
+        (tester) async {
+      // Approval polls pass total = voter count, but per-option APPROVALS can
+      // exceed it (a voter approving many options). The bar must clamp to full
+      // width and 100.0%, never overflow past 1.0.
+      await tester.pumpWidget(_host(
+        [_opt('A', 7), _opt('B', 2)],
+        total: BigInt.from(4), // 4 voters, but 7 approvals for A
+      ));
+      await tester.pumpAndSettle();
+
+      final fills = tester
+          .widgetList<FractionallySizedBox>(find.byType(FractionallySizedBox))
+          .toList();
+      expect(fills[0].widthFactor, closeTo(1.0, 1e-9)); // 7/4 clamped to 1.0
+      expect(find.text('100.0%'), findsOneWidget);
+      // The under-total option is unaffected.
+      expect(fills[1].widthFactor, closeTo(0.5, 1e-9)); // 2/4
+    });
+
     testWidgets('highlights the single leader', (tester) async {
       await tester.pumpWidget(_host([
         _opt('Winner', 5),

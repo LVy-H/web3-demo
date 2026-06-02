@@ -19,6 +19,13 @@ class CreateScreen extends StatefulWidget {
   State<CreateScreen> createState() => _CreateScreenState();
 }
 
+/// Module type the Create screen can deploy. `anonVote` is the single-choice
+/// default; `approvalVote` is the multi-select bitmask module. `blindVote` is
+/// shown for discoverability but DISABLED here — its `initialize` needs a
+/// reveal-window param the mobile create flow doesn't collect yet, so deploying
+/// it from mobile is web-only (selecting it must never mis-deploy an anon poll).
+enum _ModuleType { anonVote, approvalVote, blindVote }
+
 class _CreateScreenState extends State<CreateScreen> {
   final _title = TextEditingController();
   final _desc = TextEditingController();
@@ -26,6 +33,7 @@ class _CreateScreenState extends State<CreateScreen> {
     TextEditingController(text: 'Yes'),
     TextEditingController(text: 'No'),
   ];
+  _ModuleType _module = _ModuleType.anonVote;
   bool _busy = false;
 
   @override
@@ -50,11 +58,22 @@ class _CreateScreenState extends State<CreateScreen> {
     setState(() => _busy = true);
     try {
       // Dev-signer (DEV_PRIVATE_KEY) bypasses wallet connection for local dev.
-      final tx = creator.canSign
-          ? await creator.createAnonPoll(
-              title: title, description: _desc.text.trim(), options: opts)
-          : await w.createPoll(
-              title: title, description: _desc.text.trim(), options: opts);
+      // Module dispatch: approval-vote deploys the bitmask module; everything
+      // else is the anon single-choice module. (Blind is disabled in the picker
+      // so it can't reach here.)
+      final String tx;
+      if (creator.canSign) {
+        tx = _module == _ModuleType.approvalVote
+            ? await creator.createApprovalPoll(
+                title: title, description: _desc.text.trim(), options: opts)
+            : await creator.createAnonPoll(
+                title: title, description: _desc.text.trim(), options: opts);
+      } else {
+        // The wallet path only deploys anon-vote today; approval over the wallet
+        // path is a follow-up (the dev-signer is the supported approval create).
+        tx = await w.createPoll(
+            title: title, description: _desc.text.trim(), options: opts);
+      }
       if (!mounted) return;
       _snack('Deploy sent · ${shortAddr(tx)}');
       context.canPop() ? context.pop() : context.go('/');
@@ -86,11 +105,15 @@ class _CreateScreenState extends State<CreateScreen> {
                   Text('CREATE', style: dbHero(48)),
                   const SizedBox(height: 10),
                   Text(
-                    'Deploy an anonymous anon-vote poll, signed by your wallet.',
+                    'Deploy an anonymous poll — pick the voting type, then sign.',
                     style: dbSans(13, 400, Db.chalkDim, height: 1.5),
                   ),
                   const SizedBox(height: 20),
                   _walletBanner(w, devSigner),
+                  const SizedBox(height: 22),
+                  Text('VOTING TYPE', style: dbLabel(size: 10, tracking: 0.16)),
+                  const SizedBox(height: 10),
+                  _modulePicker(devSigner),
                   const SizedBox(height: 22),
                   _field('TITLE', _title, 'Adopt the new logo?'),
                   const SizedBox(height: 16),
@@ -118,6 +141,97 @@ class _CreateScreenState extends State<CreateScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  // Module-type picker: anon (default) / approval / blind. Approval deploys the
+  // multi-select bitmask module (the `approval-vote` string Browse uses to
+  // dispatch the approval screen). Blind is shown but disabled — see [_ModuleType].
+  // Approval create needs the dev-signer (the wallet path is anon-only today),
+  // so when [devSigner] is false the approval tile is also disabled with a hint.
+  Widget _modulePicker(bool devSigner) {
+    final tiles = <Widget>[
+      _moduleTile(
+        type: _ModuleType.anonVote,
+        title: 'Anonymous — single choice',
+        subtitle: 'Pick exactly one option. (anon-vote)',
+        icon: Icons.radio_button_checked,
+        accent: Db.segnale,
+        enabled: true,
+      ),
+      _moduleTile(
+        type: _ModuleType.approvalVote,
+        title: 'Approval — multi-select',
+        subtitle: devSigner
+            ? 'Approve any number of options; the tally counts every approval. '
+                '(approval-vote)'
+            : 'Needs the dev-signer to deploy from mobile. (approval-vote)',
+        icon: Icons.check_box,
+        accent: Db.oltremare,
+        enabled: devSigner,
+      ),
+      _moduleTile(
+        type: _ModuleType.blindVote,
+        title: 'Blind — commit-reveal',
+        subtitle: 'Create on the web app (needs a reveal window). (blind-vote)',
+        icon: Icons.lock_clock,
+        accent: Db.amber,
+        enabled: false,
+      ),
+    ];
+    return Column(children: [
+      for (var i = 0; i < tiles.length; i++) ...[
+        if (i > 0) const SizedBox(height: 8),
+        tiles[i],
+      ],
+    ]);
+  }
+
+  Widget _moduleTile({
+    required _ModuleType type,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accent,
+    required bool enabled,
+  }) {
+    final selected = _module == type && enabled;
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.5,
+      child: InkWell(
+        onTap: enabled ? () => setState(() => _module = type) : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: selected ? accent.withValues(alpha: 0.10) : Db.slate3,
+            border: Border.all(
+                color: selected ? accent : Db.rule, width: selected ? 2 : 1),
+          ),
+          child: Row(children: [
+            Icon(icon, size: 18, color: selected ? accent : Db.mute),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: dbSans(14, 700, Db.chalk)),
+                  const SizedBox(height: 3),
+                  Text(subtitle, style: dbMono(10, Db.mute, height: 1.4)),
+                ],
+              ),
+            ),
+            if (!enabled)
+              const Icon(Icons.lock_outline, size: 14, color: Db.muteDim)
+            else
+              Icon(
+                  selected
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
+                  size: 16,
+                  color: selected ? accent : Db.muteDim),
+          ]),
         ),
       ),
     );
