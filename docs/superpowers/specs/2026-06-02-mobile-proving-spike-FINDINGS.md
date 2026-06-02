@@ -211,6 +211,13 @@ read-only target). Workaround that worked:
    inside the zip, so no hand-written `package.xml` was needed; the emulator reads
    the files directly (sdkmanager's package index never lists it — irrelevant).
 
+> ⚠️ **Not permanent.** The image lives in the writable `~/asdk` overlay, which the
+> flake `rm -rf`s and rebuilds whenever `.nix-src` changes (SDK store path bumps).
+> If the overlay is rebuilt, the API-31 image (and the `system-images`→real-dir
+> conversion) are lost — re-run steps 1–3 above. A durable fix would teach the
+> flake to compose the API-31 `google_apis` x86_64 image, but that's out of scope
+> for this spike.
+
 ## Evidence — M1 (spike harness, WebViewProverHost directly)
 
 `flutter test integration_test/mobile_prover_spike_test.dart -d emulator-5554`:
