@@ -141,6 +141,42 @@ describe("ZkApprovalVoting", function () {
             expect((await poll.getOptions()).length).to.equal(32);
         });
 
+        it("Exercises the 32-option bitmask boundary: all-bits-set succeeds, bit 32 (one past last) reverts InvalidBallot", async function () {
+            // Test-verify the (1 << options.length) boundary on a real castVote
+            // path, not just getOptions().length. options.length == 32 → valid
+            // range is [1, 2^32). All 32 bits set is the inclusive upper edge.
+            const opts = Array.from({ length: 32 }, (_, i) => `Opt ${i}`);
+            const poll = await deployApprovalVotingClone(opts);
+
+            // On-chain group + matching off-chain Group (same commitments, same
+            // order ⇒ same root, which Semaphore.verifyProof checks independently
+            // of the mock verifier).
+            await poll.registerVoters(commitments);
+            const group = new Group();
+            commitments.forEach((c) => group.addMember(c));
+            await poll.startVoting();
+            const scope = BigInt(await poll.getAddress());
+
+            // All 32 bits set: (1 << 32) - 1 = 4294967295 < (1 << 32) ⇒ valid.
+            const allBits = (1n << 32n) - 1n;
+            await expect(poll.castVote(allBits, mockProof({ bitmask: allBits, nullifier: 1n, root: group.root, scope })))
+                .to.emit(poll, "VoteCast")
+                .withArgs(allBits);
+
+            const results = await poll.getResults();
+            expect(results.length).to.equal(32);
+            expect(results).to.deep.equal(Array.from({ length: 32 }, () => 1n)); // every option approved
+            const sum = results.reduce((a: bigint, b: bigint) => a + b, 0n);
+            expect(sum).to.equal(32n);
+
+            // Fresh nullifier on the SAME poll: bit index 32 (= 1 << 32) is one
+            // past the last option ⇒ bitmask >= (1 << 32) ⇒ InvalidBallot.
+            const onePastLast = 1n << 32n;
+            await expect(
+                poll.castVote(onePastLast, mockProof({ bitmask: onePastLast, nullifier: 2n, root: group.root, scope }))
+            ).to.be.revertedWithCustomError(poll, "InvalidBallot");
+        });
+
         it("Rejects >32 options (surfaces as PollRegistry.InitFailed)", async function () {
             // PollRegistry.createPoll does `(bool ok,) = clone.call(initData); if(!ok) revert InitFailed();`
             // — it does NOT bubble the inner TooManyOptions revert, so the clone
@@ -278,11 +314,47 @@ describe("ZkApprovalVoting", function () {
             ).to.be.revertedWithCustomError(voting, "TamperedVoteSignal");
         });
 
+        it("TamperedVoteSignal reverts, then valid retry succeeds (no lockout)", async function () {
+            const nullifier = 55n;
+            // proof.message (0b011) != bitmask (0b101) ⇒ TamperedVoteSignal, which
+            // fires BEFORE isNullifierUsed is set ⇒ no lockout.
+            const bitmask = 0b101n;
+            await expect(
+                voting.castVote(
+                    bitmask,
+                    mockProof({ bitmask, nullifier, root: group.root, scope, message: 0b011n })
+                )
+            ).to.be.revertedWithCustomError(voting, "TamperedVoteSignal");
+            expect(await voting.verifyParticipation(nullifier)).to.equal(false);
+
+            // Same nullifier retries with a well-formed ballot ⇒ succeeds.
+            const retry = 0b101n;
+            await voting.castVote(retry, mockProof({ bitmask: retry, nullifier, root: group.root, scope }));
+            expect(await voting.verifyParticipation(nullifier)).to.equal(true);
+            expect(await voting.getResults()).to.deep.equal([1n, 0n, 1n]);
+        });
+
         it("Wrong scope reverts (InvalidScope)", async function () {
             const bitmask = 0b001n;
             await expect(
                 voting.castVote(bitmask, mockProof({ bitmask, nullifier: 6n, root: group.root, scope: 12345n }))
             ).to.be.revertedWithCustomError(voting, "InvalidScope");
+        });
+
+        it("InvalidScope reverts, then valid retry succeeds (no lockout)", async function () {
+            const nullifier = 66n;
+            // Wrong scope ⇒ InvalidScope, which fires BEFORE isNullifierUsed is
+            // set ⇒ no lockout.
+            const bitmask = 0b001n;
+            await expect(
+                voting.castVote(bitmask, mockProof({ bitmask, nullifier, root: group.root, scope: 12345n }))
+            ).to.be.revertedWithCustomError(voting, "InvalidScope");
+            expect(await voting.verifyParticipation(nullifier)).to.equal(false);
+
+            // Same nullifier retries with the correct scope ⇒ succeeds.
+            await voting.castVote(bitmask, mockProof({ bitmask, nullifier, root: group.root, scope }));
+            expect(await voting.verifyParticipation(nullifier)).to.equal(true);
+            expect(await voting.getResults()).to.deep.equal([1n, 0n, 0n]);
         });
 
         it("Cannot vote in Registration phase (NotInVoting)", async function () {
