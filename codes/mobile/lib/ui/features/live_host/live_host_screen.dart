@@ -188,8 +188,9 @@ class _QrPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
-        Text('Rotates every 25s. Voters scan, generate an ephemeral identity, '
-            'and show you a 4-digit code to confirm face-to-face.',
+        Text('Rotates every 25s. Voters scan this with the Tessera app, '
+            'generate an ephemeral identity, and show you a 4-digit code to '
+            'confirm face-to-face.',
             style: dbMono(11, Db.mute, height: 1.5)),
         if (vm.orgPubKey != null) ...[
           const SizedBox(height: 10),

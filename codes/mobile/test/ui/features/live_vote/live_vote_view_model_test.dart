@@ -35,6 +35,15 @@ void main() {
       expect(LiveVoteViewModel.extractTicket(url), 'AAAA-bbbb_cc');
     });
 
+    test('pulls ?t= out of a tessera:// deep-link payload', () {
+      // The QR is now a neutral custom-scheme payload (no web domain). The same
+      // Uri.queryParameters parse works for custom schemes.
+      expect(
+        LiveVoteViewModel.extractTicket('tessera://live/0xabc/vote?t=TOK'),
+        'TOK',
+      );
+    });
+
     test('returns a bare ticket unchanged (trimmed)', () {
       expect(LiveVoteViewModel.extractTicket('  rawticket123 '), 'rawticket123');
     });

@@ -46,9 +46,10 @@ class WalletService extends ChangeNotifier {
         context: context,
         projectId: AppConfig.walletConnectProjectId,
         metadata: const PairingMetadata(
-          name: 'ZK Vote',
-          description: 'Anonymous ZK voting',
-          url: 'https://zkvote.app',
+          name: 'Tessera',
+          description: 'Tessera — anonymous on-chain voting',
+          // The real repo; Reown requires a non-empty url and we own no domain.
+          url: 'https://github.com/LVy-H/web3-demo',
           icons: ['https://avatars.githubusercontent.com/u/37784886'],
         ),
       );
