@@ -94,9 +94,25 @@ Re-ordered for **visible-first**:
   shareable receipt artifact is a later nicety.
 - **Dev-signer wallet bypass ✅** (e8df790). `DEV_PRIVATE_KEY` makes Create (and
   all blind actions) sign locally — no WalletConnect needed for local dev.
-- **Next:** SP5 live-meeting (QR scan + ephemeral identity + face-to-face code +
-  organizer dashboard), then SP4 desktop Node-sidecar prover (anon/M1 + live ZK),
-  SP6 BLE/NFC, SP7 retire React.
+- **SP5 — live-meeting ✅** (PR #36). HOST dashboard (org keypair + rotating
+  signed-ticket QR + pending queue + confirm = `registerVoter` on-chain) verified
+  end-to-end on Linux. VOTER (scan/paste ticket → ephemeral id → confirmation code
+  → register → vote), commitment via the seam. `/live/:address/{host,vote}`.
+- **SP4 — desktop proving ✅** (PR #36). Node sidecar (`web_prover/desktop_prover.mjs`)
+  eval's the same `web/zkprover.js`; `ProofServiceDesktop` drives it. Opt-in
+  (`DESKTOP_PROVER_*`), default off. VERIFIED: sidecar proof passes the REAL
+  Groth16 vkey on Linux; `deriveCommitment` matches the golden.
+- **Commitment seam ✅** (PR #36). `zkCommitment` in the bundle +
+  `ProofService.deriveCommitment` (web js_interop / desktop sidecar / stub).
+- **SP6 — proximity (BLE/NFC) ✅ seam** (eed4cec). Capability-gated
+  `ProximityService`; inert no-op on every radio-less platform (face-to-face code
+  is the baseline). Android radio impl is **device-pending** (can't verify on a
+  headless box; needs flutter_blue_plus/nfc_manager + a beacon + a phone).
+- **SP7 — retire React ✅ (deprecated)**. `flutter build web` verified canonical;
+  React app deprecated (`codes/frontend/DEPRECATED.md`) + STATUS updated. Physical
+  deletion is gated on decoupling two dev-toolchain ties (the deployed-addresses
+  fixture path in `dev-stack.sh`; the prover-bundle rebuild's frontend
+  `node_modules` symlink) — documented as the next step.
 
 ## Done-when (this effort)
 
