@@ -7,7 +7,7 @@ import 'dart:js_interop';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web/web.dart' as web;
-import 'package:zkvote_mobile/data/services/proof_service_web.dart';
+import 'package:tessera/data/services/proof_service_web.dart';
 
 /// In-browser verification of the web ZK path. Exercises the real
 /// dart:js_interop round-trip — Dart marshals args to the bundled Semaphore

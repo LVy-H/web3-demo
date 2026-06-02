@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:zkvote_mobile/core/crypto/confirmation_code.dart';
-import 'package:zkvote_mobile/core/crypto/org_keypair.dart';
-import 'package:zkvote_mobile/core/crypto/ticket.dart';
-import 'package:zkvote_mobile/data/services/relay_client.dart';
+import 'package:tessera/core/crypto/confirmation_code.dart';
+import 'package:tessera/core/crypto/org_keypair.dart';
+import 'package:tessera/core/crypto/ticket.dart';
+import 'package:tessera/data/services/relay_client.dart';
 
 /// GOLD-STANDARD cross-client proof: a ticket signed by the Dart org_keypair +
 /// ticket libs is accepted by the REAL relayer's ed25519 verifier, the

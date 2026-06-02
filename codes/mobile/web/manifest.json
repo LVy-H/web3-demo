@@ -1,6 +1,6 @@
 {
-    "name": "zkvote_mobile",
-    "short_name": "zkvote_mobile",
+    "name": "Tessera",
+    "short_name": "Tessera",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -1,4 +1,5 @@
 import 'package:http/http.dart' as http;
+import 'package:wallet/wallet.dart' show EthereumAddress; // web3dart 3.x moved it here
 import 'package:web3dart/web3dart.dart';
 
 import '../models/poll_info.dart';
@@ -17,6 +18,7 @@ class ChainReader {
   final ContractAbi _pollAbi;
   final ContractAbi _registryAbi;
   final ContractAbi _anonAbi;
+  final ContractAbi? _blindAbi;
   final EthereumAddress _registryAddress;
 
   /// Per-call timeout so a hung RPC endpoint can't block the UI indefinitely.
@@ -28,13 +30,20 @@ class ChainReader {
     required String registryAbiJson,
     required String anonVotingAbiJson,
     required String registryAddress,
+    String? blindVotingAbiJson,
     http.Client? httpClient,
     this.readTimeout = const Duration(seconds: 10),
   })  : client = Web3Client(rpcUrl, httpClient ?? http.Client()),
         _pollAbi = ContractAbi.fromJson(izkPollAbiJson, 'IZkPoll'),
         _registryAbi = ContractAbi.fromJson(registryAbiJson, 'PollRegistry'),
         _anonAbi = ContractAbi.fromJson(anonVotingAbiJson, 'ZkAnonVoting'),
+        _blindAbi = blindVotingAbiJson == null
+            ? null
+            : ContractAbi.fromJson(blindVotingAbiJson, 'ZkBlindVoting'),
         _registryAddress = EthereumAddress.fromHex(registryAddress);
+
+  ContractAbi get _blind => _blindAbi ?? (throw StateError(
+      'ChainReader was built without blindVotingAbiJson'));
 
   Future<List<dynamic>> _read(
     ContractAbi abi,
@@ -71,7 +80,7 @@ class ChainReader {
 
   Future<String> getOwner(String pollAddress) async {
     final r = await _read(_pollAbi, EthereumAddress.fromHex(pollAddress), 'owner');
-    return (r.first as EthereumAddress).hexEip55;
+    return (r.first as EthereumAddress).eip55With0x;
   }
 
   Future<BigInt> getParticipantCount(String pollAddress) async {
@@ -116,6 +125,42 @@ class ChainReader {
         })
         .whereType<String>()
         .toList();
+  }
+
+  // ── ZkBlindVoting (M2) reads ────────────────────────────────────────────────
+
+  /// Timestamp (unix seconds) after which reveals close. 0 until `endVoting`.
+  Future<BigInt> getRevealDeadline(String pollAddress) async {
+    final r = await _read(
+        _blind, EthereumAddress.fromHex(pollAddress), 'getRevealDeadline');
+    return r.first as BigInt;
+  }
+
+  Future<bool> isFinalized(String pollAddress) async {
+    final r =
+        await _read(_blind, EthereumAddress.fromHex(pollAddress), 'isFinalized');
+    return r.first as bool;
+  }
+
+  /// Has [voter] committed a (hidden) vote in this blind poll?
+  Future<bool> hasVoted(String pollAddress, String voter) async {
+    final r = await _read(_blind, EthereumAddress.fromHex(pollAddress),
+        'hasVoted', [EthereumAddress.fromHex(voter)]);
+    return r.first as bool;
+  }
+
+  /// Has [voter] revealed their committed vote?
+  Future<bool> hasRevealed(String pollAddress, String voter) async {
+    final r = await _read(_blind, EthereumAddress.fromHex(pollAddress),
+        'hasRevealed', [EthereumAddress.fromHex(voter)]);
+    return r.first as bool;
+  }
+
+  /// Is [voter] registered to vote in this blind poll?
+  Future<bool> isRegistered(String pollAddress, String voter) async {
+    final r = await _read(_blind, EthereumAddress.fromHex(pollAddress),
+        'isRegistered', [EthereumAddress.fromHex(voter)]);
+    return r.first as bool;
   }
 
   // ── PollRegistry ──────────────────────────────────────────────────────────

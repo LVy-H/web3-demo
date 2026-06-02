@@ -4,10 +4,10 @@ project(runner LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "zkvote_mobile")
+set(BINARY_NAME "tessera")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "ai.mayaresearch.zkvote_mobile")
+set(APPLICATION_ID "app.tessera.desktop")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
@@ -73,6 +73,18 @@ set_target_properties(${BINARY_NAME}
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
 include(flutter/generated_plugins.cmake)
+
+# --- NixOS / strict-clang compatibility -------------------------------------
+# flutter_secure_storage_linux (pulled in transitively by reown_appkit) vendors
+# an old nlohmann/json.hpp that trips -Wdeprecated-literal-operator on modern
+# clang. apply_standard_settings() promotes that to a hard error via -Werror.
+# Keep -Werror for our own code; demote just this one deprecation, and only for
+# the third-party plugin target. target_compile_options appends, so this lands
+# after the plugin's own -Werror on the command line and wins (last flag wins).
+if(TARGET flutter_secure_storage_linux_plugin)
+  target_compile_options(flutter_secure_storage_linux_plugin
+    PRIVATE -Wno-error=deprecated-literal-operator)
+endif()
 
 
 # === Installation ===

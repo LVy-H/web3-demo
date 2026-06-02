@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/models/poll_info.dart';
+import '../../../data/models/poll_summary.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
@@ -21,6 +22,14 @@ enum _Status { active, upcoming, ended, all }
 
 enum _Sort { newest, oldest, titleAsc, titleDesc }
 
+/// On-chain PollState → card lifecycle phase. Kept identical to the web client
+/// (`Home.tsx`): Registration(0)→upcoming, Voting(1)→active, Ended(2)→ended.
+PollPhase phaseFromState(int state) => switch (state) {
+      1 => PollPhase.active,
+      0 => PollPhase.upcoming,
+      _ => PollPhase.ended,
+    };
+
 class _BrowseScreenState extends State<BrowseScreen> {
   int _cat = -1; // -1 = all, else category index 0..3
   _Status _status = _Status.active;
@@ -34,15 +43,24 @@ class _BrowseScreenState extends State<BrowseScreen> {
         .addPostFrameCallback((_) => context.read<BrowseViewModel>().load());
   }
 
-  // Real polls are all "active" (no on-chain end-time), matching the web client.
-  PollPhase _phaseOf(PollInfo _) => PollPhase.active;
+  // Lifecycle phase from the on-chain state (0 Registration→upcoming,
+  // 1 Voting→active, 2 Ended→ended). Polls whose summary hasn't loaded fall
+  // back to active so the card still renders a sensible look.
+  PollPhase _phaseOf(PollInfo p, Map<String, PollSummary> sums) =>
+      phaseFromState(sums[p.pollAddress]?.state ?? 1);
 
-  List<PollInfo> _filterSort(List<PollInfo> polls) {
+  bool _matchesStatus(PollPhase phase) => switch (_status) {
+        _Status.all => true,
+        _Status.active => phase == PollPhase.active,
+        _Status.upcoming => phase == PollPhase.upcoming,
+        _Status.ended => phase == PollPhase.ended,
+      };
+
+  List<PollInfo> _filterSort(List<PollInfo> polls, Map<String, PollSummary> sums) {
     final q = _search.trim().toLowerCase();
     final out = polls.where((p) {
       final catOk = _cat == -1 || Db.categoryFor(p.pollAddress) == _cat;
-      final statusOk = _status == _Status.all ||
-          (_status == _Status.active); // all real polls are active
+      final statusOk = _matchesStatus(_phaseOf(p, sums));
       final searchOk = q.isEmpty ||
           p.title.toLowerCase().contains(q) ||
           p.description.toLowerCase().contains(q);
@@ -81,9 +99,23 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   Widget _loaded(BuildContext context, BrowseViewModel vm) {
     final all = vm.polls;
-    final filtered = _filterSort(all);
+    final sums = vm.summaries;
+    final filtered = _filterSort(all, sums);
     final width = MediaQuery.sizeOf(context).width;
     final heroSize = (width * 0.08).clamp(40.0, 80.0);
+
+    // Phase tallies for the hero subtitle (from loaded summaries).
+    var active = 0, upcoming = 0, ended = 0;
+    for (final p in all) {
+      switch (_phaseOf(p, sums)) {
+        case PollPhase.active:
+          active++;
+        case PollPhase.upcoming:
+          upcoming++;
+        case PollPhase.ended:
+          ended++;
+      }
+    }
 
     return RefreshIndicator(
       color: Db.segnale,
@@ -100,7 +132,13 @@ class _BrowseScreenState extends State<BrowseScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _Hero(heroSize: heroSize, total: all.length),
+                  _Hero(
+                    heroSize: heroSize,
+                    total: all.length,
+                    active: active,
+                    upcoming: upcoming,
+                    ended: ended,
+                  ),
                   const SizedBox(height: 28),
                   _FilterStrip(
                     cat: _cat,
@@ -130,7 +168,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
                               child: _PollCard(
                                 poll: p,
                                 category: Db.categoryFor(p.pollAddress),
-                                phase: _phaseOf(p),
+                                phase: _phaseOf(p, sums),
+                                votes: sums[p.pollAddress]?.totalVotes,
                               ),
                             ),
                         ],
@@ -158,75 +197,37 @@ class _BrowseScreenState extends State<BrowseScreen> {
 class _Hero extends StatelessWidget {
   final double heroSize;
   final int total;
-  const _Hero({required this.heroSize, required this.total});
+  final int active;
+  final int upcoming;
+  final int ended;
+  const _Hero({
+    required this.heroSize,
+    required this.total,
+    required this.active,
+    required this.upcoming,
+    required this.ended,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    // Nav (Verify / Create) lives in the bottom NavigationBar and the wallet
+    // button in the drawer now (see AppShell), so the hero is just the title.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('POLLS', style: dbHero(heroSize)),
-              const SizedBox(height: 12),
-              Text.rich(TextSpan(children: [
-                const TextSpan(text: 'Active proposals across the community. '),
-                TextSpan(
-                  text: '$total total · $total active · 0 upcoming · 0 ended.',
-                  style: dbSans(14, 400, Db.mute, height: 1.6),
-                ),
-              ]),
-                  style: dbSans(14, 400, Db.chalkDim, height: 1.6)),
-            ],
+        Text('POLLS', style: dbHero(heroSize)),
+        const SizedBox(height: 12),
+        Text.rich(TextSpan(children: [
+          const TextSpan(text: 'Active proposals across the community. '),
+          TextSpan(
+            text: '$total total · $active active · $upcoming upcoming · $ended ended.',
+            style: dbSans(14, 400, Db.mute, height: 1.6),
           ),
-        ),
-        const SizedBox(width: 16),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            _GhostButton(
-              icon: Icons.verified_outlined,
-              label: 'VERIFY',
-              onTap: () => context.go('/verify'),
-            ),
-            const SizedBox(height: 8),
-            _GhostButton(
-              icon: Icons.add,
-              label: 'NEW POLL',
-              onTap: () => context.go('/create'),
-            ),
-          ],
-        ),
+        ]),
+            style: dbSans(14, 400, Db.chalkDim, height: 1.6)),
       ],
     );
   }
-}
-
-class _GhostButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _GhostButton(
-      {required this.icon, required this.label, required this.onTap});
-  @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          decoration: const BoxDecoration(
-            color: Db.slate3,
-            border: Border.fromBorderSide(BorderSide(color: Db.rule)),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 13, color: Db.chalkDim),
-            const SizedBox(width: 8),
-            Text(label, style: dbLabel(size: 11, color: Db.chalkDim, tracking: 0.1)),
-          ]),
-        ),
-      );
 }
 
 class _FilterStrip extends StatelessWidget {
@@ -256,40 +257,47 @@ class _FilterStrip extends StatelessWidget {
         color: Db.slate3,
         border: Border.fromBorderSide(BorderSide(color: Db.rule)),
       ),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _stripLabel('CATEGORY'),
-          _Pill('All', cat == -1, () => onCat(-1)),
-          for (var i = 0; i < 4; i++)
-            _Pill(Db.categoryLabels[i].toUpperCase(), cat == i, () => onCat(i),
-                swatch: Db.categoryColor(i)),
-          _stripLabel('STATUS'),
-          _Pill('ACTIVE', status == _Status.active, () => onStatus(_Status.active),
-              activeColor: Db.segnale),
-          _Pill('UPCOMING', status == _Status.upcoming,
-              () => onStatus(_Status.upcoming)),
-          _Pill('ENDED', status == _Status.ended, () => onStatus(_Status.ended)),
-          _Pill('ALL', status == _Status.all, () => onStatus(_Status.all)),
+          // Search on its own full-width row.
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: SizedBox(
-              width: 180,
-              child: TextField(
-                onChanged: onSearch,
-                style: dbMono(11, Db.chalk, letterSpacing: 1.1),
-                cursorColor: Db.segnale,
-                decoration: InputDecoration(
-                  isDense: true,
-                  prefixIcon: const Icon(Icons.search, size: 15, color: Db.mute),
-                  prefixIconConstraints:
-                      const BoxConstraints(minWidth: 28, minHeight: 28),
-                  hintText: 'SEARCH POLLS',
-                  hintStyle: dbLabel(size: 11, tracking: 0.1),
-                  border: InputBorder.none,
-                ),
+            padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
+            child: TextField(
+              onChanged: onSearch,
+              style: dbMono(12, Db.chalk, letterSpacing: 1.0),
+              cursorColor: Db.segnale,
+              decoration: InputDecoration(
+                isDense: true,
+                prefixIcon: const Icon(Icons.search, size: 16, color: Db.mute),
+                prefixIconConstraints:
+                    const BoxConstraints(minWidth: 30, minHeight: 30),
+                hintText: 'SEARCH POLLS',
+                hintStyle: dbLabel(size: 11, tracking: 0.1),
+                border: InputBorder.none,
               ),
             ),
+          ),
+          const Divider(height: 1, color: Db.rule),
+          // Filters as ONE horizontally-scrollable row — never wraps into a
+          // tall, overwhelming block on a phone.
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              _stripLabel('STATUS'),
+              _Pill('ACTIVE', status == _Status.active,
+                  () => onStatus(_Status.active), activeColor: Db.segnale),
+              _Pill('UPCOMING', status == _Status.upcoming,
+                  () => onStatus(_Status.upcoming)),
+              _Pill('ENDED', status == _Status.ended,
+                  () => onStatus(_Status.ended)),
+              _Pill('ALL', status == _Status.all, () => onStatus(_Status.all)),
+              _stripLabel('CATEGORY'),
+              _Pill('All', cat == -1, () => onCat(-1)),
+              for (var i = 0; i < 4; i++)
+                _Pill(Db.categoryLabels[i].toUpperCase(), cat == i,
+                    () => onCat(i), swatch: Db.categoryColor(i)),
+            ]),
           ),
         ],
       ),
@@ -346,8 +354,12 @@ class _PollCard extends StatefulWidget {
   final PollInfo poll;
   final int category;
   final PollPhase phase;
+  final BigInt? votes; // null = summary not loaded yet
   const _PollCard(
-      {required this.poll, required this.category, required this.phase});
+      {required this.poll,
+      required this.category,
+      required this.phase,
+      this.votes});
   @override
   State<_PollCard> createState() => _PollCardState();
 }
@@ -357,6 +369,13 @@ class _PollCardState extends State<_PollCard> {
 
   String get _shortCreator => shortAddr(widget.poll.creator).toUpperCase();
 
+  // Surface tint per phase, matching the web (bg-db-slate / slate-2 / slate-dim).
+  Color get _surface => switch (widget.phase) {
+        PollPhase.active => Db.slate,
+        PollPhase.upcoming => Db.slate2,
+        PollPhase.ended => Db.slateDim,
+      };
+
   @override
   Widget build(BuildContext context) {
     final cat = Db.categoryColor(widget.category);
@@ -365,13 +384,14 @@ class _PollCardState extends State<_PollCard> {
       onExit: (_) => setState(() => _hover = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: () => context.go('/poll/${widget.poll.pollAddress}'),
+        onTap: () => context.go(
+            '/poll/${widget.poll.pollAddress}?module=${widget.poll.moduleType}'),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           transform: Matrix4.translationValues(0, _hover ? -2 : 0, 0),
           constraints: const BoxConstraints(minHeight: 232),
           decoration: BoxDecoration(
-            color: Db.slate,
+            color: _surface,
             border: Border.all(color: _hover ? cat : Db.rule),
           ),
           child: Stack(
@@ -396,7 +416,7 @@ class _PollCardState extends State<_PollCard> {
                       Text(Db.categoryLabels[widget.category].toUpperCase(),
                           style: dbLabel(size: 10, color: cat, tracking: 0.22)),
                       const Spacer(),
-                      const _StateChip(),
+                      _StateChip(phase: widget.phase),
                     ]),
                     const SizedBox(height: 12),
                     Text(
@@ -410,7 +430,7 @@ class _PollCardState extends State<_PollCard> {
                     Text('$_shortCreator · OPENED RECENTLY',
                         style: dbMono(11, Db.mute, letterSpacing: 0.4)),
                     const SizedBox(height: 16),
-                    const _HeroStat(),
+                    _HeroStat(votes: widget.votes),
                   ],
                 ),
               ),
@@ -429,23 +449,54 @@ class _PollCardState extends State<_PollCard> {
 }
 
 class _StateChip extends StatelessWidget {
-  const _StateChip();
+  final PollPhase phase;
+  const _StateChip({required this.phase});
+
+  // (label, fill, border, ink, dot) per phase — matches web Home.tsx StateChip.
+  ({String label, Color fill, Color border, Color ink, Color dot}) get _spec =>
+      switch (phase) {
+        PollPhase.active => (
+            label: 'VOTING',
+            fill: Db.segnale,
+            border: Db.segnale,
+            ink: Db.chalk,
+            dot: Db.chalk,
+          ),
+        PollPhase.upcoming => (
+            label: 'UPCOMING',
+            fill: Colors.transparent,
+            border: Db.oltremare,
+            ink: Db.oltremare,
+            dot: Db.oltremare,
+          ),
+        PollPhase.ended => (
+            label: 'ENDED',
+            fill: Db.slate4,
+            border: Db.rule,
+            ink: Db.mute,
+            dot: Db.muteDim,
+          ),
+      };
+
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-            color: Db.segnale, border: Border.all(color: Db.segnale)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 6, height: 6, color: Db.chalk),
-          const SizedBox(width: 6),
-          Text('VOTING',
-              style: dbLabel(size: 9.5, color: Db.chalk, tracking: 0.18, wght: 600)),
-        ]),
-      );
+  Widget build(BuildContext context) {
+    final s = _spec;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: s.fill, border: Border.all(color: s.border)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 6, height: 6, color: s.dot),
+        const SizedBox(width: 6),
+        Text(s.label,
+            style: dbLabel(size: 9.5, color: s.ink, tracking: 0.18, wght: 600)),
+      ]),
+    );
+  }
 }
 
 class _HeroStat extends StatelessWidget {
-  const _HeroStat();
+  final BigInt? votes;
+  const _HeroStat({this.votes});
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.only(top: 14),
@@ -453,7 +504,8 @@ class _HeroStat extends StatelessWidget {
             const BoxDecoration(border: Border(top: BorderSide(color: Db.ruleSoft))),
         child: Row(crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic, children: [
-          Text('—', style: dbSans(28, 700, Db.chalk, letterSpacing: -0.6)),
+          Text(votes?.toString() ?? '—',
+              style: dbSans(28, 700, Db.chalk, letterSpacing: -0.6)),
           const SizedBox(width: 8),
           Text('VOTES', style: dbLabel(size: 10)),
           const Spacer(),

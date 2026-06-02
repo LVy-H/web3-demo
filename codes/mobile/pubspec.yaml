@@ -1,5 +1,5 @@
-name: zkvote_mobile
-description: "A new Flutter project."
+name: tessera
+description: "Tessera — one app for anonymous on-chain voting (mobile, desktop, web)."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -42,15 +42,22 @@ dependencies:
 
   # --- Data layer ---
   http: ^1.2.2              # relayer HTTP client (cross-client API, spec §2.5)
-  web3dart: ^2.7.3          # JSON-RPC eth_call + ABI codec for on-chain reads
+  web3dart: ^3.0.1          # JSON-RPC eth_call + ABI codec for on-chain reads
+  pointycastle: ^4.0.0      # keccak256 for M2 blind-vote commit hashes
 
   # --- UI / state / routing (per flutter-* architecture skills) ---
   provider: ^6.1.2          # ChangeNotifier DI (MVVM)
   go_router: ^14.6.2        # declarative URL routing + deep links
   flutter_svg: ^2.3.0       # Dark Bauhaus watermark glyphs / illustrations
+  wallet: ^0.0.18
+  reown_appkit: ^1.8.0
+  flutter_secure_storage: ^9.2.4  # persist the member identity seed (Keychain/libsecret/DPAPI)
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+
+  integration_test:        # on-device e2e (browse→detail→verify on the emulator)
     sdk: flutter
 
   web: ^1.1.1               # DOM access in the in-browser ProofServiceWeb test

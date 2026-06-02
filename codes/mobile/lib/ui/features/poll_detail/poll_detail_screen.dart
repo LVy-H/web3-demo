@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/models/poll_snapshot.dart';
+import '../../../data/services/identity_store.dart';
 import '../../../data/services/proof_service_factory.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
@@ -115,15 +116,24 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(top: 8, bottom: 12),
         child: Row(children: [
-          InkWell(
-            onTap: () => context.canPop() ? context.pop() : context.go('/'),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.arrow_back, size: 14, color: Db.mute),
-              const SizedBox(width: 6),
-              Text('BACK TO POLLS', style: dbLabel(size: 11, tracking: 0.16)),
-            ]),
+          // Expanded + ellipsis so a narrow screen shrinks the back label
+          // instead of overflowing the fixed-width badges on the right.
+          Expanded(
+            child: InkWell(
+              onTap: () => context.canPop() ? context.pop() : context.go('/'),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.arrow_back, size: 14, color: Db.mute),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text('BACK TO POLLS',
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                      style: dbLabel(size: 11, tracking: 0.16)),
+                ),
+              ]),
+            ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             color: Db.segnale,
@@ -168,29 +178,34 @@ class _PhaseStrip extends StatelessWidget {
                       ? const Border(right: BorderSide(color: Db.rule))
                       : null,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (i < state) ...[
-                      const Icon(Icons.check, size: 13, color: Db.mute),
-                      const SizedBox(width: 6),
-                    ] else if (i > state) ...[
-                      Text('0${i + 1}',
-                          style: dbMono(11, Db.muteDim, wght: 700)),
-                      const SizedBox(width: 6),
-                    ],
-                    Text(
-                      _labels[i],
-                      style: dbSans(
-                        11,
-                        800,
-                        i == state
-                            ? Db.void_
-                            : (i < state ? Db.mute : Db.mute),
-                        letterSpacing: 11 * 0.16,
+                // scaleDown so the longest label ('REGISTRATION' + its index)
+                // shrinks to fit a narrow segment instead of overflowing.
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (i < state) ...[
+                        const Icon(Icons.check, size: 13, color: Db.mute),
+                        const SizedBox(width: 6),
+                      ] else if (i > state) ...[
+                        Text('0${i + 1}',
+                            style: dbMono(11, Db.muteDim, wght: 700)),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        _labels[i],
+                        style: dbSans(
+                          11,
+                          800,
+                          i == state
+                              ? Db.void_
+                              : (i < state ? Db.mute : Db.mute),
+                          letterSpacing: 11 * 0.16,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -313,6 +328,23 @@ class _VoteForm extends StatefulWidget {
 class _VoteFormState extends State<_VoteForm> {
   final _seed = TextEditingController();
   int? _selected;
+  bool _fromSavedIdentity = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Prefill from the saved identity so voting doesn't need pasting (SP2).
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final saved = await context.read<IdentityStore>().read();
+      if (!mounted || saved == null || saved.isEmpty || _seed.text.isNotEmpty) {
+        return;
+      }
+      setState(() {
+        _seed.text = saved;
+        _fromSavedIdentity = true;
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -344,9 +376,19 @@ class _VoteFormState extends State<_VoteForm> {
           ),
         ],
         const SizedBox(height: 14),
+        if (_fromSavedIdentity)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(children: [
+              const Icon(Icons.fingerprint, size: 13, color: Db.success),
+              const SizedBox(width: 6),
+              Text('using your saved identity',
+                  style: dbLabel(size: 10, color: Db.success)),
+            ]),
+          ),
         TextField(
           controller: _seed,
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) => setState(() => _fromSavedIdentity = false),
           style: dbMono(13, Db.chalk),
           cursorColor: Db.segnale,
           decoration: InputDecoration(

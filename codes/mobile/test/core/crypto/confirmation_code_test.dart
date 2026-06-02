@@ -4,7 +4,7 @@ import 'dart:typed_data';
 
 import 'package:convert/convert.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zkvote_mobile/core/crypto/confirmation_code.dart';
+import 'package:tessera/core/crypto/confirmation_code.dart';
 
 /// Cross-client byte-compatibility tests. The golden codes come from the TS
 /// reference lib (codes/frontend/src/lib/confirmationCode.ts) via the oracle

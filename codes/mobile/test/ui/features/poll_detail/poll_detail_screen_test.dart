@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:zkvote_mobile/data/models/poll_info.dart';
-import 'package:zkvote_mobile/data/models/poll_snapshot.dart';
-import 'package:zkvote_mobile/data/repositories/poll_repository.dart';
-import 'package:zkvote_mobile/ui/features/poll_detail/poll_detail_screen.dart';
-import 'package:zkvote_mobile/ui/features/poll_detail/poll_detail_view_model.dart';
+import 'package:tessera/data/models/poll_info.dart';
+import 'package:tessera/data/models/poll_snapshot.dart';
+import 'package:tessera/data/models/poll_summary.dart';
+import 'package:tessera/data/repositories/poll_repository.dart';
+import 'package:tessera/ui/features/poll_detail/poll_detail_screen.dart';
+import 'package:tessera/ui/features/poll_detail/poll_detail_view_model.dart';
 
 class FakeRepo implements PollRepository {
   final PollSnapshot? snap;
@@ -23,6 +24,9 @@ class FakeRepo implements PollRepository {
 
   @override
   Future<List<String>> fetchGroup(String address) => throw UnimplementedError();
+
+  @override
+  Future<PollSummary> fetchSummary(String address) => throw UnimplementedError();
 }
 
 const addr = '0xd8058efe0198ae9dD7D563e1b4938Dcbc86A1F81';
