@@ -87,7 +87,10 @@ class LiveHostViewModel extends ChangeNotifier {
     if (kp == null) return;
     final now = _now;
     final wire = _repo.mintTicket(pollAddress, kp, now);
-    ticketUrl = 'https://tessera.app/live/$pollAddress/vote?t=$wire';
+    // An app deep-link payload, not a hosted URL — we don't own a web domain
+    // yet. The Tessera app scans this; LiveVoteViewModel.extractTicket still
+    // pulls `?t=` from the custom scheme via Uri.queryParameters.
+    ticketUrl = 'tessera://live/$pollAddress/vote?t=$wire';
     _mintedAt = now;
     secondsLeft = _rotateSeconds;
     _notify();

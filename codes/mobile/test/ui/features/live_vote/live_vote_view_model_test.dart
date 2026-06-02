@@ -30,9 +30,20 @@ LiveVoteViewModel _vm() => LiveVoteViewModel(
 void main() {
   group('extractTicket', () {
     test('pulls ?t= out of a full QR URL', () {
+      // Web-URL regression guard. Host is a neutral, non-owned example domain
+      // (we don't pin a real tessera-owned host here).
       const url =
-          'https://tessera.app/live/0xabc/vote?t=AAAA-bbbb_cc';
+          'https://app.example/live/0xabc/vote?t=AAAA-bbbb_cc';
       expect(LiveVoteViewModel.extractTicket(url), 'AAAA-bbbb_cc');
+    });
+
+    test('pulls ?t= out of a tessera:// deep-link payload', () {
+      // The QR is now a neutral custom-scheme payload (no web domain). The same
+      // Uri.queryParameters parse works for custom schemes.
+      expect(
+        LiveVoteViewModel.extractTicket('tessera://live/0xabc/vote?t=TOK'),
+        'TOK',
+      );
     });
 
     test('returns a bare ticket unchanged (trimmed)', () {

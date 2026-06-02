@@ -29,6 +29,17 @@ class VoteViewModel extends ChangeNotifier {
   String? error;
   String? txHash;
 
+  // Proactive registration status for the entered identity, so the voter sees
+  // they aren't a member BEFORE casting (instead of the post-cast "leaf -1").
+  String? myCommitment;
+  bool? isRegistered; // null = unknown / check failed
+  bool checkingRegistration = false;
+
+  // Monotonic token: each checkRegistration() call captures the current value;
+  // a late result from a superseded call (re-typed seed, or cleared field) is
+  // dropped so it can't resurrect/overwrite newer state.
+  int _regToken = 0;
+
   bool get isBusy =>
       status == VoteStatus.proving || status == VoteStatus.relaying;
 
@@ -43,6 +54,43 @@ class VoteViewModel extends ChangeNotifier {
   // the screen popped and disposed this notifier.
   void _notify() {
     if (!_disposed) notifyListeners();
+  }
+
+  /// Derive the entered identity's commitment and check whether it's already a
+  /// member of this poll's group, so the form can show registration status
+  /// up-front. Failures leave [isRegistered] null (unknown) rather than error.
+  Future<void> checkRegistration(String identitySeed) async {
+    checkingRegistration = true;
+    _notify();
+    final token = ++_regToken;
+    try {
+      // Capture into locals and gate ALL state writes on the token AFTER the
+      // awaits — a superseded call resumes here with a stale result and must
+      // not clobber newer state (type→clear, or type A→type B).
+      final commitment = await _proofService.deriveCommitment(identitySeed);
+      final group = await _repo.fetchGroup(pollAddress);
+      if (token != _regToken) return;
+      myCommitment = commitment;
+      isRegistered = group.contains(commitment);
+    } catch (_) {
+      if (token == _regToken) isRegistered = null;
+    } finally {
+      if (token == _regToken) {
+        checkingRegistration = false;
+        _notify();
+      }
+    }
+  }
+
+  /// Clear any registration status (e.g. the seed field was emptied) and
+  /// supersede any in-flight [checkRegistration] so its late result can't
+  /// resurrect the panel.
+  void clearRegistration() {
+    _regToken++; // supersede any in-flight check
+    myCommitment = null;
+    isRegistered = null;
+    checkingRegistration = false;
+    _notify();
   }
 
   Future<void> castVote({

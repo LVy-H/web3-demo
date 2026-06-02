@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../data/services/proof_service.dart';
+import '../../../data/services/proof_service_factory.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/theme.dart';
 import 'identity_view_model.dart';
@@ -20,10 +22,37 @@ class _IdentityScreenState extends State<IdentityScreen> {
   final _import = TextEditingController();
   bool _revealed = false;
 
+  // The Semaphore commitment derived from the current seed (decimal string),
+  // shown so the user can hand it to an organizer to be registered. Only
+  // derivable where a prover is available (web now); null elsewhere/while
+  // computing. Keyed by [_commitmentSeed] so we re-derive when the seed changes.
+  String? _commitment;
+  String? _commitmentSeed;
+
   @override
   void dispose() {
     _import.dispose();
     super.dispose();
+  }
+
+  // Derive the commitment for [seed] once per distinct seed, post-frame and
+  // mounted-guarded. No-op when proving isn't available on this platform.
+  void _ensureCommitment(String seed) {
+    if (!proofServiceAvailable || seed == _commitmentSeed) return;
+    _commitmentSeed = seed;
+    _commitment = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final proof = context.read<ProofService>();
+      try {
+        final c = await proof.deriveCommitment(seed);
+        if (mounted && seed == _commitmentSeed) {
+          setState(() => _commitment = c);
+        }
+      } catch (_) {
+        // Leave it null — the commitment panel just won't render.
+      }
+    });
   }
 
   void _snack(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -38,6 +67,7 @@ class _IdentityScreenState extends State<IdentityScreen> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<IdentityViewModel>();
+    if (vm.hasIdentity) _ensureCommitment(vm.seed!);
     return Scaffold(
       body: DotGridBackground(
         child: SafeArea(
@@ -73,6 +103,10 @@ class _IdentityScreenState extends State<IdentityScreen> {
                     const SizedBox(height: 22),
                     if (vm.hasIdentity) ...[
                       _seedPanel(vm.seed!),
+                      if (_commitment != null) ...[
+                        const SizedBox(height: 18),
+                        _commitmentPanel(_commitment!),
+                      ],
                       const SizedBox(height: 18),
                       _dangerButton('CLEAR IDENTITY', () async {
                         final vm = context.read<IdentityViewModel>();
@@ -146,6 +180,27 @@ class _IdentityScreenState extends State<IdentityScreen> {
             _miniButton(Icons.copy_outlined, 'COPY', () {
               Clipboard.setData(ClipboardData(text: seed));
               _snack('Seed copied to clipboard.');
+            }),
+          ]),
+        ]),
+      );
+
+  Widget _commitmentPanel(String commitment) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+          color: Db.slate3,
+          border: Border.fromBorderSide(BorderSide(color: Db.rule)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('COMMITMENT (give this to an organizer to register you)',
+              style: dbLabel(size: 10, tracking: 0.16)),
+          const SizedBox(height: 10),
+          SelectableText(commitment, style: dbMono(13, Db.chalk, height: 1.5)),
+          const SizedBox(height: 14),
+          Row(children: [
+            _miniButton(Icons.copy_outlined, 'COPY', () {
+              Clipboard.setData(ClipboardData(text: commitment));
+              _snack('Commitment copied to clipboard.');
             }),
           ]),
         ]),
