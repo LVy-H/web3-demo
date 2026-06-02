@@ -53,6 +53,7 @@ dependencies:
   reown_appkit: ^1.8.0
   flutter_secure_storage: ^9.2.4  # persist the member identity seed (Keychain/libsecret/DPAPI)
   qr_flutter: ^4.1.0
+  package_info_plus: ^9.0.1
 
 dev_dependencies:
   flutter_test:

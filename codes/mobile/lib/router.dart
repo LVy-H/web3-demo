@@ -16,6 +16,7 @@ import 'ui/features/live_host/live_host_screen.dart';
 import 'ui/features/live_host/live_host_view_model.dart';
 import 'ui/features/live_vote/live_vote_screen.dart';
 import 'ui/features/live_vote/live_vote_view_model.dart';
+import 'ui/features/settings/settings_screen.dart';
 import 'ui/features/browse/browse_screen.dart';
 import 'ui/features/browse/browse_view_model.dart';
 import 'ui/features/create/create_screen.dart';
@@ -153,6 +154,10 @@ GoRouter buildRouter() => GoRouter(
               child: LiveVoteScreen(address: address),
             );
           },
+        ),
+        GoRoute(
+          path: '/settings',
+          builder: (context, state) => const SettingsScreen(),
         ),
       ],
     );

@@ -160,6 +160,16 @@ class _AppDrawer extends StatelessWidget {
                   icon: Icons.bolt_outlined,
                   label: 'RELAYER',
                   value: Uri.tryParse(AppConfig.relayerUrl)?.host ?? '—'),
+              InkWell(
+                onTap: () {
+                  Navigator.of(context).pop(); // close the drawer
+                  context.go('/settings');
+                },
+                child: const _DrawerRow(
+                    icon: Icons.settings_outlined,
+                    label: 'SETTINGS',
+                    value: '›'),
+              ),
               const Spacer(),
               const Divider(color: Db.rule, height: 1),
               _DrawerRow(
