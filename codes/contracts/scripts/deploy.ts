@@ -102,6 +102,20 @@ async function main() {
     await regBlindTx.wait();
     console.log('Registered "blind-vote" module in PollRegistry');
 
+    // ── 6d. Deploy ZkApprovalVoting implementation (bare, uninitialized) ─
+    const ZkApprovalVotingFactory = await ethers.getContractFactory("ZkApprovalVoting");
+    const zkApprovalVotingImpl = await ZkApprovalVotingFactory.deploy();
+    await zkApprovalVotingImpl.waitForDeployment();
+    const approvalVotingImplAddress = await zkApprovalVotingImpl.getAddress();
+    console.log("ZkApprovalVoting (impl) deployed to:", approvalVotingImplAddress);
+
+    // ── 6e. Register "approval-vote" module in PollRegistry ─────────
+    // Canonical module string "approval-vote" — used IDENTICALLY in the test
+    // harness and the relayer (we do NOT repeat M1's anon-vote/zk-anon-voting split).
+    const regApprovalTx = await pollRegistry.registerModule("approval-vote", approvalVotingImplAddress);
+    await regApprovalTx.wait();
+    console.log('Registered "approval-vote" module in PollRegistry');
+
     console.log("\n==============================================");
 
     // ── 7. Deploy ZkAirdrop (unchanged) ─────────────────────────────
@@ -132,6 +146,7 @@ async function main() {
         SEMAPHORE_ADDRESS: semaphoreAddress,
         ANON_VOTING_IMPL: anonVotingImplAddress,
         BLIND_VOTING_IMPL: blindVotingImplAddress,
+        APPROVAL_VOTING_IMPL: approvalVotingImplAddress,
         AIRDROP_ADDRESS: airdropAddress,
     };
 
