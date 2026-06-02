@@ -5,6 +5,22 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+---
+
+## [0.2.0] — 2026-06-02
+
+### Added
 - **Tessera — unified Flutter client** (`codes/mobile/`) across mobile, desktop,
   AND web, replacing per-platform frontends. Parity with the React app + more:
   - Browse / poll detail / **M2 blind-vote** (commit-reveal) / verify-receipts /

@@ -27,7 +27,8 @@ Detailed entries for every item on the status board ([README.md](./README.md)). 
 ### P0-1 — `localStorage['my-nullifier']` is global, not per-poll {#p0-1}
 
 **Priority:** P0
-**Status:** Open
+**Status:** Won't Fix — MOOT (the React `Poll.tsx` was deleted 2026-06-02; the
+Flutter app keys nullifier state per (poll, commitment) in secure storage).
 **Owner:** —
 
 **Where:** `codes/frontend/src/pages/Poll.tsx:185-186, 377`
@@ -60,7 +61,8 @@ Detailed entries for every item on the status board ([README.md](./README.md)). 
 ### P0-2 — Module-scope `let group` / `let isGroupSynced` in `Poll.tsx` {#p0-2}
 
 **Priority:** P0
-**Status:** Open
+**Status:** Won't Fix — MOOT (React `Poll.tsx` deleted 2026-06-02; the Flutter app
+holds per-poll state in scoped ViewModels, no module-level leakage).
 **Owner:** —
 
 **Where:** `codes/frontend/src/pages/Poll.tsx:137-138`
@@ -103,7 +105,8 @@ Replace lines 137-138 + the inline `syncGroupState` function with consumption of
 ### P0-3 — `ZkAirdrop` has no test file {#p0-3}
 
 **Priority:** P0
-**Status:** Open
+**Status:** Done — `codes/contracts/test/ZkAirdrop.test.ts` exists; the full
+contracts suite is 109 passing (2026-06-02).
 **Owner:** —
 
 **Where:** `codes/contracts/test/` — directory contains `PollRegistry.test.ts`, `ZkAnonVoting.test.ts`, `ZkBlindVoting.test.ts`. No `ZkAirdrop.test.ts`.
@@ -152,7 +155,8 @@ Replace lines 137-138 + the inline `syncGroupState` function with consumption of
 ### P0-4 — Top-level docs describe the old `ZkVotingLottery` design {#p0-4}
 
 **Priority:** P0
-**Status:** Open
+**Status:** Done — `INSTRUCTIONS.md` + `ZkVotingAirdrop_System_Workflow.md`
+removed; `codes/README.md` rewritten (no lottery refs remain, 2026-06-02).
 **Owner:** —
 
 **Where:**
