@@ -2,7 +2,11 @@
 
 > **Date:** 2026-06-02 · **Owner:** Hoang · **Branch:** `feat/mobile-proving-spike`
 > **Spec:** `docs/superpowers/specs/2026-06-02-mobile-scan-and-native-proving-design.md`
-> **Decision:** **NO-GO (BLOCKED) — spike question UNANSWERED, not answered-no.**
+> **Decision (2026-06-02, original session):** NO-GO (BLOCKED) — emulator never launched.
+> **Decision (2026-06-03, re-verify session): ✅ GO — proof generated in an Android
+> WebView on the emulator, passes the REAL Groth16 vkey.** See
+> **[RE-VERIFY 2026-06-03 — GO](#re-verify-2026-06-03--go)** at the bottom; the
+> original BLOCKED write-up below is preserved as-is for the record.
 
 ## The one question M1 had to answer
 
@@ -158,3 +162,126 @@ WebView running snarkjs — the proving math itself is already vkey-verified.
   so the loopback-HTTP artifact path needs no manifest change for test/debug builds.
 - `web_prover/spike_bundled_artifacts.mjs` is the host-side pre-flight; keep it as a
   fast regression check for the bundled artifacts + `opts` branch.
+
+---
+
+# RE-VERIFY 2026-06-03 — GO
+
+> **Branch:** `mobile-proving-reverify` (off `feat/mobile-proving-spike`).
+> **Decision: ✅ GO.** A Semaphore Groth16 vote proof generated **inside an Android
+> `webview_flutter` WebView on the emulator**, from the BUNDLED depth-16 artifacts,
+> **passes the REAL Groth16 vkey.** The one open M1 question is answered YES.
+
+## What unblocked it — the known-good emulator recipe for THIS host
+
+The original session was blocked because it ran on the flake's default **API-36**
+playstore image under heavy host load: swiftshader's GL abort destabilised
+`system_server` (`Broken pipe (32)` on the `package`/`activity` services), and the
+`install → am start` race lost every time (`MainActivity does not exist`,
+pre-launch). The fix was the documented recipe:
+
+- **AVD:** `Pixelhi` — an **API-31 `google_apis` x86_64** AVD
+  (`image.sysdir.1=system-images/android-31/google_apis/x86_64/`, RAM bumped
+  2048→4096). API-31 has **no swiftshader GL abort**, so `system_server` stays
+  stable and the install/launch race simply does not occur.
+- **Renderer:** Skia, via a **debug-only** `EnableImpeller=false` meta-data in
+  `android/app/src/debug/AndroidManifest.xml` (release/profile keep the Flutter
+  default; web/desktop unaffected). WebView JS execution is independent of
+  Flutter's renderer, so this is belt-and-suspenders, not the crux.
+- **Boot:** headless cold boot `emulator -avd Pixelhi -no-window -no-snapshot
+  -wipe-data -gpu swiftshader_indirect -memory 4096`. Reached
+  `sys.boot_completed=1` in **~30 s**; `pm list packages` → 176 (package service
+  responsive — the exact thing that broke on API-36).
+
+### SDK note — the API-31 image had to be installed by hand
+
+The Nix SDK ships **only** `android-36.1`; `~/asdk/system-images` is a symlink into
+the read-only Nix store. `sdkmanager "system-images;android-31;google_apis;x86_64"`
+failed (`Failed to read or create install properties file` — it can't write the
+read-only target). Workaround that worked:
+
+1. Replace the `system-images` symlink with a real writable dir, re-linking the
+   existing `android-36.1` back in (mirrors how the flake overlays `platforms`/
+   `ndk`/`cmake`).
+2. Download the image zip directly from Google
+   (`dl.google.com/android/repository/sys-img/google_apis/x86_64-31_r14.zip`,
+   1.47 GB) and **verify sha1** (`9aedd3e85cad7a479146f6858f4a94840c2a3f29`, matched).
+3. Unzip into `…/system-images/android-31/google_apis/` so `x86_64/system.img`
+   lands at the path the AVD's `image.sysdir.1` expects. `source.properties` ships
+   inside the zip, so no hand-written `package.xml` was needed; the emulator reads
+   the files directly (sdkmanager's package index never lists it — irrelevant).
+
+## Evidence — M1 (spike harness, WebViewProverHost directly)
+
+`flutter test integration_test/mobile_prover_spike_test.dart -d emulator-5554`:
+
+- APK built + **installed in 805 ms with no race**, app launched, test green
+  (`All tests passed!`).
+- `SPIKE httpError=null` → **localhost-HTTP** delivery proved in-WebView.
+- `SPIKE_BLOB ok=true depth=16 error=null` → the **blob-URL** path (the spec's
+  preferred production path, the ~4.5 MB-base64-over-the-bridge open risk) **also
+  works** on the emulator.
+- `SPIKE_PROOF_JSON` (depth 16, 8 points, golden 3-member group) → fed to the
+  independent oracle `node web_prover/desktop_prover.mjs web/zkprover.js` (verify)
+  → **`{"ok":true,"valid":true}`**. Tampered nullifier → `valid:false` (the oracle
+  is not a rubber stamp). The proof's `points` differ from the host-side proof in
+  the table above — Groth16 is randomised, so a *different* valid proof over the
+  same public inputs is exactly expected; `merkleTreeRoot`/`nullifier`/`scope`
+  match the golden vector.
+
+## Evidence — M2 (production `ProofServiceMobile`, via the `ProofService` interface)
+
+The spike proves the *engine*; M2 proves the *wiring*.
+`flutter test integration_test/mobile_proof_service_test.dart -d emulator-5554`
+constructs the `ProofServiceMobile` the factory returns on Android, mounts its
+**own** `hostView` (the same 1×1 offstage WebView the app shell mounts via
+`MaterialApp.builder`), and calls the public interface:
+
+- `SVC_COMMITMENT value=3202130587…46353681 error=null` — `deriveCommitment` ran
+  in the WebView (`window.zkCommitment`, Android's JSON-quoted result unwrapped)
+  and returned **exactly the golden commitment**. This op was **never** exercised
+  in the M1 spike; now verified.
+- `SVC_PROOF_JSON` (depth 16, 8 points) → real-vkey oracle → **`{"ok":true,
+  "valid":true}`**; tampered point → `valid:false`. Test green (`All tests passed!`).
+
+So both the on-device prover AND the factory wiring that selects it are verified
+end-to-end, not merely analyze-clean.
+
+## Decision: GO → M2 wired
+
+Per the M1 gate, M2 is now started and landed on this branch:
+
+- `lib/data/services/proof_service_mobile.dart` — `ProofServiceMobile` wraps the
+  (verified, untouched-engine) `WebViewProverHost`: lazy single-flight init,
+  `generateVoteProof → RelayProof`, `deriveCommitment`, exposes `hostView`.
+- `proof_service_stub.dart` — factory branch: **Android → `ProofServiceMobile`**;
+  `platformProofServiceAvailable` true on Android. **iOS stays
+  `ProofServiceUnsupported` (fenced)** — same WebView host, unverified-until-a-device
+  per the design doc. Desktop sidecar + web js_interop paths **untouched**.
+- `main.dart` — mounts the offstage host WebView once via `MaterialApp.builder`
+  (`_ProofHostMount`; no-op cast on web/desktop, so `webview_flutter` stays off
+  their UI path).
+- `proof_webview_host.dart` — **additive only** (eager controller getter so a
+  widget can mount before `init`; a `deriveCommitment` method). The M1 spike test
+  still compiles and passes.
+- `test/data/services/zkprover_bundle_parity_test.dart` — fails if
+  `assets/zk/zkprover.js` drifts from `web/zkprover.js` (the APK ships only
+  `assets/`), closing the FINDINGS step-5 drift gap.
+
+`flutter analyze`: **clean**. Host tests (`proof_service_test` + parity): green.
+
+## Honest bounds / fences (verified-or-fenced)
+
+- **Verified on the emulator under Skia** (the debug Impeller-off flag). WebView JS
+  runs in the Android **System WebView**, which is independent of Flutter's
+  renderer, so a real device on Impeller exercises the same WebView — **expected to
+  work, but not yet device-confirmed.** Not claiming an Impeller device run.
+- **Android only.** iOS is fenced (`ProofServiceUnsupported`) until a device
+  confirms; the camera/scanner half (M3) is out of scope here.
+- **No on-chain vote was cast** in this session (M2's "cast a real vote from the
+  emulator" sub-goal). What is proven is the cryptographic claim that mattered: an
+  on-device proof that the **real vkey** accepts. On-chain casting + the QR scanner
+  remain follow-ups (real-device gate for the camera per the design doc).
+- **Host note:** the box was *not* fully solo — a leftover `flutter run -d linux`
+  (desktop app, another session) ran throughout; it did not block (API-31 removed
+  the race root cause), but RAM got tight (~3.5 GiB free with emulator up).

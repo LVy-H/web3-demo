@@ -4,10 +4,17 @@ import '../../config.dart';
 import '../models/relay_proof.dart';
 import 'proof_service.dart';
 import 'proof_service_desktop.dart';
+import 'proof_service_mobile.dart';
 
 bool get _desktopProver =>
     AppConfig.desktopProverEnabled &&
     (Platform.isLinux || Platform.isWindows || Platform.isMacOS);
+
+// Android runs the on-device WebView prover (Phase 11 M1 — proof generated in a
+// `webview_flutter` WebView from bundled depth-16 artifacts, verified against the
+// real Groth16 vkey on an API-31 emulator). iOS rides the same `webview_flutter`
+// host but stays unverified-until-a-device, so it remains Unsupported (fenced).
+bool get _mobileProver => Platform.isAndroid;
 
 /// Native (mobile/desktop) [ProofService] placeholder. Client-side Semaphore
 /// proving on native targets is the UNRESOLVED part of the plan (D2/Open-Q6):
@@ -43,18 +50,24 @@ class ProofServiceUnsupported implements ProofService {
   void dispose() {}
 }
 
-/// Conditional-import factory hook (non-web build → this stub). On desktop with
-/// the Node sidecar configured (SP4), use it; otherwise the Unsupported stub.
-ProofService createPlatformProofService() => _desktopProver
-    ? ProofServiceDesktop(
-        nodePath: AppConfig.desktopProverNode,
-        sidecarPath: AppConfig.desktopProverSidecar,
-        bundlePath: AppConfig.desktopProverBundle,
-      )
-    : const ProofServiceUnsupported();
+/// Conditional-import factory hook (non-web build → this stub). Android → the
+/// on-device WebView prover; desktop with the Node sidecar configured (SP4) →
+/// the sidecar; otherwise the Unsupported stub (iOS, unconfigured desktop).
+ProofService createPlatformProofService() {
+  if (_mobileProver) return ProofServiceMobile();
+  if (_desktopProver) {
+    return ProofServiceDesktop(
+      nodePath: AppConfig.desktopProverNode,
+      sidecarPath: AppConfig.desktopProverSidecar,
+      bundlePath: AppConfig.desktopProverBundle,
+    );
+  }
+  return const ProofServiceUnsupported();
+}
 
 /// Native client-side proving availability. Web is handled by the web impl.
-/// Desktop is true ONLY when the opt-in Node sidecar is configured; mobile stays
-/// false until the WebView prover lands. Default (unconfigured) is false, so the
-/// vote UI is unchanged everywhere it was before.
-bool get platformProofServiceAvailable => _desktopProver;
+/// Android is true (the WebView prover ships). Desktop is true ONLY when the
+/// opt-in Node sidecar is configured; iOS stays false until a device confirms.
+/// Default (unconfigured desktop / iOS) is false, so the vote UI is unchanged
+/// where it was before.
+bool get platformProofServiceAvailable => _mobileProver || _desktopProver;

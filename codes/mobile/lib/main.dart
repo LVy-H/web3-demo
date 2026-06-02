@@ -16,6 +16,7 @@ import 'data/services/identity_store.dart';
 import 'data/services/poll_creator.dart';
 import 'data/services/proof_service.dart';
 import 'data/services/proof_service_factory.dart';
+import 'data/services/proof_service_mobile.dart';
 import 'data/services/relay_client.dart';
 import 'data/services/wallet_service.dart';
 import 'router.dart';
@@ -136,7 +137,30 @@ class ZkVoteApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: buildDarkBauhausTheme(),
         routerConfig: buildRouter(),
+        // On Android the on-device WebView prover needs its WebView ATTACHED to
+        // the tree to run JS. Mount it once here (1×1 offstage), under the
+        // providers so `ProofService` resolves. Web/desktop render nothing.
+        builder: (context, child) => Stack(
+          children: [
+            ?child,
+            const _ProofHostMount(),
+          ],
+        ),
       ),
     );
+  }
+}
+
+/// Mounts the mobile prover's offstage host WebView so its JS can execute. A
+/// no-op on web/desktop (the `ProofService` there isn't a [ProofServiceMobile]),
+/// keeping the cast — and `webview_flutter` — off those platforms' UI path.
+class _ProofHostMount extends StatelessWidget {
+  const _ProofHostMount();
+
+  @override
+  Widget build(BuildContext context) {
+    final service = context.read<ProofService>();
+    if (service is ProofServiceMobile) return service.hostView;
+    return const SizedBox.shrink();
   }
 }

@@ -49,7 +49,16 @@ class WebViewProverHost {
 
   /// The mountable widget controller. The WebView must be attached to the tree
   /// (a 1x1 offstage `WebViewWidget`) for JS to execute on Android.
-  WebViewController get controller => _controller!;
+  ///
+  /// Eagerly created on first access so a host page / companion widget can mount
+  /// the WebView BEFORE [init] runs — the production [ProofServiceMobile] mounts
+  /// the controller in `MaterialApp.builder` at app start, then calls [init]
+  /// lazily on the first proof. The spike test creates it implicitly via [init].
+  WebViewController get controller => _controller ??= _buildController();
+
+  WebViewController _buildController() => WebViewController()
+    ..setJavaScriptMode(JavaScriptMode.unrestricted)
+    ..addJavaScriptChannel('Prover', onMessageReceived: _onMessage);
 
   /// Start the loopback server, load the host page, await the JS readiness
   /// handshake. Idempotent-ish: call once per host.
@@ -82,11 +91,10 @@ class WebViewProverHost {
       }
     });
 
-    final controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..addJavaScriptChannel('Prover', onMessageReceived: _onMessage);
-    _controller = controller;
-    await controller.loadRequest(Uri.parse('http://127.0.0.1:$_port/prover_host.html'));
+    // Reuse the eagerly-built controller if a widget already mounted it (the
+    // production path), else build it now (the spike-test path).
+    final c = controller;
+    await c.loadRequest(Uri.parse('http://127.0.0.1:$_port/prover_host.html'));
 
     final ready = await _ready.future.timeout(
       const Duration(seconds: 60),
@@ -158,6 +166,35 @@ class WebViewProverHost {
       throw Exception('WebView prover failed: ${res['error']}');
     }
     return (res['proof'] as Map).cast<String, dynamic>();
+  }
+
+  /// Derive the Semaphore identity commitment (decimal string) for [seed] using
+  /// the bundle's `window.zkCommitment` — pure identity math, no SNARK, no
+  /// artifacts. Runs in the SAME ready WebView as proving.
+  ///
+  /// `runJavaScriptReturningResult` on Android returns the JS value re-encoded as
+  /// a JSON string (a bare `"123…"` comes back quote-wrapped, sometimes
+  /// backslash-escaped), so the result is JSON-decoded back to the raw decimal.
+  Future<String> deriveCommitment(String seed) async {
+    final seedJs = jsonEncode(seed);
+    final raw = await controller
+        .runJavaScriptReturningResult('window.zkCommitment($seedJs)');
+    return _unwrapJsString(raw);
+  }
+
+  /// Normalise a `runJavaScriptReturningResult` payload to a plain Dart string.
+  /// Android hands back the JS value JSON-encoded (quoted/escaped); iOS/others
+  /// may return the bare value. Decode when it looks JSON-quoted, else trim.
+  static String _unwrapJsString(Object? raw) {
+    final s = raw?.toString() ?? '';
+    if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
+      try {
+        return jsonDecode(s) as String;
+      } catch (_) {
+        return s.substring(1, s.length - 1);
+      }
+    }
+    return s;
   }
 
   Future<void> dispose() async {
