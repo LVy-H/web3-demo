@@ -15,6 +15,12 @@ export interface VoteRequest {
     proof: SemaphoreProof;
 }
 
+export interface ApprovalVoteRequest {
+    pollAddress: string;
+    bitmask: number;
+    proof: SemaphoreProof;
+}
+
 export interface ClaimAirdropRequest {
     airdropAddress: string;
     receiver: string;
@@ -88,6 +94,75 @@ export function validateVoteRequest(
         data: {
             pollAddress: b.pollAddress as string,
             vote: b.vote as number,
+            proof,
+        },
+    };
+}
+
+// Mirror of the contract's MAX_OPTIONS. A JS number is exact past 32 bits
+// (53-bit mantissa), so a bitmask for <=32 options round-trips safely as a
+// number. See docs/superpowers/specs/2026-06-02-approval-voting-design.md.
+const MAX_OPTIONS = 32;
+
+/** Validate an APPROVAL-vote relay request. The ballot is a bitmask (bit i set
+ *  ⇒ option i approved). Mirrors validateVoteRequest but for the bitmask field:
+ *  rejects empty/out-of-word-range masks and binds message==bitmask, scope==poll. */
+export function validateApprovalVoteRequest(
+    body: unknown
+): { ok: true; data: ApprovalVoteRequest } | { ok: false; error: string } {
+    if (!body || typeof body !== "object") {
+        return { ok: false, error: "Request body must be a JSON object" };
+    }
+
+    const b = body as Record<string, unknown>;
+
+    if (!isValidAddress(b.pollAddress)) {
+        return { ok: false, error: "Invalid pollAddress: must be a valid Ethereum address" };
+    }
+
+    // bitmask must be a positive integer that fits in MAX_OPTIONS bits.
+    // 0 is an empty ballot (rejected on-chain as EmptyBallot); >= 2^MAX_OPTIONS
+    // can never be a valid ballot for a <=32-option poll. The contract still
+    // enforces the per-poll bound (bitmask < 2^options.length).
+    if (typeof b.bitmask !== "number" || !Number.isInteger(b.bitmask)) {
+        return { ok: false, error: "Invalid bitmask: must be an integer" };
+    }
+    if (b.bitmask <= 0) {
+        return { ok: false, error: "Invalid bitmask: must be > 0 (empty ballot is not allowed)" };
+    }
+    if (b.bitmask >= 2 ** MAX_OPTIONS) {
+        return { ok: false, error: `Invalid bitmask: must fit in ${MAX_OPTIONS} bits` };
+    }
+
+    if (!isValidProof(b.proof)) {
+        return {
+            ok: false,
+            error: "Invalid proof: must include merkleTreeDepth, merkleTreeRoot, nullifier, message, scope, and points (array of 8 strings)",
+        };
+    }
+
+    const proof = b.proof as SemaphoreProof;
+
+    if (proof.message !== String(b.bitmask)) {
+        return {
+            ok: false,
+            error: `Proof message (${proof.message}) does not match bitmask (${b.bitmask})`,
+        };
+    }
+
+    const expectedScope = BigInt(b.pollAddress as string).toString();
+    if (proof.scope !== expectedScope) {
+        return {
+            ok: false,
+            error: `Proof scope does not match pollAddress. Expected ${expectedScope}, got ${proof.scope}`,
+        };
+    }
+
+    return {
+        ok: true,
+        data: {
+            pollAddress: b.pollAddress as string,
+            bitmask: b.bitmask as number,
             proof,
         },
     };

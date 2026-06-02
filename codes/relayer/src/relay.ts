@@ -3,6 +3,7 @@ import { getRelayerWallet, getProvider } from "./wallet";
 import { config } from "./config";
 import type { SemaphoreProof } from "./validation";
 import ZkAnonVotingABI from "./abi/ZkAnonVoting.json";
+import ZkApprovalVotingABI from "./abi/ZkApprovalVoting.json";
 import ZkAirdropABI from "./abi/ZkAirdrop.json";
 
 function toProofStruct(proof: SemaphoreProof) {
@@ -45,6 +46,46 @@ export async function relayCastVote(
     const proofStruct = toProofStruct(proof);
 
     const tx = await contract.castVote(vote, proofStruct, {
+        gasLimit: config.maxGasLimit,
+    });
+
+    const receipt = await tx.wait();
+    return { txHash: receipt.hash };
+}
+
+export async function relayApprovalVote(
+    pollAddress: string,
+    bitmask: number,
+    proof: SemaphoreProof
+): Promise<{ txHash: string }> {
+    const wallet = getRelayerWallet();
+    const contract = new ethers.Contract(pollAddress, ZkApprovalVotingABI.abi, wallet);
+
+    // Pre-check: poll must be in Voting state (state == 1)
+    const state = await contract.getState();
+    if (Number(state) !== 1) {
+        throw new Error("Poll is not in voting phase");
+    }
+
+    // Pre-check: bitmask must be in range for this poll's option count.
+    // Valid ballots are [1, 2^optionCount): non-empty and no bits beyond the
+    // declared options. (The contract re-checks; this fails fast off-chain.)
+    const optionCount = Number(await contract.getOptionCount());
+    if (bitmask <= 0 || bitmask >= 2 ** optionCount) {
+        throw new Error(
+            `Invalid ballot bitmask ${bitmask}: poll has ${optionCount} options (valid range 1..${2 ** optionCount - 1})`
+        );
+    }
+
+    // Pre-check: nullifier not already used
+    const isUsed = await contract.isNullifierUsed(BigInt(proof.nullifier));
+    if (isUsed) {
+        throw new Error("This vote token has already been used (nullifier consumed)");
+    }
+
+    const proofStruct = toProofStruct(proof);
+
+    const tx = await contract.castVote(bitmask, proofStruct, {
         gasLimit: config.maxGasLimit,
     });
 
