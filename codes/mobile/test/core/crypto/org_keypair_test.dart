@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zkvote_mobile/core/crypto/org_keypair.dart';
-import 'package:zkvote_mobile/core/crypto/ticket.dart';
+import 'package:tessera/core/crypto/org_keypair.dart';
+import 'package:tessera/core/crypto/ticket.dart';
 
 /// In-memory [KeyStore] so the lib is testable without platform storage.
 class MemStore implements KeyStore {

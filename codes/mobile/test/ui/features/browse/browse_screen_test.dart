@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:zkvote_mobile/data/models/poll_info.dart';
-import 'package:zkvote_mobile/data/models/poll_snapshot.dart';
-import 'package:zkvote_mobile/data/models/poll_summary.dart';
-import 'package:zkvote_mobile/data/repositories/poll_repository.dart';
-import 'package:zkvote_mobile/ui/features/browse/browse_screen.dart';
-import 'package:zkvote_mobile/ui/features/browse/browse_view_model.dart';
+import 'package:tessera/data/models/poll_info.dart';
+import 'package:tessera/data/models/poll_snapshot.dart';
+import 'package:tessera/data/models/poll_summary.dart';
+import 'package:tessera/data/repositories/poll_repository.dart';
+import 'package:tessera/ui/features/browse/browse_screen.dart';
+import 'package:tessera/ui/features/browse/browse_view_model.dart';
 
 class FakePollRepository implements PollRepository {
   final List<PollInfo>? polls;

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:zkvote_mobile/data/services/identity_store.dart';
-import 'package:zkvote_mobile/ui/features/identity/identity_screen.dart';
-import 'package:zkvote_mobile/ui/features/identity/identity_view_model.dart';
+import 'package:tessera/data/services/identity_store.dart';
+import 'package:tessera/ui/features/identity/identity_screen.dart';
+import 'package:tessera/ui/features/identity/identity_view_model.dart';
 
 Widget _host(IdentityStore store) => ChangeNotifierProvider(
       create: (_) => IdentityViewModel(store)..load(),

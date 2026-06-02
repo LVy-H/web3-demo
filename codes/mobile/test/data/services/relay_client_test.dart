@@ -4,8 +4,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:zkvote_mobile/data/models/relay_proof.dart';
-import 'package:zkvote_mobile/data/services/relay_client.dart';
+import 'package:tessera/data/models/relay_proof.dart';
+import 'package:tessera/data/services/relay_client.dart';
 
 /// Verifies the Dart relayer client speaks the EXACT cross-client HTTP contract
 /// (spec §2.5) the relayer (codes/relayer/src) and web client (liveRelay.ts /

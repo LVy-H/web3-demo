@@ -3,14 +3,14 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:zkvote_mobile/data/models/poll_info.dart';
-import 'package:zkvote_mobile/data/models/poll_snapshot.dart';
-import 'package:zkvote_mobile/data/models/poll_summary.dart';
-import 'package:zkvote_mobile/data/models/relay_proof.dart';
-import 'package:zkvote_mobile/data/repositories/poll_repository.dart';
-import 'package:zkvote_mobile/data/services/proof_service.dart';
-import 'package:zkvote_mobile/data/services/relay_client.dart';
-import 'package:zkvote_mobile/ui/features/poll_detail/vote_view_model.dart';
+import 'package:tessera/data/models/poll_info.dart';
+import 'package:tessera/data/models/poll_snapshot.dart';
+import 'package:tessera/data/models/poll_summary.dart';
+import 'package:tessera/data/models/relay_proof.dart';
+import 'package:tessera/data/repositories/poll_repository.dart';
+import 'package:tessera/data/services/proof_service.dart';
+import 'package:tessera/data/services/relay_client.dart';
+import 'package:tessera/ui/features/poll_detail/vote_view_model.dart';
 
 class FakeRepo implements PollRepository {
   final List<String> group;

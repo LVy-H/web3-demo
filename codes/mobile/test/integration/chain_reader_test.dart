@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:zkvote_mobile/data/services/chain_reader.dart';
+import 'package:tessera/data/services/chain_reader.dart';
 
 /// Integration test: decodes REAL values from a local Hardhat node, proving the
 /// web3dart eth_call + ABI codec works for uint, string[], uint[], address, and

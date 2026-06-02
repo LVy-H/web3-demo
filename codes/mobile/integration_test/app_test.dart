@@ -19,7 +19,7 @@ import 'package:flutter/material.dart' show GestureDetector;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'package:zkvote_mobile/main.dart' as app;
+import 'package:tessera/main.dart' as app;
 
 /// Pump in a loop until [finder] matches or [timeout] elapses. Unlike
 /// pumpAndSettle, this tolerates the indefinite loading-spinner animation while

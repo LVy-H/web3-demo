@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zkvote_mobile/core/crypto/blind_commit.dart';
+import 'package:tessera/core/crypto/blind_commit.dart';
 
 void main() {
   // Golden vectors generated with viem (the exact encoding the contract and the

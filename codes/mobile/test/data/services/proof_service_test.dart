@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zkvote_mobile/data/models/relay_proof.dart';
-import 'package:zkvote_mobile/data/services/proof_service.dart';
+import 'package:tessera/data/models/relay_proof.dart';
+import 'package:tessera/data/services/proof_service.dart';
 
 /// Validates that [RelayProof] faithfully carries a REAL Semaphore v4 proof
 /// (the one verified against the real Groth16 vkey in the de-risk spike) and

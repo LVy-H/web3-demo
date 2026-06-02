@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:convert/convert.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zkvote_mobile/core/crypto/ticket.dart';
+import 'package:tessera/core/crypto/ticket.dart';
 
 /// Cross-client byte-compatibility for the signed ticket. Golden preimage/wire
 /// come from codes/frontend/src/lib/ticket.ts (the relayer verifies the same

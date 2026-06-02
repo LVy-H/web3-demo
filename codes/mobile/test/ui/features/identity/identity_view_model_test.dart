@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zkvote_mobile/data/services/identity_store.dart';
-import 'package:zkvote_mobile/ui/features/identity/identity_view_model.dart';
+import 'package:tessera/data/services/identity_store.dart';
+import 'package:tessera/ui/features/identity/identity_view_model.dart';
 
 void main() {
   test('load against an empty store -> no identity, not loading', () async {

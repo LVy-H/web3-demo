@@ -8,7 +8,7 @@ import 'package:flutter/material.dart' show NavigationDestination;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'package:zkvote_mobile/main.dart' as app;
+import 'package:tessera/main.dart' as app;
 
 Future<bool> pumpUntilFound(
   WidgetTester tester,

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:zkvote_mobile/data/repositories/verify_repository.dart';
-import 'package:zkvote_mobile/ui/features/verify/verify_screen.dart';
-import 'package:zkvote_mobile/ui/features/verify/verify_view_model.dart';
+import 'package:tessera/data/repositories/verify_repository.dart';
+import 'package:tessera/ui/features/verify/verify_screen.dart';
+import 'package:tessera/ui/features/verify/verify_view_model.dart';
 
 class FakeVerifyRepo implements VerifyRepository {
   final bool used;
