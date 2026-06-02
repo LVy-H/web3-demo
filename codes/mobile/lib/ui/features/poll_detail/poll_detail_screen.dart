@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/models/poll_snapshot.dart';
+import '../../../data/services/identity_store.dart';
 import '../../../data/services/proof_service_factory.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
@@ -327,6 +328,23 @@ class _VoteForm extends StatefulWidget {
 class _VoteFormState extends State<_VoteForm> {
   final _seed = TextEditingController();
   int? _selected;
+  bool _fromSavedIdentity = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Prefill from the saved identity so voting doesn't need pasting (SP2).
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final saved = await context.read<IdentityStore>().read();
+      if (!mounted || saved == null || saved.isEmpty || _seed.text.isNotEmpty) {
+        return;
+      }
+      setState(() {
+        _seed.text = saved;
+        _fromSavedIdentity = true;
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -358,9 +376,19 @@ class _VoteFormState extends State<_VoteForm> {
           ),
         ],
         const SizedBox(height: 14),
+        if (_fromSavedIdentity)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(children: [
+              const Icon(Icons.fingerprint, size: 13, color: Db.success),
+              const SizedBox(width: 6),
+              Text('using your saved identity',
+                  style: dbLabel(size: 10, color: Db.success)),
+            ]),
+          ),
         TextField(
           controller: _seed,
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) => setState(() => _fromSavedIdentity = false),
           style: dbMono(13, Db.chalk),
           cursorColor: Db.segnale,
           decoration: InputDecoration(
