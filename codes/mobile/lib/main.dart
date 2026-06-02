@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:provider/provider.dart';
 
 import 'config.dart';
+import 'data/repositories/approval_repository.dart';
 import 'data/repositories/blind_repository.dart';
 import 'data/repositories/live_host_repository.dart';
 import 'data/repositories/poll_repository.dart';
@@ -32,10 +33,13 @@ Future<void> main() async {
   final registryAbi = await rootBundle.loadString('assets/abi/PollRegistry.json');
   final anonAbi = await rootBundle.loadString('assets/abi/ZkAnonVoting.json');
   final blindAbi = await rootBundle.loadString('assets/abi/ZkBlindVoting.json');
+  final approvalAbi =
+      await rootBundle.loadString('assets/abi/ZkApprovalVoting.json');
 
   final registryAbiArr = _abiArray(registryAbi);
   final anonAbiArr = _abiArray(anonAbi);
   final blindAbiArr = _abiArray(blindAbi);
+  final approvalAbiArr = _abiArray(approvalAbi);
 
   final reader = ChainReader(
     rpcUrl: AppConfig.rpcUrl,
@@ -58,6 +62,7 @@ Future<void> main() async {
     registryAbiJson: registryAbiArr,
     anonAbiJson: anonAbiArr,
     blindAbiJson: blindAbiArr,
+    approvalAbiJson: approvalAbiArr,
   ));
 }
 
@@ -67,6 +72,7 @@ class ZkVoteApp extends StatelessWidget {
   final String registryAbiJson;
   final String anonAbiJson;
   final String blindAbiJson;
+  final String approvalAbiJson;
   const ZkVoteApp({
     super.key,
     required this.reader,
@@ -74,6 +80,7 @@ class ZkVoteApp extends StatelessWidget {
     required this.registryAbiJson,
     required this.anonAbiJson,
     required this.blindAbiJson,
+    required this.approvalAbiJson,
   });
 
   @override
@@ -110,11 +117,17 @@ class ZkVoteApp extends StatelessWidget {
             blindAbiJson: blindAbiJson,
           ),
         ),
+        // M3 approval-vote reads — same ChainReader / IZkPoll surface as M1,
+        // so this just wraps the shared reader (no extra ABI for reads).
+        Provider<ApprovalRepository>(
+          create: (_) => ChainApprovalRepository(reader),
+        ),
         Provider<PollCreator>(
           create: (_) => PollCreator(
             writer: writer,
             registryAbiJson: registryAbiJson,
             anonAbiJson: anonAbiJson,
+            approvalAbiJson: approvalAbiJson,
           ),
         ),
         Provider<LiveHostRepository>(

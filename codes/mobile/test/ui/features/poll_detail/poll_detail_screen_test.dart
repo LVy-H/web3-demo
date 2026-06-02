@@ -67,6 +67,25 @@ void main() {
     expect(find.textContaining('4 REGISTERED'), findsOneWidget);
   });
 
+  testWidgets('all-zero results render the "No votes yet" empty state',
+      (tester) async {
+    // Carried results-charts case: a Voting poll with no votes yet shows the
+    // ResultsBars empty state (no bars, no divide-by-zero), not a 0% chart.
+    final snap = PollSnapshot(
+      address: addr,
+      state: 1, // Voting
+      options: const ['Yes', 'No', 'Abstain'],
+      results: [BigInt.zero, BigInt.zero, BigInt.zero],
+      owner: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+      participantCount: BigInt.from(2),
+    );
+    await tester.pumpWidget(wrap(FakeRepo(snap: snap)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No votes yet'), findsOneWidget);
+    expect(find.byType(FractionallySizedBox), findsNothing); // no bars drawn
+  });
+
   testWidgets('shows error state on read failure', (tester) async {
     await tester.pumpWidget(wrap(FakeRepo(error: Exception('rpc down'))));
     await tester.pumpAndSettle();

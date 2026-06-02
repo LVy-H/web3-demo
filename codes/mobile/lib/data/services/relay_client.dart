@@ -156,6 +156,38 @@ class RelayClient {
     }
   }
 
+  /// Relay an APPROVAL ballot (gasless): the vote is a [bitmask] (bit i set ⇒
+  /// option i approved), not a single index. POSTs to `/api/relay/approval-vote`,
+  /// which rejects unless `proof.message == String(bitmask)` (ballot ↔ proof
+  /// binding) and the scope matches the poll. Never throws — returns a
+  /// [RelayResult]. Mirrors [relayVote]; the single-option `/vote` path is left
+  /// untouched.
+  Future<RelayResult> relayApprovalVote(
+    String pollAddress,
+    int bitmask,
+    RelayProof proof,
+  ) async {
+    try {
+      final r = await _postJson('/api/relay/approval-vote', {
+        'pollAddress': pollAddress,
+        'bitmask': bitmask,
+        'proof': proof.toJson(),
+      }, timeout: voteTimeout);
+      if (!r.ok) {
+        return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
+      }
+      return RelayResult(
+        success: true,
+        txHash: r.data['txHash'] is String ? r.data['txHash'] as String : null,
+      );
+    } on TimeoutException {
+      return const RelayResult(
+          success: false, error: 'Relayer did not respond in time. Try again.');
+    } catch (e) {
+      return RelayResult(success: false, error: e.toString());
+    }
+  }
+
   /// One-shot relayer health/balance probe. Returns null on any error.
   Future<RelayStatus?> fetchStatus() async {
     try {
