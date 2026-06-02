@@ -75,13 +75,32 @@ package has been dropped/not-yet-committed by a churning `system_server`, so the
 launcher activity 404s. Under host monitoring, `PackageManager` was observed
 re-scanning app dirs *after* the test ran — i.e. `system_server` cycled mid-session.
 
-### This is environmental, proven by a control test
+### Environmental at root — control test, with an important asymmetry
 
 Running the repo's **known-good** `integration_test/app_test.dart` (the existing
-e2e, a smaller APK with no zk artifacts) on the same emulator failed **identically**:
-`Broken pipe (32)` on the activity + package services, and the VM-service WebSocket
-never connected. So the blocker is the emulator/host, **not** the spike code and
-**not** the larger (+5.2 MB) APK.
+e2e, a smaller APK with no zk artifacts) on the same emulator also failed — and
+the same `Broken pipe (32)` instability on the emulator's `package`/`activity`
+services is the shared root cause. But the two do **not** fail at the same stage,
+and the difference matters:
+
+- **Spike** (every attempt): `am start … MainActivity does not exist` — a
+  **pre-launch** failure. The app process never started.
+- **Control** (`app_test`): `WebSocketChannelException … /ws` — a **post-launch**
+  failure. The VM-service ws URL only exists after the app process starts and the
+  Dart VM comes up, so the control **did launch**; its failure was the
+  VM-service handshake dying (Broken pipe on system services).
+
+So the control launching where the spike never does means the larger (+5.2 MB)
+spike APK is **not ruled out** as a contributing factor — if anything it mildly
+implicates it: a heavier streamed install loses the post-install
+package-registration race (the window before `am start`) more reliably, which is
+why the spike always fails *pre-launch*. Honest root cause: emulator
+`system_server` is unstable (`Broken pipe` — proven directly), **and** the bigger
+APK plausibly compounds the install-commit race. Both feed the same outcome:
+**blocked → spike question unanswered.** Note the manual `adb install -r` + ~3s
+settle + `am start` **succeeds** (below), proving the activity/manifest/build are
+correct and the app *is* launchable — the failure is the race, not a code or
+manifest bug, so the spike test itself is sound and should run on a quiet host.
 
 Likely trigger: heavy concurrent host load. At spike time the host was running
 another agent's live `flutter run -d linux` session, a Gradle daemon (`-Xmx8G`), a
