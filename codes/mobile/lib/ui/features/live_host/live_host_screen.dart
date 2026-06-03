@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../data/models/pending_voter.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
+import '../../core/poll_header.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
 import 'live_host_view_model.dart';
@@ -92,40 +92,13 @@ class _Body extends StatelessWidget {
 
   Widget _header(BuildContext context) => Padding(
         padding: const EdgeInsets.only(top: 8, bottom: 12),
-        child: Row(children: [
-          Expanded(
-            child: InkWell(
-              onTap: () => context.canPop() ? context.pop() : context.go('/'),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.arrow_back, size: 14, color: Db.mute),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text('BACK',
-                      overflow: TextOverflow.ellipsis,
-                      softWrap: false,
-                      style: dbLabel(size: 11, tracking: 0.16)),
-                ),
-              ]),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            color: Db.segnale,
-            child: Text('LIVE · HOST',
-                style: dbSans(11, 800, Db.void_, letterSpacing: 1.6)),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: const BoxDecoration(
-              color: Db.slate,
-              border: Border.fromBorderSide(BorderSide(color: Db.rule)),
-            ),
-            child: Text(shortAddr(vm.pollAddress),
-                style: dbMono(11, Db.mute, letterSpacing: 0.5)),
-          ),
-        ]),
+        child: pollDetailHeaderRow(
+          context: context,
+          badgeLabel: 'LIVE · HOST',
+          badgeColor: Db.segnale,
+          shortAddr: shortAddr(vm.pollAddress),
+          backLabel: 'BACK',
+        ),
       );
 
   Widget _banner(IconData icon, String text) => Container(
@@ -167,8 +140,13 @@ class _QrPanel extends StatelessWidget {
         Row(children: [
           const Icon(Icons.qr_code_2, size: 16, color: Db.mute),
           const SizedBox(width: 8),
-          Text('SCAN TO JOIN', style: dbSectionTitle),
-          const Spacer(),
+          Expanded(
+            child: Text('SCAN TO JOIN',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: dbSectionTitle),
+          ),
+          const SizedBox(width: 8),
           Text('${vm.secondsLeft}s', style: dbMono(13, Db.segnale, wght: 700)),
         ]),
         const SizedBox(height: 16),
@@ -220,8 +198,13 @@ class _QueuePanel extends StatelessWidget {
         Row(children: [
           const Icon(Icons.groups_outlined, size: 16, color: Db.mute),
           const SizedBox(width: 8),
-          Text('PENDING QUEUE', style: dbSectionTitle),
-          const Spacer(),
+          Expanded(
+            child: Text('PENDING QUEUE',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: dbSectionTitle),
+          ),
+          const SizedBox(width: 8),
           Text('${pending.length}', style: dbLabel(size: 11, tracking: 0.05)),
         ]),
         const SizedBox(height: 16),

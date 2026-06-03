@@ -106,8 +106,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _row(String label, String value) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        // Both sides are Flexible with ellipsis so the row can't overflow when
+        // the system font scale is enlarged (the label used to be fixed-width
+        // and pushed the row past the edge at textScale > 1.0 on narrow phones).
+        // The Spacer keeps the value pinned to the right edge when both fit.
         child: Row(children: [
-          Text(label, style: dbSans(13, 600, Db.chalkDim)),
+          Flexible(
+            child: Text(label,
+                overflow: TextOverflow.ellipsis,
+                style: dbSans(13, 600, Db.chalkDim)),
+          ),
+          const SizedBox(width: 12),
           const Spacer(),
           Flexible(
             child: Text(value,
@@ -122,9 +131,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          // Expanded label so it ellipsizes under an enlarged font scale instead
+          // of pushing the trailing arrow off the right edge.
           child: Row(children: [
-            Text(label, style: dbSans(13, 600, Db.chalk)),
-            const Spacer(),
+            Expanded(
+              child: Text(label,
+                  overflow: TextOverflow.ellipsis,
+                  style: dbSans(13, 600, Db.chalk)),
+            ),
+            const SizedBox(width: 12),
             const Icon(Icons.arrow_forward, size: 14, color: Db.segnale),
           ]),
         ),

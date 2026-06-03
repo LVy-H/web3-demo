@@ -191,10 +191,17 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               const Icon(Icons.arrow_back, size: 14, color: Db.mute),
               const SizedBox(width: 6),
-              Text('BACK', style: dbLabel(size: 11, tracking: 0.16)),
+              Flexible(
+                child: Text('BACK',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                    style: dbLabel(size: 11, tracking: 0.16)),
+              ),
             ]),
           ),
         ),
+        const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           color: Db.segnale,
