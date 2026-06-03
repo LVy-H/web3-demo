@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/models/poll_snapshot.dart';
@@ -10,6 +9,7 @@ import '../../../data/services/identity_store.dart';
 import '../../../data/services/proof_service_factory.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
+import '../../core/poll_header.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
 import '../../widgets/results_bars.dart';
@@ -129,50 +129,11 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 8, bottom: 12),
-    child: Row(
-      children: [
-        Expanded(
-          child: InkWell(
-            onTap: () => context.canPop() ? context.pop() : context.go('/'),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.arrow_back, size: 14, color: Db.mute),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    'BACK TO POLLS',
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: false,
-                    style: dbLabel(size: 11, tracking: 0.16),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          color: Db.oltremare,
-          child: Text(
-            'ZK · APPROVAL',
-            style: dbSans(11, 800, Db.void_, letterSpacing: 2.0),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: const BoxDecoration(
-            color: Db.slate,
-            border: Border.fromBorderSide(BorderSide(color: Db.rule)),
-          ),
-          child: Text(
-            shortAddr,
-            style: dbMono(11, Db.mute, letterSpacing: 0.5),
-          ),
-        ),
-      ],
+    child: pollDetailHeaderRow(
+      context: context,
+      badgeLabel: 'ZK · APPROVAL',
+      badgeColor: Db.oltremare,
+      shortAddr: shortAddr,
     ),
   );
 }
@@ -258,15 +219,10 @@ class _ResultsBars extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.bar_chart, size: 16, color: Db.mute),
-              const SizedBox(width: 8),
-              Text('APPROVALS', style: dbSectionTitle),
-              const Spacer(),
-              Text('$voters VOTERS', style: dbLabel(size: 11, tracking: 0.05)),
-            ],
-          ),
+          resultsTitleRow(
+              icon: Icons.bar_chart,
+              title: 'APPROVALS',
+              trailing: '$voters VOTERS'),
           const SizedBox(height: 18),
           ResultsBars(
             options: [

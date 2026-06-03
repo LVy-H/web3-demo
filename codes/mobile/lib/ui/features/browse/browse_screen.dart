@@ -502,15 +502,22 @@ class _HeroStat extends StatelessWidget {
         padding: const EdgeInsets.only(top: 14),
         decoration:
             const BoxDecoration(border: Border(top: BorderSide(color: Db.ruleSoft))),
+        // Just the vote tally. The old trailing 'T-MINUS —' was a half-wired
+        // countdown that only ever rendered an em-dash (these poll types carry no
+        // deadline), and on a narrow card it overflowed the row. The poll's phase
+        // is already shown honestly by the _StateChip at the top of the card, so
+        // a second status word here would be redundant — dropped entirely. The
+        // big number is Flexible+ellipsis so a huge tally can't overflow either.
         child: Row(crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic, children: [
-          Text(votes?.toString() ?? '—',
-              style: dbSans(28, 700, Db.chalk, letterSpacing: -0.6)),
+          Flexible(
+            child: Text(votes?.toString() ?? '—',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: dbSans(28, 700, Db.chalk, letterSpacing: -0.6)),
+          ),
           const SizedBox(width: 8),
           Text('VOTES', style: dbLabel(size: 10)),
-          const Spacer(),
-          Text('T-MINUS —',
-              style: dbMono(12, Db.segnale, letterSpacing: 1.0)),
         ]),
       );
 }
