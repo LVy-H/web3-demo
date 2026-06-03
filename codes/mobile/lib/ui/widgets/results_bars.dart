@@ -33,11 +33,20 @@ class ResultsBars extends StatelessWidget {
   /// total shows none).
   static const winnerKey = Key('results-bars-winner');
 
+  /// Whether to crown the strict leader with a trophy. Defaults to `true` for
+  /// M1/M3 (a single-choice/approval LEADER is a meaningful outcome). RANKED
+  /// (M4) MUST pass `false`: these bars are the ROUND-1 first-preference tally,
+  /// and the first-pref leader is frequently NOT the instant-runoff winner — the
+  /// spec forbids any chart treating `max(results)` as the outcome. When `false`,
+  /// no bar is highlighted and no [winnerKey] marker is rendered.
+  final bool highlightLeader;
+
   const ResultsBars({
     super.key,
     required this.options,
     this.total,
     this.emptyLabel = 'No votes yet',
+    this.highlightLeader = true,
   });
 
   @override
@@ -56,8 +65,9 @@ class ResultsBars extends StatelessWidget {
     }
 
     // Strict single leader by exact BigInt comparison (never via the float %),
-    // so a true tie highlights nobody.
-    final leaderIndex = _strictLeaderIndex(options);
+    // so a true tie highlights nobody. Suppressed entirely when [highlightLeader]
+    // is false (ranked first-prefs — the leader is NOT the outcome).
+    final leaderIndex = highlightLeader ? _strictLeaderIndex(options) : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

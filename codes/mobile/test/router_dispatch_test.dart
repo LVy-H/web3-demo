@@ -10,6 +10,7 @@ import 'package:tessera/data/models/poll_summary.dart';
 import 'package:tessera/data/models/relay_proof.dart';
 import 'package:tessera/data/repositories/approval_repository.dart';
 import 'package:tessera/data/repositories/poll_repository.dart';
+import 'package:tessera/data/repositories/ranked_repository.dart';
 import 'package:tessera/data/services/chain_writer.dart';
 import 'package:tessera/data/services/proof_service.dart';
 import 'package:tessera/data/services/relay_client.dart';
@@ -45,6 +46,13 @@ class _FakeApprovalRepo implements ApprovalRepository {
   Future<List<String>> fetchGroup(String address) async => const [];
 }
 
+class _FakeRankedRepo implements RankedRepository {
+  @override
+  Future<PollSnapshot> fetchPoll(String address) async => _snap(address);
+  @override
+  Future<List<String>> fetchGroup(String address) async => const [];
+}
+
 const _addr = '0x1111111111111111111111111111111111111111';
 
 const _proof = RelayProof(
@@ -68,6 +76,7 @@ Widget _app(String initialLocation) {
     providers: [
       Provider<PollRepository>(create: (_) => _FakePollRepo()),
       Provider<ApprovalRepository>(create: (_) => _FakeApprovalRepo()),
+      Provider<RankedRepository>(create: (_) => _FakeRankedRepo()),
       Provider<ProofService>(create: (_) => const FakeProofService(_proof)),
       Provider<RelayClient>(
         create: (_) => RelayClient(
@@ -99,6 +108,23 @@ void main() {
       expect(find.text('APPROVALS'), findsOneWidget);
       // …and the anon screen's chrome is ABSENT (the bug this guards: falling
       // through to the anon screen would cast a single-index vote, not a bitmask).
+      expect(find.text('ZK · ANON'), findsNothing);
+      expect(find.text('LIVE RESULTS'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    '?module=ranked-vote dispatches to the RANKED screen, not the anon one',
+    (tester) async {
+      await tester.pumpWidget(_app('/poll/$_addr?module=ranked-vote'));
+      await tester.pumpAndSettle();
+
+      // Ranked chrome present…
+      expect(find.text('ZK · RANKED'), findsOneWidget);
+      expect(find.text('FIRST CHOICES'), findsOneWidget);
+      // …and the anon screen's chrome is ABSENT (the bug this guards: falling
+      // through to the anon screen would cast a single-index vote, not a packed
+      // ranking ballot).
       expect(find.text('ZK · ANON'), findsNothing);
       expect(find.text('LIVE RESULTS'), findsNothing);
     },

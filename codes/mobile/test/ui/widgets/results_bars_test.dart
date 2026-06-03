@@ -96,6 +96,37 @@ void main() {
       expect(find.byIcon(Icons.emoji_events), findsOneWidget);
     });
 
+    testWidgets(
+        'highlightLeader: false crowns nobody even with a clear leader '
+        '(ranked first-prefs are NOT the winner)', (tester) async {
+      // The ranked (M4) screen passes highlightLeader: false because these bars
+      // are the ROUND-1 first-preference tally — the first-pref leader is
+      // frequently NOT the instant-runoff winner, and the spec forbids any chart
+      // treating max(results) as the outcome. A clear leader (5 vs 2) must still
+      // get NO trophy.
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 360,
+              child: ResultsBars(
+                highlightLeader: false,
+                options: [_opt('Front-runner', 5), _opt('Other', 2)],
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(ResultsBars.winnerKey), findsNothing,
+          reason: 'no winner marker when highlightLeader is false');
+      expect(find.byIcon(Icons.emoji_events), findsNothing,
+          reason: 'no trophy on the first-pref leader');
+      // Bars still render — only the highlight is suppressed.
+      expect(find.byType(FractionallySizedBox), findsNWidgets(2));
+    });
+
     testWidgets('a tie shows no single winner', (tester) async {
       await tester.pumpWidget(_host([
         _opt('A', 4),
