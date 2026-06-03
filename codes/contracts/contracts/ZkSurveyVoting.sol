@@ -308,7 +308,10 @@ contract ZkSurveyVoting is IZkPoll, Initializable, Ownable {
     // identity (same nullifier). This is the identical no-lockout discipline of
     // M1/M2/M3/QV. The commitment recompute (check 4) binds the ENTIRE answer
     // vector to the proof.
-    function castVote(uint256[] calldata answers, ISemaphore.SemaphoreProof calldata proof) external {
+    function castVote(
+        uint256[] calldata answers,
+        ISemaphore.SemaphoreProof calldata proof
+    ) external {
         // 1. Must be in the Voting phase.
         if (state != PollState.Voting) revert NotInVoting();
 
