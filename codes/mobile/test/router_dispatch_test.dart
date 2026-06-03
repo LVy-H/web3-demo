@@ -10,11 +10,13 @@ import 'package:tessera/data/models/poll_summary.dart';
 import 'package:tessera/data/models/relay_proof.dart';
 import 'package:tessera/data/repositories/approval_repository.dart';
 import 'package:tessera/data/repositories/poll_repository.dart';
+import 'package:tessera/data/repositories/quadratic_repository.dart';
 import 'package:tessera/data/repositories/ranked_repository.dart';
 import 'package:tessera/data/services/chain_writer.dart';
 import 'package:tessera/data/services/proof_service.dart';
 import 'package:tessera/data/services/relay_client.dart';
 import 'package:tessera/router.dart';
+import 'package:tessera/ui/widgets/results_bars.dart';
 
 // ── Fakes for the subtree `buildPollDetail` touches ──────────────────────────
 
@@ -53,6 +55,13 @@ class _FakeRankedRepo implements RankedRepository {
   Future<List<String>> fetchGroup(String address) async => const [];
 }
 
+class _FakeQuadraticRepo implements QuadraticRepository {
+  @override
+  Future<PollSnapshot> fetchPoll(String address) async => _snap(address);
+  @override
+  Future<List<String>> fetchGroup(String address) async => const [];
+}
+
 const _addr = '0x1111111111111111111111111111111111111111';
 
 const _proof = RelayProof(
@@ -77,6 +86,7 @@ Widget _app(String initialLocation) {
       Provider<PollRepository>(create: (_) => _FakePollRepo()),
       Provider<ApprovalRepository>(create: (_) => _FakeApprovalRepo()),
       Provider<RankedRepository>(create: (_) => _FakeRankedRepo()),
+      Provider<QuadraticRepository>(create: (_) => _FakeQuadraticRepo()),
       Provider<ProofService>(create: (_) => const FakeProofService(_proof)),
       Provider<RelayClient>(
         create: (_) => RelayClient(
@@ -125,6 +135,35 @@ void main() {
       // …and the anon screen's chrome is ABSENT (the bug this guards: falling
       // through to the anon screen would cast a single-index vote, not a packed
       // ranking ballot).
+      expect(find.text('ZK · ANON'), findsNothing);
+      expect(find.text('LIVE RESULTS'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    '?module=quadratic-vote dispatches to the QUADRATIC screen, not the anon one',
+    (tester) async {
+      await tester.pumpWidget(_app('/poll/$_addr?module=quadratic-vote'));
+      await tester.pumpAndSettle();
+
+      // Quadratic chrome present… (the results card title is always rendered;
+      // the allocation FORM is web-only — gated on proofServiceAvailable, false
+      // under `flutter test` — so this asserts the always-present chrome, like
+      // the ranked dispatch guard above.)
+      expect(find.text('ZK · QUADRATIC'), findsOneWidget);
+      expect(find.text('VOTE TOTALS'), findsOneWidget);
+      // QV results are AUTHORITATIVE: getResults() IS the outcome, so the screen
+      // DOES crown the leader (`highlightLeader: true`). The snapshot is
+      // results=[2,1,0] → option 0 is the strict leader → the trophy marker is
+      // in the tree. (This is the OPPOSITE of ranked, which passes
+      // `highlightLeader: false` and renders no marker.)
+      expect(find.byKey(ResultsBars.winnerKey), findsOneWidget);
+      // …and it deliberately does NOT carry over ranked's "not the final winner"
+      // caption — that warning is wrong for the authoritative QV tally.
+      expect(find.textContaining('not the final winner'), findsNothing);
+      // …and the anon screen's chrome is ABSENT (the bug this guards: falling
+      // through to the anon screen would cast a single-index vote, not a packed
+      // allocation ballot).
       expect(find.text('ZK · ANON'), findsNothing);
       expect(find.text('LIVE RESULTS'), findsNothing);
     },

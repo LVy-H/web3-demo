@@ -6,6 +6,7 @@ import 'data/repositories/approval_repository.dart';
 import 'data/repositories/blind_repository.dart';
 import 'data/repositories/live_host_repository.dart';
 import 'data/repositories/poll_repository.dart';
+import 'data/repositories/quadratic_repository.dart';
 import 'data/repositories/ranked_repository.dart';
 import 'data/repositories/verify_repository.dart';
 import 'data/services/chain_reader.dart';
@@ -30,6 +31,8 @@ import 'ui/features/identity/identity_view_model.dart';
 import 'ui/features/poll_detail/poll_detail_screen.dart';
 import 'ui/features/poll_detail/poll_detail_view_model.dart';
 import 'ui/features/poll_detail/vote_view_model.dart';
+import 'ui/features/quadratic_poll/quadratic_poll_screen.dart';
+import 'ui/features/quadratic_poll/quadratic_vote_view_model.dart';
 import 'ui/features/ranked_poll/ranked_poll_screen.dart';
 import 'ui/features/ranked_poll/ranked_vote_view_model.dart';
 import 'ui/features/verify/verify_screen.dart';
@@ -79,6 +82,21 @@ Widget buildPollDetail(BuildContext context, GoRouterState state) {
         pollAddress: address,
       ),
       child: RankedPollScreen(address: address),
+    );
+  }
+  // Quadratic-voting (credit-allocation packed-alloc ballot) polls. Like the
+  // approval/ranked branches, this MUST route to [QuadraticPollScreen]; falling
+  // through to the anon screen would cast a single-index vote instead of a
+  // packed allocation (wrong ballot).
+  if (module == 'quadratic-vote') {
+    return ChangeNotifierProvider(
+      create: (ctx) => QuadraticVoteViewModel(
+        repository: ctx.read<QuadraticRepository>(),
+        proofService: ctx.read<ProofService>(),
+        relayClient: ctx.read<RelayClient>(),
+        pollAddress: address,
+      ),
+      child: QuadraticPollScreen(address: address),
     );
   }
   // Default: M1 anon single-choice.

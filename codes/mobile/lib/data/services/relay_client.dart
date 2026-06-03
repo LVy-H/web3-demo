@@ -223,6 +223,43 @@ class RelayClient {
     }
   }
 
+  /// Relay a QUADRATIC ballot (gasless): the vote is a [packedAlloc] — up to 8
+  /// allocation slots, 4 bits each (`packedAlloc < 2^32`), a DIRECT encoding
+  /// where slot `i` ⇒ option `i` (NOT `optionIndex+1`) — not a single index, a
+  /// bitmask, or a ranking. POSTs to `/api/relay/quadratic-vote`, whose
+  /// `validateQuadraticVoteRequest` reads the body field named exactly
+  /// `packedAlloc` and rejects unless `proof.message == String(packedAlloc)`
+  /// (ballot ↔ proof binding) and the scope matches the poll. The contract owns
+  /// the quadratic budget (`Σ vᵢ² ≤ CREDITS`); `getResults()` is then the
+  /// authoritative per-option vote sum (no off-chain replay). Never throws —
+  /// returns a [RelayResult]. Mirrors [relayRankedVote]; the `/vote`,
+  /// `/approval-vote`, and `/ranked-vote` paths are left untouched.
+  Future<RelayResult> relayQuadraticVote(
+    String pollAddress,
+    int packedAlloc,
+    RelayProof proof,
+  ) async {
+    try {
+      final r = await _postJson('/api/relay/quadratic-vote', {
+        'pollAddress': pollAddress,
+        'packedAlloc': packedAlloc,
+        'proof': proof.toJson(),
+      }, timeout: voteTimeout);
+      if (!r.ok) {
+        return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
+      }
+      return RelayResult(
+        success: true,
+        txHash: r.data['txHash'] is String ? r.data['txHash'] as String : null,
+      );
+    } on TimeoutException {
+      return const RelayResult(
+          success: false, error: 'Relayer did not respond in time. Try again.');
+    } catch (e) {
+      return RelayResult(success: false, error: e.toString());
+    }
+  }
+
   /// One-shot relayer health/balance probe. Returns null on any error.
   Future<RelayStatus?> fetchStatus() async {
     try {

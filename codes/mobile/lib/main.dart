@@ -9,6 +9,7 @@ import 'data/repositories/approval_repository.dart';
 import 'data/repositories/blind_repository.dart';
 import 'data/repositories/live_host_repository.dart';
 import 'data/repositories/poll_repository.dart';
+import 'data/repositories/quadratic_repository.dart';
 import 'data/repositories/ranked_repository.dart';
 import 'data/repositories/verify_repository.dart';
 import 'data/services/blind_commit_store.dart';
@@ -129,6 +130,13 @@ class ZkVoteApp extends StatelessWidget {
         // off-chain). No extra ABI for reads.
         Provider<RankedRepository>(
           create: (_) => ChainRankedRepository(reader),
+        ),
+        // M5 quadratic-vote reads — likewise the shared IZkPoll surface. Here
+        // getResults() IS the authoritative per-option vote sum (the leader is
+        // the winner — no off-chain replay, contrast ranked). No extra ABI for
+        // reads.
+        Provider<QuadraticRepository>(
+          create: (_) => ChainQuadraticRepository(reader),
         ),
         Provider<PollCreator>(
           create: (_) => PollCreator(
