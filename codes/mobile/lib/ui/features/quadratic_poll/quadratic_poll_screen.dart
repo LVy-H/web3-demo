@@ -28,7 +28,8 @@ import 'quadratic_vote_view_model.dart';
 /// 2. RESULTS (the OPPOSITE of ranked): `getResults()` IS authoritative for QV —
 ///    the option with the highest vote-sum is the actual winner (no off-chain
 ///    replay). So this screen DOES crown the leader (`highlightLeader: true`,
-///    the default) and captions the card as the FINAL per-option vote totals.
+///    the default). The results caption is state-aware: provisional ("Current …
+///    ahead") during the Voting phase, final ("Final … winner") once Ended.
 ///    It deliberately does NOT carry over ranked's "not the final winner"
 ///    warning — that caption is wrong here.
 class QuadraticPollScreen extends StatefulWidget {
@@ -257,10 +258,21 @@ class _ResultsBars extends StatelessWidget {
     // These are the AUTHORITATIVE per-option vote sums (the contract tallies the
     // votes vᵢ each ballot allocated). Unlike ranked, getResults() IS the
     // outcome — the option with the highest sum is the actual winner — so this
-    // card DOES crown the leader (`highlightLeader: true`, the default) and is
-    // labelled as the final tally, NOT a provisional "first choice" count. The %
+    // card DOES crown the leader (`highlightLeader: true`, the default). The %
     // denominator is the SUM of all votes (ResultsBars' default), since a voter
     // casts many votes, not one.
+    //
+    // Caption is state-aware: during Voting the tally is a live snapshot so we
+    // call it "Current … ahead"; once Ended the tally is sealed so we say
+    // "Final … winner". Crowning (highlightLeader) is correct in both phases
+    // because QV is a linear vote-sum — the on-chain leader is always the
+    // leading option regardless of phase.
+    final isEnded = snapshot.state == 2;
+    final caption = isEnded
+        ? 'Final per-option vote totals — the on-chain tally is '
+            'authoritative; the leading option is the winner.'
+        : 'Current per-option vote totals — the on-chain tally is '
+            'authoritative; the leading option is ahead.';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -284,15 +296,14 @@ class _ResultsBars extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          // The caption: these bars ARE the outcome — the leader is the winner.
+          // State-aware caption: provisional during voting, final when ended.
           Row(
             children: [
               const Icon(Icons.verified_outlined, size: 13, color: Db.success),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Final per-option vote totals — the on-chain tally is '
-                  'authoritative, so the leading option is the winner.',
+                  caption,
                   style: dbMono(11, Db.success, height: 1.4),
                 ),
               ),

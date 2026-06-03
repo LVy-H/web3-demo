@@ -225,5 +225,91 @@ void main() {
       ], 3);
       expect(r.winner, 0);
     });
+
+    // ── (e) LATER-ROUND EXACTLY-C/2 BOUNDARY — threshold recomputed correctly ─
+    test(
+        '(e) later-round exactly-C/2 boundary: no win declared; correct '
+        'candidate eliminated', () {
+      // 3 options A(0) B(1) C(2). 7 ballots:
+      //   [A], [A], [A]   — bullet A
+      //   [B], [B], [B]   — bullet B
+      //   [C]             — bullet C
+      //
+      // Round 1: C=7. A=3, B=3, C=1. 2*3>7 false. Fewest: C(2)=1 → eliminate C.
+      //
+      // Round 2: [C] bullet exhausts → continuing = 6. A=3, B=3. C=6 (even).
+      //   A sits at EXACTLY C/2 = 3. Strict check 2*3 > 6 is FALSE → no winner.
+      //   Tie A(0) and B(1) at 3 → lowest index A(0) eliminated.
+      //
+      // Round 3: A's 3 bullets exhaust. B alone remains → B wins.
+      //
+      // This proves the threshold is recomputed against the SMALLER C each round:
+      // the same vote count that would have won against C=5 (2*3>5) correctly
+      // does NOT win against C=6 (2*3>6 is false). Test (d) only covered round 1;
+      // this vector exercises the identical boundary in a LATER round.
+      final ballots = [
+        [0],
+        [0],
+        [0],
+        [1],
+        [1],
+        [1],
+        [2],
+      ];
+      final r = runIrv(ballots, 3);
+
+      // Round 1: C eliminated (fewest).
+      expect(r.rounds[0].counts, [3, 3, 1],
+          reason: 'A=3, B=3, C=1 in round 1');
+      expect(r.rounds[0].continuingBallots, 7);
+      expect(r.rounds[0].winner, isNull,
+          reason: '2*3 > 7 is false — no round-1 winner');
+      expect(r.rounds[0].eliminated, 2, reason: 'C(2) fewest; eliminated');
+
+      // Round 2: C shrinks to 6 (C's bullet exhausted); A at exactly C/2 = 3.
+      expect(r.rounds[1].continuingBallots, 6,
+          reason: 'C\'s bullet ballot exhausted; continuing 7 → 6');
+      expect(r.rounds[1].counts[0], 3,
+          reason: 'A is at exactly C/2 = 3');
+      expect(r.rounds[1].winner, isNull,
+          reason: 'EXACTLY C/2 must NOT win — strict 2*votes > C, never >=');
+      expect(r.rounds[1].eliminated, 0,
+          reason: 'A(0) and B(1) tied at 3; lowest index A(0) eliminated');
+
+      // Final winner: B (A's bullets exhausted in round 3; B alone remains).
+      expect(r.winner, 1, reason: 'B wins after A eliminated');
+      expect(r.rounds, hasLength(3));
+    });
+
+    // ── (f) OUT-OF-RANGE OPTION IGNORED — runIrv is total on malformed input ──
+    test(
+        '(f) out-of-range option index in a ballot is silently skipped; '
+        'runIrv returns normally without throwing', () {
+      // 2 options A(0) B(1). 4 ballots:
+      //   [A]        → counts for A
+      //   [A]        → counts for A
+      //   [5]        → option 5 is out-of-range (optionCount=2); ballot EXHAUSTS
+      //   [5, B]     → 5 skipped (out-of-range), then B counts for B
+      //
+      // Without the guard: counts[5]++ throws RangeError.
+      // With the guard:
+      //   Continuing ballots = 3 ([5] exhausts, not counted in C).
+      //   A=2, B=1. 2*2 > 3 ⇒ TRUE → A wins in round 1.
+      final ballots = [
+        [0],
+        [0],
+        [5], // out-of-range only → exhausts
+        [5, 1], // out-of-range first, then B
+      ];
+      // Must not throw:
+      final r = runIrv(ballots, 2);
+
+      expect(r.winner, 0, reason: 'A wins; out-of-range entries contribute to nobody');
+      expect(r.rounds, hasLength(1), reason: 'A wins outright in round 1');
+      expect(r.rounds.first.continuingBallots, 3,
+          reason: 'the [5]-only ballot exhausts; only 3 ballots continue');
+      expect(r.rounds.first.counts, [2, 1],
+          reason: 'A=2, B=1; option 5 counted for nobody');
+    });
   });
 }
