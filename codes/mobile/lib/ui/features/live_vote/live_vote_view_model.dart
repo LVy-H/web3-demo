@@ -38,13 +38,22 @@ class LiveVoteViewModel extends ChangeNotifier {
     required ChainReader reader,
     required this.pollAddress,
     String? initialTicket,
+    bool? canVoteOverride,
   })  : _proof = proof,
         _relay = relay,
-        _reader = reader {
+        _reader = reader,
+        _canVoteOverride = canVoteOverride {
     if (initialTicket != null && initialTicket.isNotEmpty) {
       ticket = extractTicket(initialTicket);
     }
   }
+
+  /// Test-only seam: forces [canVote] regardless of the host's global
+  /// [proofServiceAvailable]. Needed because that global resolves off `dart:io`
+  /// `Platform.isAndroid` (the prover availability), which is false on the
+  /// Linux test host, so the ticket/scan stage would never render in a widget
+  /// test. Null in production → the real global is used, behaviour unchanged.
+  final bool? _canVoteOverride;
 
   LiveVoteStage stage = LiveVoteStage.needsTicket;
   String? ticket;
@@ -56,7 +65,7 @@ class LiveVoteViewModel extends ChangeNotifier {
   List<String> options = const [];
   Timer? _poll;
 
-  bool get canVote => proofServiceAvailable;
+  bool get canVote => _canVoteOverride ?? proofServiceAvailable;
 
   bool _disposed = false;
   @override

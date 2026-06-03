@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- In-app QR scanner (Phase 11 M3, mobile_scanner). The camera affordance is
+	     capability-gated to mobile (incl. iOS), so without this key tapping "Scan
+	     QR" on iOS would hard-crash. iOS is UNVERIFIED here (no device); the paste
+	     fallback remains the verified input. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Scan the organizer's QR code to join a live vote. You can also paste the link instead.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
