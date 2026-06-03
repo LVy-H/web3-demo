@@ -193,11 +193,19 @@ removed; `codes/README.md` rewritten (no lottery refs remain, 2026-06-02).
 
 ## P1 — Contract security
 
-> Detailed entries land when Sprint 2 is queued. Summaries here so the friend can read the scope ahead of time.
+> **All P1 items are DONE.** The contract-hardening pass landed on `main` and was
+> verified 2026-06-03 against the contracts: OZ `Initializable` + `Ownable` on
+> every module (clones set the owner via `_transferOwnership` in `initialize`,
+> impls call `_disableInitializers()`), custom errors throughout (zero
+> `require("string")` remain), `ZkAirdrop` has `ReentrancyGuard` + an
+> `endClaiming`/`withdrawUnclaimed` escape hatch, the pragma is unified to
+> `0.8.28`, and the anon-vote invariants (≥1 voter to start, batch cap) are
+> enforced. The detailed entries below describe the original *pre-hardening*
+> state, kept for the record.
 
 ### P1-5 — Replace hand-rolled `_initialized` with OZ `Initializable` {#p1-5}
 
-**Priority:** P1 — **Status:** Open — **Owner:** —
+**Priority:** P1 — **Status:** Done — **Owner:** —
 
 **Where:** `ZkAnonVoting.sol`, `ZkBlindVoting.sol`. Both currently use a manual `bool private _initialized` guard.
 
@@ -205,7 +213,7 @@ removed; `codes/README.md` rewritten (no lottery refs remain, 2026-06-02).
 
 ### P1-6 — Replace ad-hoc `onlyOwner` with OZ `Ownable` / `Ownable2Step` {#p1-6}
 
-**Priority:** P1 — **Status:** Open — **Owner:** —
+**Priority:** P1 — **Status:** Done — **Owner:** —
 
 **Where:** All contracts (`PollRegistry`, `ZkAnonVoting`, `ZkBlindVoting`, `ZkAirdrop`).
 
@@ -213,7 +221,7 @@ removed; `codes/README.md` rewritten (no lottery refs remain, 2026-06-02).
 
 ### P1-7 — Custom errors instead of revert strings {#p1-7}
 
-**Priority:** P1 — **Status:** Open — **Owner:** —
+**Priority:** P1 — **Status:** Done — **Owner:** —
 
 **Where:** All contracts.
 
@@ -221,7 +229,7 @@ removed; `codes/README.md` rewritten (no lottery refs remain, 2026-06-02).
 
 ### P1-8 — Add `ReentrancyGuard` to `ZkAirdrop.claimAirdrop` {#p1-8}
 
-**Priority:** P1 — **Status:** Open — **Owner:** —
+**Priority:** P1 — **Status:** Done — **Owner:** —
 
 **Where:** `codes/contracts/contracts/ZkAirdrop.sol:64`
 
@@ -229,7 +237,7 @@ removed; `codes/README.md` rewritten (no lottery refs remain, 2026-06-02).
 
 ### P1-9 — Owner escape hatch for unclaimed airdrop ETH {#p1-9}
 
-**Priority:** P1 — **Status:** Open — **Owner:** —
+**Priority:** P1 — **Status:** Done — **Owner:** —
 
 **Where:** `codes/contracts/contracts/ZkAirdrop.sol`
 
@@ -237,7 +245,7 @@ removed; `codes/README.md` rewritten (no lottery refs remain, 2026-06-02).
 
 ### P1-10 — Unify Solidity pragma {#p1-10}
 
-**Priority:** P1 — **Status:** Open — **Owner:** —
+**Priority:** P1 — **Status:** Done — **Owner:** —
 
 **Where:** All `.sol` files + `hardhat.config.ts`.
 
@@ -245,7 +253,7 @@ removed; `codes/README.md` rewritten (no lottery refs remain, 2026-06-02).
 
 ### P1-11 — `ZkAnonVoting.startVoting` should require ≥1 voter {#p1-11}
 
-**Priority:** P1 — **Status:** Open — **Owner:** —
+**Priority:** P1 — **Status:** Done — **Owner:** —
 
 **Where:** `codes/contracts/contracts/ZkAnonVoting.sol:136-144`
 
@@ -253,7 +261,7 @@ removed; `codes/README.md` rewritten (no lottery refs remain, 2026-06-02).
 
 ### P1-12 — Cap batch size in `registerVoters` {#p1-12}
 
-**Priority:** P1 — **Status:** Open — **Owner:** —
+**Priority:** P1 — **Status:** Done — **Owner:** —
 
 **Where:** `codes/contracts/contracts/ZkAnonVoting.sol:117-132`
 
@@ -317,7 +325,9 @@ removed; `codes/README.md` rewritten (no lottery refs remain, 2026-06-02).
 
 ### P1-13 — `registerVoters` batch cap of 100 exceeds mainnet block gas {#p1-13}
 
-**Priority:** P1 — **Status:** Open — **Owner:** —
+**Priority:** P1 — **Status:** Done — **Owner:** —
+
+**Resolution (2026-06-03):** Cap lowered from 100 to **50** in `ZkAnonVoting.registerVoters` (Option A — fits a 30M mainnet block at ~24.5M gas; 100 ≈ 50M is unreachable on-chain). The test boundary was updated (25-element sub-cap success, 51-element rejected) and the rationale documented in a code comment + `architecture/module-m1-anon-voting.md`. Full suite green (268 passing).
 
 **Where:** `codes/contracts/contracts/ZkAnonVoting.sol` — the `registerVoters` cap introduced in P1-12.
 

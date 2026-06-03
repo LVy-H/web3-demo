@@ -131,7 +131,11 @@ contract ZkAnonVoting is IZkPoll, Initializable, Ownable {
     function registerVoters(uint256[] calldata identityCommitments) external onlyOwner {
         if (state != PollState.Registration) revert NotInRegistration();
         if (identityCommitments.length == 0) revert EmptyBatch();
-        if (identityCommitments.length > 100) revert BatchTooLarge();
+        // Cap chosen so a full batch fits a mainnet block. Semaphore.addMember
+        // cost grows with tree depth; ~50 inserts ≈ 24.5M gas (< 30M block
+        // limit), whereas 100 ≈ 50M gas is unreachable on-chain. Chunk larger
+        // registrations client-side. (See improvements/findings.md P1-13.)
+        if (identityCommitments.length > 50) revert BatchTooLarge();
 
         for (uint256 i = 0; i < identityCommitments.length; i++) {
             if (registeredCommitments[identityCommitments[i]]) revert DuplicateInBatch();

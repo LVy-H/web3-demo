@@ -4,7 +4,7 @@
 
 ## TL;DR
 
-A modular ZK voting system runs end-to-end on a local Hardhat node. **Six voting modules shipped full-stack** (M1 anon-vote, M2 blind-vote, approval-vote, ranked-vote, quadratic-vote, survey-vote), plus a standalone `ZkAirdrop`. **No deployment beyond local Hardhat.** All P0 items closed; 8 P1 contract-hardening items remain before any deploy (see `improvements/findings.md`).
+A modular ZK voting system runs end-to-end on a local Hardhat node. **Six voting modules shipped full-stack** (M1 anon-vote, M2 blind-vote, approval-vote, ranked-vote, quadratic-vote, survey-vote), plus a standalone `ZkAirdrop`. **No deployment beyond local Hardhat.** All P0 **and P1** items closed — the contract-hardening pass (OZ `Initializable`/`Ownable`, custom errors, airdrop `ReentrancyGuard` + escape hatch, unified pragma, anon-vote invariants) is on `main`. The remaining gate to `1.0` is Phase 10 (Sepolia + real Groth16 verifier).
 
 > **Sole client (2026-06-02): the Flutter app `codes/mobile/` — "Tessera" —
 > across mobile, desktop, AND web.** It reached parity with the old React app
@@ -90,7 +90,7 @@ These don't block local dev but block any external use.
 | `npm run deploy:local` reproducible | yes | yes | deterministic Hardhat addresses |
 | CI status | 3 jobs (contracts / relayer / mobile) | green on every PR | `.github/workflows/ci.yml` |
 | Open P0 items | 0 | 0 | `improvements/findings.md` |
-| Open P1 items | 8 | 0 before any deploy | `improvements/findings.md` |
+| Open P1 items | 0 | 0 before any deploy | `improvements/findings.md` |
 
 ## How to update this file
 

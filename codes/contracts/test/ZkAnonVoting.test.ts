@@ -149,13 +149,12 @@ describe("ZkAnonVoting", function () {
         });
 
         it("Batch under cap succeeds (sub-boundary)", async function () {
-            // The contract cap is 100 (see registerVoters), but Semaphore.addMember
-            // costs grow with tree depth: a batch of 100 measures ~50M gas which
-            // exceeds Hardhat's default per-tx cap (16.7M) AND mainnet's 30M block
-            // limit. We assert the cap doesn't reject valid sub-cap batches by
-            // submitting a 25-element batch (~3.8M gas, comfortable).
-            // The 101-rejected test below confirms the upper bound is enforced
-            // without needing to actually run 100 Semaphore inserts.
+            // The contract cap is 50 (see registerVoters): Semaphore.addMember
+            // costs grow with tree depth, so ~50 inserts ≈ 24.5M gas (fits a 30M
+            // mainnet block) while 100 ≈ 50M is unreachable on-chain. We assert
+            // the cap doesn't reject valid sub-cap batches by submitting a
+            // 25-element batch (~3.8M gas, comfortable). The 51-rejected test
+            // below confirms the upper bound without running 50 Semaphore inserts.
             const batch: bigint[] = [];
             for (let i = 0; i < 25; i++) {
                 const pk = crypto.randomBytes(32).toString("hex");
@@ -165,9 +164,9 @@ describe("ZkAnonVoting", function () {
             expect(await voting.getParticipantCount()).to.equal(25);
         });
 
-        it("Batch of 101 commitments rejected", async function () {
+        it("Batch over cap (51) rejected", async function () {
             const batch: bigint[] = [];
-            for (let i = 0; i < 101; i++) {
+            for (let i = 0; i < 51; i++) {
                 const pk = crypto.randomBytes(32).toString("hex");
                 batch.push(new Identity(pk).commitment);
             }
