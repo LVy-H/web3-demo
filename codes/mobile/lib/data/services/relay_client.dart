@@ -327,6 +327,64 @@ class RelayClient {
       return null;
     }
   }
+
+  /// Sponsored-lifecycle discovery: the relayer's signer address (baked as the
+  /// `owner` word inside initData so the relayer owns — and can register/start —
+  /// the poll) + the PollRegistry address. Returns null on any error.
+  Future<RelayerInfo?> getRelayerInfo() async {
+    try {
+      final res = await _client
+          .get(Uri.parse('$baseUrl/api/relay/info'))
+          .timeout(timeout);
+      if (!_is2xx(res.statusCode)) return null;
+      final d = _decode(res.body);
+      if (d['relayer'] is String) {
+        return RelayerInfo(
+          relayer: d['relayer'] as String,
+          registry: d['registry'] is String ? d['registry'] as String : null,
+        );
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Wallet-free, sponsored poll creation: the relayer clones + initializes the
+  /// poll via `PollRegistry.createPoll`, paying gas, and returns the new poll
+  /// address. [initDataHex] is the module's `initialize(...)` calldata with the
+  /// RELAYER as `owner` (see [getRelayerInfo]). On failure, [CreatePollResult.ok]
+  /// is false and `error` carries the relayer's client-facing message.
+  Future<CreatePollResult> createPoll({
+    required String moduleType,
+    required String title,
+    required String description,
+    required String initDataHex,
+  }) async {
+    try {
+      final r = await _postJson(
+        '/api/relay/create-poll',
+        {
+          'moduleType': moduleType,
+          'title': title,
+          'description': description,
+          'initData': initDataHex,
+        },
+        timeout: voteTimeout, // create includes an on-chain tx submission
+      );
+      if (r.ok && r.data['pollAddress'] is String) {
+        return CreatePollResult(
+          pollAddress: r.data['pollAddress'] as String,
+          txHash: r.data['txHash'] is String ? r.data['txHash'] as String : null,
+        );
+      }
+      return CreatePollResult(error: _err(r.data, 'Could not create the poll.'));
+    } on TimeoutException {
+      return const CreatePollResult(error: 'The relayer timed out. Try again.');
+    } catch (e) {
+      return CreatePollResult(error: e.toString());
+    }
+  }
 }
 
 /// Thrown for relayer calls whose failure is exceptional (issue/redeem/queue).
@@ -342,6 +400,22 @@ class RelayResult {
   final String? txHash;
   final String? error;
   const RelayResult({required this.success, this.txHash, this.error});
+}
+
+/// `GET /api/relay/info` — the relayer's signer address + the registry address.
+class RelayerInfo {
+  final String relayer;
+  final String? registry;
+  const RelayerInfo({required this.relayer, this.registry});
+}
+
+/// `POST /api/relay/create-poll` result. [ok] when the relayer created the poll.
+class CreatePollResult {
+  final String? pollAddress;
+  final String? txHash;
+  final String? error;
+  const CreatePollResult({this.pollAddress, this.txHash, this.error});
+  bool get ok => pollAddress != null;
 }
 
 class PostPendingResult {

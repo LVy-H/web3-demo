@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:tessera/data/services/chain_writer.dart';
 import 'package:tessera/data/services/poll_creator.dart';
+import 'package:tessera/data/services/relay_client.dart';
+import 'package:tessera/data/services/sponsored_poll_creator.dart';
 import 'package:tessera/data/services/wallet_service.dart';
 import 'package:tessera/ui/features/create/create_screen.dart';
 import 'package:tessera/ui/features/create/survey_question_builder.dart';
@@ -73,6 +75,20 @@ class _FakePollCreator extends PollCreator {
   }
 }
 
+/// Sponsored creator whose `probe()` reports the relayer as unreachable, so the
+/// screen's `_sponsoredReady` stays false — these tests drive the dev-signer
+/// gate via [_FakePollCreator.signs], not the sponsored path.
+class _FakeSponsored extends SponsoredPollCreator {
+  _FakeSponsored()
+      : super(
+          relay: RelayClient(baseUrl: 'http://localhost:0'),
+          flatModuleAbiJson: '[]',
+          surveyVotingAbiJson: '[]',
+        );
+  @override
+  Future<RelayerInfo?> probe() async => null;
+}
+
 /// The 5-tile picker + form is taller than the default 800×600 test viewport;
 /// a ListView culls below-the-fold children offstage, so TextFields/buttons
 /// wouldn't be findable. Pumping on a tall surface lays the whole form out
@@ -107,6 +123,7 @@ Widget _wrap(PollCreator creator) {
   return MultiProvider(
     providers: [
       Provider<PollCreator>.value(value: creator),
+      Provider<SponsoredPollCreator>(create: (_) => _FakeSponsored()),
       ChangeNotifierProvider<WalletService>(
         create: (_) =>
             WalletService(registryAbiJson: '[]', anonAbiJson: '[]'),
@@ -165,11 +182,11 @@ void main() {
     expect(find.textContaining('Quadratic'), findsOneWidget);
     // …but with the dev-signer hint, and tagged with the canonical strings.
     expect(
-        find.textContaining('Needs the dev-signer to deploy from mobile. '
+        find.textContaining('Needs a signer — start the relayer or set DEV_PRIVATE_KEY. '
             '(ranked-vote)'),
         findsOneWidget);
     expect(
-        find.textContaining('Needs the dev-signer to deploy from mobile. '
+        find.textContaining('Needs a signer — start the relayer or set DEV_PRIVATE_KEY. '
             '(quadratic-vote)'),
         findsOneWidget);
   });
@@ -281,7 +298,7 @@ void main() {
     expect(find.textContaining('(survey-vote)'), findsOneWidget);
     // Enabled → no dev-signer hint on the survey subtitle.
     expect(
-        find.textContaining('Needs the dev-signer to deploy from mobile. '
+        find.textContaining('Needs a signer — start the relayer or set DEV_PRIVATE_KEY. '
             '(survey-vote)'),
         findsNothing);
   });
@@ -292,7 +309,7 @@ void main() {
 
     expect(find.textContaining('Survey — multiple questions'), findsOneWidget);
     expect(
-        find.textContaining('Needs the dev-signer to deploy from mobile. '
+        find.textContaining('Needs a signer — start the relayer or set DEV_PRIVATE_KEY. '
             '(survey-vote)'),
         findsOneWidget);
   });

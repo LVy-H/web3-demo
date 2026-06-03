@@ -18,6 +18,7 @@ import 'data/services/chain_reader.dart';
 import 'data/services/chain_writer.dart';
 import 'data/services/identity_store.dart';
 import 'data/services/poll_creator.dart';
+import 'data/services/sponsored_poll_creator.dart';
 import 'data/services/proof_service.dart';
 import 'data/services/proof_service_factory.dart';
 import 'data/services/proof_service_mobile.dart';
@@ -160,6 +161,15 @@ class ZkVoteApp extends StatelessWidget {
             registryAbiJson: registryAbiJson,
             anonAbiJson: anonAbiJson,
             approvalAbiJson: approvalAbiJson,
+            surveyVotingAbiJson: surveyAbiJson,
+          ),
+        ),
+        // Wallet-free, sponsored poll creation via the relayer (the relayer pays
+        // gas + owns the poll). The default create path when no dev-signer is set.
+        Provider<SponsoredPollCreator>(
+          create: (ctx) => SponsoredPollCreator(
+            relay: ctx.read<RelayClient>(),
+            flatModuleAbiJson: approvalAbiJson,
             surveyVotingAbiJson: surveyAbiJson,
           ),
         ),
