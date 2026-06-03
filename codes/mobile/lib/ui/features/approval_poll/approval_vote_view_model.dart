@@ -85,14 +85,21 @@ class ApprovalVoteViewModel extends ChangeNotifier {
   }
 
   /// Compute the ballot bitmask for the given set of approved option indices.
-  /// `Σ over approved i of (1 << i)`. ≤32 options (contract `MAX_OPTIONS`) so
-  /// this stays a safe int — well inside JS `Number` precision for the proof.
+  /// `Σ over approved i of (1 << i)`, with ≤32 options (contract `MAX_OPTIONS`).
+  ///
+  /// Built with [BigInt] so the shift never truncates: on Flutter web (dart2js)
+  /// the native `int` `<<` is a 32-bit-signed operation, so `1 << 31` overflows
+  /// to a negative value and corrupts the mask bound into the Semaphore proof.
+  /// BigInt has no such truncation, so this is correct on every target. The
+  /// largest possible result — all 32 bits set — is `2^32 - 1 = 4294967295`,
+  /// well inside JS `Number`'s 53-bit integer range, so the final [BigInt.toInt]
+  /// is exact on web.
   static int bitmaskFor(Iterable<int> approvedIndices) {
-    var mask = 0;
+    var mask = BigInt.zero;
     for (final i in approvedIndices) {
-      mask |= 1 << i;
+      mask |= BigInt.one << i;
     }
-    return mask;
+    return mask.toInt();
   }
 
   /// Derive the entered identity's commitment and check whether it's already a

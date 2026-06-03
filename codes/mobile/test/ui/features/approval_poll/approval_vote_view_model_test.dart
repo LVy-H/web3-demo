@@ -91,11 +91,31 @@ void main() {
     test('select-all over N options → all-ones mask', () {
       // 5 options approved → 0b11111 = 31.
       expect(ApprovalVoteViewModel.bitmaskFor({0, 1, 2, 3, 4}), 31);
-      // 32-option cap → all-ones is 2^32 - 1, still an exact int.
-      final all = ApprovalVoteViewModel.bitmaskFor({
-        for (var i = 0; i < 32; i++) i,
-      });
-      expect(all, (1 << 32) - 1);
+      // 32-option cap → all-ones is 2^32 - 1. Asserted as a plain decimal
+      // literal, never `1 << 32`, so the expectation itself can't truncate.
+      expect(
+        ApprovalVoteViewModel.bitmaskFor({for (var i = 0; i < 32; i++) i}),
+        4294967295,
+      );
+    });
+
+    // High-index value-locks. The contract allows option index 31, so the mask
+    // must reach bit 31 / bit 32. The OLD `mask |= 1 << i` body computed these
+    // correctly on the 64-bit Dart VM but WRONG on Flutter web (dart2js), where
+    // `int` `<<` truncates to 32-bit signed, so `1 << 31` overflows to negative
+    // and breaks the proof binding.
+    //
+    // HONEST CAVEAT: `flutter test` runs on the 64-bit VM, so these assertions
+    // would ALSO pass against the old code here — they do NOT reproduce the web
+    // bug. They lock the contract value on every platform; correctness on web is
+    // secured by the BigInt construction being platform-independent, not by this
+    // VM test. Each expected value is a typed-out decimal literal (no shifts) so
+    // the expectation can never itself truncate.
+    test('high option indices keep full precision (web dart2js regression)', () {
+      // 2^31 — the bit the old `1 << 31` corrupted on web.
+      expect(ApprovalVoteViewModel.bitmaskFor({31}), 2147483648);
+      // 2^0 + 2^31.
+      expect(ApprovalVoteViewModel.bitmaskFor({0, 31}), 2147483649);
     });
   });
 
