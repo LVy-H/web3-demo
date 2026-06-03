@@ -6,6 +6,7 @@ import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import 'live_vote_view_model.dart';
+import 'qr_scan_sheet.dart';
 
 /// Live-meeting VOTER. Scan/paste the organizer's QR ticket → mint an ephemeral
 /// identity → show the 4-digit code face-to-face → wait to be confirmed → cast an
@@ -78,6 +79,17 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
               'show them the code on the next screen.',
               style: dbSans(13, 400, Db.chalkDim, height: 1.5)),
           const SizedBox(height: 18),
+          // Camera scan: only offered where a camera exists (mobile). On web /
+          // desktop `cameraScanSupported` is false, so this is absent and the
+          // paste field below is the sole — and verified — input. The scanned
+          // value flows through the same setTicket → join path as paste, with
+          // NO new parsing (extractTicket handles tessera://…?t=… and bare).
+          if (cameraScanSupported) ...[
+            _scanButton(context, vm),
+            const SizedBox(height: 14),
+          ],
+          // The paste field is ALWAYS available (the verified fallback), and the
+          // only input when the camera is unsupported or permission is denied.
           _field('TICKET / QR LINK', _ticket, 'paste the scanned value'),
           const SizedBox(height: 14),
           _button('JOIN', () {
@@ -135,6 +147,41 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
               color: Db.success),
         ];
     }
+  }
+
+  /// "Scan QR" affordance shown next to the paste field on mobile. Opens the
+  /// camera scanner sheet; on a decoded value, drives the same join path.
+  Widget _scanButton(BuildContext context, LiveVoteViewModel vm) => SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: () => _openScanner(context, vm),
+          icon: const Icon(Icons.qr_code_scanner, size: 18, color: Db.segnale),
+          label: Text('SCAN QR',
+              style: dbSans(13, 800, Db.segnale, letterSpacing: 1.2)),
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: Db.segnale),
+            shape: const RoundedRectangleBorder(),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+        ),
+      );
+
+  Future<void> _openScanner(BuildContext context, LiveVoteViewModel vm) async {
+    final raw = await showQrScanSheet(context);
+    if (raw == null) return; // dismissed / camera unavailable → paste still works
+    onScanned(vm, raw);
+  }
+
+  /// Test seam: feed a raw scanned string through the SAME wiring as paste —
+  /// reflect it into the paste field (so it's visible/editable) then
+  /// setTicket → join. No QR parsing here; `extractTicket` (in setTicket) does
+  /// it. Exposed (not private) so a widget test can drive scan→join without a
+  /// real camera platform channel.
+  @visibleForTesting
+  void onScanned(LiveVoteViewModel vm, String raw) {
+    _ticket.text = raw;
+    vm.setTicket(raw);
+    vm.join();
   }
 
   Widget _header(BuildContext context) => Row(children: [

@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- In-app QR scanner (Phase 11 M3, mobile_scanner). The camera is OPTIONAL:
+         uses-feature required="false" keeps camera-less devices installable, and
+         the paste-ticket fallback works without the permission being granted. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <application
         android:label="Tessera"
         android:name="${applicationName}"
