@@ -12,7 +12,10 @@ import { generateProof, verifyProof } from '@semaphore-protocol/proof'
  * Generate a Semaphore vote proof.
  * @param {string} identitySeed   member's Semaphore identity seed
  * @param {string[]} memberCommitments  decimal-string commitments (the group)
- * @param {number|string} message  option index
+ * @param {number|string|bigint} message  the Semaphore signal — a small option
+ *   index / bitmask for the single-question modules, OR a full BN254 field
+ *   element (e.g. a 248-bit keccak survey commitment). Pass wide values as a
+ *   DECIMAL STRING; a JS number only holds ~53 bits.
  * @param {string} scope           poll address (0x-hex)
  * @param {{depth?: number, wasm?: string, zkey?: string}} [opts]
  *   OPTIONAL, mobile-only. When present, fixes the circuit tree `depth` and
@@ -31,7 +34,11 @@ async function zkGenerateVoteProof(identitySeed, memberCommitments, message, sco
   const artifacts = (opts?.wasm && opts?.zkey)
     ? { wasm: opts.wasm, zkey: opts.zkey }
     : undefined
-  const proof = await generateProof(id, group, Number(message), scope, depth, artifacts)
+  // BigInt(message), not Number(message): generateProof toBigInt's its message
+  // arg anyway, so Number() was an unnecessary narrowing that capped the signal
+  // at ~53 bits. BigInt round-trips small ballots unchanged AND lets a full
+  // field-element message (e.g. a 248-bit survey commitment) pass.
+  const proof = await generateProof(id, group, BigInt(message), scope, depth, artifacts)
   return JSON.stringify({
     merkleTreeDepth: proof.merkleTreeDepth,
     merkleTreeRoot: proof.merkleTreeRoot.toString(),
