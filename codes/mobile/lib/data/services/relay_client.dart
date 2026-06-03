@@ -260,6 +260,54 @@ class RelayClient {
     }
   }
 
+  /// Relay a SURVEY ballot (gasless): the vote is the FULL answer VECTOR
+  /// [answers] — one `uint256` word per question, in question order
+  /// (SingleChoice ⇒ the chosen option index; MultiSelect ⇒ a bitmask, bit i ⇒
+  /// option i) — NOT a single index, bitmask, ranking, or allocation. POSTs to
+  /// `/api/relay/survey-vote`, whose `validateSurveyVoteRequest` reads the body
+  /// field named exactly `answers` and accepts each word as a decimal string.
+  ///
+  /// CRITICAL difference from the sibling relays: the survey relayer does NOT
+  /// bind `message` to the ballot — the Semaphore `message` is a keccak
+  /// COMMITMENT (`keccak256(abi.encode(answers)) >> 8`, see
+  /// `core/crypto/survey_commit.dart`) that the CONTRACT recomputes from
+  /// calldata and binds (`TamperedVoteSignal` on mismatch). The relayer's
+  /// message check is SHAPE-ONLY (a non-zero in-field element). The answers sent
+  /// here MUST be the SAME vector the [RelayProof]'s wide `message` committed to,
+  /// or the contract reverts every cast.
+  ///
+  /// The [BigInt] answer words are sent as DECIMAL STRINGS (`answers[q]` can be a
+  /// multi-select bitmask up to 2^31, which is fine for `BigInt` but would not
+  /// jsonEncode otherwise) — consistent with how `message`/`scope` travel.
+  /// Never throws — returns a [RelayResult]. Mirrors [relayQuadraticVote]; the
+  /// `/vote`, `/approval-vote`, `/ranked-vote`, and `/quadratic-vote` paths are
+  /// left untouched.
+  Future<RelayResult> relaySurveyVote(
+    String pollAddress,
+    List<BigInt> answers,
+    RelayProof proof,
+  ) async {
+    try {
+      final r = await _postJson('/api/relay/survey-vote', {
+        'pollAddress': pollAddress,
+        'answers': [for (final a in answers) a.toString()],
+        'proof': proof.toJson(),
+      }, timeout: voteTimeout);
+      if (!r.ok) {
+        return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
+      }
+      return RelayResult(
+        success: true,
+        txHash: r.data['txHash'] is String ? r.data['txHash'] as String : null,
+      );
+    } on TimeoutException {
+      return const RelayResult(
+          success: false, error: 'Relayer did not respond in time. Try again.');
+    } catch (e) {
+      return RelayResult(success: false, error: e.toString());
+    }
+  }
+
   /// One-shot relayer health/balance probe. Returns null on any error.
   Future<RelayStatus?> fetchStatus() async {
     try {

@@ -12,6 +12,7 @@ import 'package:tessera/data/repositories/approval_repository.dart';
 import 'package:tessera/data/repositories/poll_repository.dart';
 import 'package:tessera/data/repositories/quadratic_repository.dart';
 import 'package:tessera/data/repositories/ranked_repository.dart';
+import 'package:tessera/data/repositories/survey_repository.dart';
 import 'package:tessera/data/services/chain_writer.dart';
 import 'package:tessera/data/services/proof_service.dart';
 import 'package:tessera/data/services/relay_client.dart';
@@ -62,6 +63,34 @@ class _FakeQuadraticRepo implements QuadraticRepository {
   Future<List<String>> fetchGroup(String address) async => const [];
 }
 
+// A 2-question survey (Q0 single over 3, Q1 multi over 2) with a per-question
+// tally, so the survey screen renders its results + (web-gated) answer form.
+SurveyStructure _surveyStruct(String addr) => SurveyStructure(
+      address: addr,
+      state: 1, // Voting
+      questions: const [
+        SurveyQuestion(type: 0, options: ['A', 'B', 'C']),
+        SurveyQuestion(type: 1, options: ['X', 'Y']),
+      ],
+      results: [
+        [BigInt.from(2), BigInt.one, BigInt.zero],
+        [BigInt.from(3), BigInt.from(1)],
+      ],
+      owner: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+      participantCount: BigInt.from(3),
+    );
+
+class _FakeSurveyRepo implements SurveyRepository {
+  @override
+  Future<SurveyStructure> fetchSurvey(String address) async =>
+      _surveyStruct(address);
+  @override
+  Future<List<String>> fetchGroup(String address) async => const [];
+  @override
+  Future<List<List<BigInt>>> getSurveyResults(String address) async =>
+      _surveyStruct(address).results;
+}
+
 const _addr = '0x1111111111111111111111111111111111111111';
 
 const _proof = RelayProof(
@@ -87,6 +116,7 @@ Widget _app(String initialLocation) {
       Provider<ApprovalRepository>(create: (_) => _FakeApprovalRepo()),
       Provider<RankedRepository>(create: (_) => _FakeRankedRepo()),
       Provider<QuadraticRepository>(create: (_) => _FakeQuadraticRepo()),
+      Provider<SurveyRepository>(create: (_) => _FakeSurveyRepo()),
       Provider<ProofService>(create: (_) => const FakeProofService(_proof)),
       Provider<RelayClient>(
         create: (_) => RelayClient(
@@ -164,6 +194,32 @@ void main() {
       // …and the anon screen's chrome is ABSENT (the bug this guards: falling
       // through to the anon screen would cast a single-index vote, not a packed
       // allocation ballot).
+      expect(find.text('ZK · ANON'), findsNothing);
+      expect(find.text('LIVE RESULTS'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    '?module=survey-vote dispatches to the SURVEY screen, not the anon one',
+    (tester) async {
+      await tester.pumpWidget(_app('/poll/$_addr?module=survey-vote'));
+      await tester.pumpAndSettle();
+
+      // Survey chrome present… (the results section is always rendered; the
+      // answer FORM is web-only — gated on proofServiceAvailable, false under
+      // `flutter test` — so this asserts the always-present chrome.)
+      expect(find.text('ZK · SURVEY'), findsOneWidget);
+      expect(find.text('SURVEY RESULTS'), findsOneWidget);
+      // N ResultsBars — one per question — for an N-question survey (here N=2).
+      expect(find.byType(ResultsBars), findsNWidgets(2));
+      // A survey is a response DISTRIBUTION, not an election — so NO per-question
+      // trophy (`highlightLeader: false`). This is the OPPOSITE of QV, which
+      // crowns the leader. (Q0 tally [2,1,0] HAS a strict leader, so a missing
+      // marker proves highlightLeader is off, not just an absent leader.)
+      expect(find.byKey(ResultsBars.winnerKey), findsNothing);
+      // …and the anon screen's chrome is ABSENT (the bug this guards: falling
+      // through to the anon screen would cast a single-index vote, not the full
+      // answer vector).
       expect(find.text('ZK · ANON'), findsNothing);
       expect(find.text('LIVE RESULTS'), findsNothing);
     },

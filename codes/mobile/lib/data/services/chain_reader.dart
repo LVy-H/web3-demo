@@ -19,6 +19,7 @@ class ChainReader {
   final ContractAbi _registryAbi;
   final ContractAbi _anonAbi;
   final ContractAbi? _blindAbi;
+  final ContractAbi? _surveyAbi;
   final EthereumAddress _registryAddress;
 
   /// Per-call timeout so a hung RPC endpoint can't block the UI indefinitely.
@@ -31,6 +32,7 @@ class ChainReader {
     required String anonVotingAbiJson,
     required String registryAddress,
     String? blindVotingAbiJson,
+    String? surveyVotingAbiJson,
     http.Client? httpClient,
     this.readTimeout = const Duration(seconds: 10),
   })  : client = Web3Client(rpcUrl, httpClient ?? http.Client()),
@@ -40,10 +42,16 @@ class ChainReader {
         _blindAbi = blindVotingAbiJson == null
             ? null
             : ContractAbi.fromJson(blindVotingAbiJson, 'ZkBlindVoting'),
+        _surveyAbi = surveyVotingAbiJson == null
+            ? null
+            : ContractAbi.fromJson(surveyVotingAbiJson, 'ZkSurveyVoting'),
         _registryAddress = EthereumAddress.fromHex(registryAddress);
 
   ContractAbi get _blind => _blindAbi ?? (throw StateError(
       'ChainReader was built without blindVotingAbiJson'));
+
+  ContractAbi get _survey => _surveyAbi ?? (throw StateError(
+      'ChainReader was built without surveyVotingAbiJson'));
 
   Future<List<dynamic>> _read(
     ContractAbi abi,
@@ -161,6 +169,53 @@ class ChainReader {
     final r = await _read(_blind, EthereumAddress.fromHex(pollAddress),
         'isRegistered', [EthereumAddress.fromHex(voter)]);
     return r.first as bool;
+  }
+
+  // ── ZkSurveyVoting (12d) reads ──────────────────────────────────────────────
+
+  /// Number of questions in a survey (`getQuestionCount`). A survey ballot is
+  /// one answer word per question, in question order.
+  Future<int> getSurveyQuestionCount(String pollAddress) async {
+    final r = await _read(
+        _survey, EthereumAddress.fromHex(pollAddress), 'getQuestionCount');
+    return (r.first as BigInt).toInt();
+  }
+
+  /// Question [q]'s own option labels (`getQuestionOptions(q)`).
+  Future<List<String>> getSurveyQuestionOptions(
+      String pollAddress, int q) async {
+    final r = await _read(
+      _survey,
+      EthereumAddress.fromHex(pollAddress),
+      'getQuestionOptions',
+      [BigInt.from(q)],
+    );
+    return (r.first as List).cast<String>();
+  }
+
+  /// Question [q]'s type (`getQuestionType(q)`): 0 = SingleChoice, 1 =
+  /// MultiSelect (enum `ZkSurveyVoting.QType`, an on-chain `uint8`).
+  Future<int> getSurveyQuestionType(String pollAddress, int q) async {
+    final r = await _read(
+      _survey,
+      EthereumAddress.fromHex(pollAddress),
+      'getQuestionType',
+      [BigInt.from(q)],
+    );
+    return (r.first as BigInt).toInt();
+  }
+
+  /// The full per-question tally (`getSurveyResults`): a nested `uint256[][]`
+  /// where `results[q][option]` is the count for option `option` of question
+  /// `q`. The survey detail screen renders one `ResultsBars` per question from
+  /// this (a response DISTRIBUTION — no per-question winner).
+  Future<List<List<BigInt>>> getSurveyResults(String pollAddress) async {
+    final r = await _read(
+        _survey, EthereumAddress.fromHex(pollAddress), 'getSurveyResults');
+    // Decode the nested uint256[][]: each row is a question's per-option counts.
+    return (r.first as List)
+        .map((row) => (row as List).cast<BigInt>())
+        .toList();
   }
 
   // ── PollRegistry ──────────────────────────────────────────────────────────

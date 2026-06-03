@@ -11,6 +11,7 @@ import 'data/repositories/live_host_repository.dart';
 import 'data/repositories/poll_repository.dart';
 import 'data/repositories/quadratic_repository.dart';
 import 'data/repositories/ranked_repository.dart';
+import 'data/repositories/survey_repository.dart';
 import 'data/repositories/verify_repository.dart';
 import 'data/services/blind_commit_store.dart';
 import 'data/services/chain_reader.dart';
@@ -38,11 +39,14 @@ Future<void> main() async {
   final blindAbi = await rootBundle.loadString('assets/abi/ZkBlindVoting.json');
   final approvalAbi =
       await rootBundle.loadString('assets/abi/ZkApprovalVoting.json');
+  final surveyAbi =
+      await rootBundle.loadString('assets/abi/ZkSurveyVoting.json');
 
   final registryAbiArr = _abiArray(registryAbi);
   final anonAbiArr = _abiArray(anonAbi);
   final blindAbiArr = _abiArray(blindAbi);
   final approvalAbiArr = _abiArray(approvalAbi);
+  final surveyAbiArr = _abiArray(surveyAbi);
 
   final reader = ChainReader(
     rpcUrl: AppConfig.rpcUrl,
@@ -50,6 +54,7 @@ Future<void> main() async {
     registryAbiJson: registryAbiArr,
     anonVotingAbiJson: anonAbiArr,
     blindVotingAbiJson: blindAbiArr,
+    surveyVotingAbiJson: surveyAbiArr,
     registryAddress: AppConfig.registryAddress,
   );
 
@@ -137,6 +142,14 @@ class ZkVoteApp extends StatelessWidget {
         // reads.
         Provider<QuadraticRepository>(
           create: (_) => ChainQuadraticRepository(reader),
+        ),
+        // 12d survey-vote reads — UNLIKE the flat siblings, a survey has a
+        // NESTED structure (an ordered Question[] with per-question types +
+        // options + tally), so this repo fans out the per-question reads and
+        // decodes getSurveyResults() (a uint256[][]). Uses the ZkSurveyVoting
+        // ABI threaded into the shared ChainReader above.
+        Provider<SurveyRepository>(
+          create: (_) => ChainSurveyRepository(reader),
         ),
         Provider<PollCreator>(
           create: (_) => PollCreator(
