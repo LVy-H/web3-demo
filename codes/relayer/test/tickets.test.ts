@@ -13,8 +13,8 @@ import { verifyTicket } from "../src/ticket";
 const POLL_A = "0x1111111111111111111111111111111111111111";
 const POLL_B = "0x2222222222222222222222222222222222222222";
 
-/** Build + sign a ticket with the identical byte layout as the frontend
- *  (codes/frontend/src/lib/ticket.ts). Used to drive the relayer's verify. */
+/** Build + sign a ticket with the identical byte layout as the client
+ *  (codes/mobile/lib/core/crypto/ticket.dart). Used to drive the relayer's verify. */
 function makeKeypair() {
     const priv = randomBytes(32);
     const pub = ed25519.getPublicKey(priv);

@@ -33,12 +33,28 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
     architecture: `docs/architecture/module-survey.md`.
 
 ### Changed
+- **CI hardening** — the `contracts` job's `npm test` is now a real gate (the
+  stale `continue-on-error` was removed; the cited blocker — untracked hardhat
+  config — no longer holds, and all 268 tests pass). The `relayer` job now runs
+  `npm test` (96 tests) instead of a no-op `lint || true`.
+- **Version alignment** — `codes/contracts` and `codes/relayer` `package.json`
+  pinned to `0.2.0`, matching the canonical client (`codes/mobile`) and the
+  pre-1.0 repo semver (they previously claimed `1.0.0`, which `VERSIONING.md`
+  reserves for post-testnet + real-verifier + zero-open-P0/P1).
 
 ### Deprecated
 
 ### Removed
+- Committed snapshot binaries `system-description.pdf`, `system-description.txt`,
+  and `web3-demo.zip` (P3-18) — live source stays; frozen blobs dropped.
 
 ### Fixed
+- **Documentation truth-up** — purged stale references to the deleted React/Vite
+  frontend across `README.md`, `INSTRUCTIONS.md`, `codes/README.md`,
+  `docs/architecture/system-overview.md`, `docs/project/STATUS.md`,
+  `docs/project/ROADMAP.md`, and `docs/improvements/` (the docs now describe the
+  Tessera Flutter client, all six voting modules, current test counts, and the
+  existing CI). Closed/MOOT statuses synced to reality (P0-*, P2-*, P3-15..18).
 
 ### Security
 

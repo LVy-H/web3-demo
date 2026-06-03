@@ -51,9 +51,9 @@ When real-verifier wiring lands, the runbook is:
    `@nomicfoundation/hardhat-verify` ships with `hardhat-toolbox`, so no
    extra install is needed.
 
-## Frontend wiring
+## Client wiring
 
-The frontend reads addresses from the chainId-keyed
-`deployed-addresses.json` based on `VITE_NETWORK`
-(`hardhat` → `31337`, `sepolia` → `11155111`). See
-`codes/frontend/.env.example` for the matching env vars.
+The Tessera client (`codes/mobile/`) reads contract addresses from the
+chainId-keyed `deployed-addresses.json` that the deploy script writes. The
+target network / RPC is configured through the client's `AppConfig`
+(local Hardhat → `31337`, Sepolia → `11155111`).

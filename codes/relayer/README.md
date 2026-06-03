@@ -194,8 +194,9 @@ curl http://localhost:3001/api/relay/status
 | `PORT`                  | `3001`                           | HTTP listen port                              |
 | `RATE_LIMIT_PER_MINUTE` | `20`                             | Per-IP request cap                            |
 
-The frontend reads the relayer URL from `VITE_RELAYER_URL` (default
-`http://localhost:3001`). If unset, the relayer tab is hidden.
+The Tessera client (`codes/mobile/`) reads the relayer host from its
+`AppConfig` (default `http://localhost:3001`); when the host is unreachable the
+client falls back to submitting transactions directly.
 
 ## Production checklist
 

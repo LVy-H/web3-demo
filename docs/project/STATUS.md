@@ -4,7 +4,7 @@
 
 ## TL;DR
 
-A working PoC of a modular ZK voting system runs end-to-end on a local Hardhat node. **Two voting modules shipped** (M1 anon-vote, M2 blind-vote), plus a standalone `ZkAirdrop`. **No deployment beyond local Hardhat.** Several known bugs (see `improvements/findings.md` P0).
+A modular ZK voting system runs end-to-end on a local Hardhat node. **Six voting modules shipped full-stack** (M1 anon-vote, M2 blind-vote, approval-vote, ranked-vote, quadratic-vote, survey-vote), plus a standalone `ZkAirdrop`. **No deployment beyond local Hardhat.** All P0 items closed; 8 P1 contract-hardening items remain before any deploy (see `improvements/findings.md`).
 
 > **Sole client (2026-06-02): the Flutter app `codes/mobile/` — "Tessera" —
 > across mobile, desktop, AND web.** It reached parity with the old React app
@@ -28,20 +28,31 @@ A working PoC of a modular ZK voting system runs end-to-end on a local Hardhat n
   `message = keccak256(abi.encode(answers)) >> 8`, per-question single-choice /
   multi-select tallies. **Shipped full-stack** (contract + relayer + Flutter
   read/answer/cast/results + question-builder create flow); 45 hardhat tests ✓
-- `ZkAirdrop` — standalone Semaphore-gated ETH airdrop; **untested** ✗
+- `ZkAirdrop` — standalone Semaphore-gated ETH airdrop; tested ✓ (`test/ZkAirdrop.test.ts`)
 - `MockSemaphoreVerifier` — local verifier that always returns true (no SNARK artifacts needed)
-- Deploy script wires it all together and writes `deployed-addresses.json` for the frontend
+- Deploy script wires it all together and writes `deployed-addresses.json` for the client
+- **268 hardhat tests passing** across 9 test files
 
-### Frontend (`codes/frontend/`)
-- Pages: Home (poll list), CreatePoll (with module-type selector), Poll (M1), BlindPoll (M2), PollRouter (dispatches by module type)
-- Hooks: `useRegistry`, `usePoll` (IZkPoll-generic), `useBlindPoll` (M2-specific)
-- Wallet integration: MetaMask via Wagmi, auto-add Hardhat network on connect
-- UI: dark/light mode, teal-accent visual system per `standards/visual-design-guide.md`
-- E2E: Playwright spec covers the M1 happy path
+### Client — Tessera (`codes/mobile/`)
+- One Flutter codebase across mobile, desktop, AND web. Browse / create
+  (dev-signer or sponsored wallet-free) / per-module poll screens (M1, M2,
+  approval, ranked, quadratic, survey) / verify-receipt / identity /
+  live-meeting host + voter / settings.
+- ZK proving: browser (web), Node sidecar (desktop), and headless
+  `webview_flutter` (mobile, emulator-verified) — all against the real
+  Groth16 vkey.
+- Secure storage for the Semaphore seed, blind-vote salts, and org keypair.
+- Static analysis clean (`flutter analyze`); test suite green (`flutter test`).
+
+### Relayer (`codes/relayer/`)
+- Optional Express service: gasless vote / airdrop-claim submission plus a
+  sponsored (wallet-free) poll lifecycle. **96 vitest tests passing** (2 skipped).
 
 ### Infra
-- `docker-compose.yml` for the full stack (Hardhat node + frontend), stale and probably broken — see [improvements P0-4](../improvements/findings.md)
-- Nix flake for reproducible local toolchain
+- `docker-compose.yml` — dev-only stack: `contracts` (Hardhat node) +
+  `relayer` + `explorer`. The local-dev one-liner is `./dev-stack.sh up`.
+- `.github/workflows/ci.yml` — three jobs (contracts / relayer / mobile).
+- Nix flake for a reproducible local toolchain.
 
 ## In flight
 
@@ -54,7 +65,7 @@ A working PoC of a modular ZK voting system runs end-to-end on a local Hardhat n
 **All P0 items resolved (2026-06-02)** — see `improvements/findings.md`:
 
 - ~~**[P0-1]** / **[P0-2]**~~ — React `Poll.tsx` bugs, **MOOT** (React frontend deleted; Flutter app supersedes).
-- ~~**[P0-3]**~~ — **Done**: `ZkAirdrop.test.ts` exists; contracts suite 109 passing.
+- ~~**[P0-3]**~~ — **Done**: `ZkAirdrop.test.ts` exists; contracts suite 268 passing.
 - ~~**[P0-4]**~~ — **Done**: stale `INSTRUCTIONS.md` / `ZkVotingAirdrop_System_Workflow.md` removed; README rewritten.
 
 *(No open P0 items. Next release gate is Phase 10: Sepolia + real Groth16 verifier → `1.0`.)*
@@ -63,21 +74,21 @@ These don't block local dev but block any external use.
 
 ## Not started
 
-- Real Groth16 verifier path in tests (only `MockSemaphoreVerifier` exercised)
-- CI (no `.github/workflows/`)
-- Testnet deployment of any kind
-- Pagination / event-driven poll list (current `getAllPolls` polls every 5s — won't scale past dozens of polls)
-- M3 (Participation Receipts as a cross-cutting feature) — `verifyParticipation()` exists in IZkPoll but no UI surface
+- Real Groth16 verifier path in tests (only `MockSemaphoreVerifier` exercised; P4-23)
+- Testnet deployment of any kind (Phase 10: Sepolia + real verifier → `1.0`)
+- Pagination / event-driven poll list (current `getAllPolls` won't scale past dozens of polls; P4-21/P4-22)
+- M3 (Participation Receipts as a cross-cutting feature) — `verifyParticipation()` exists in IZkPoll; surfaced in the client's Verify screen, not yet a standalone shareable receipt
 - Phase 5 integration layer (SDK / API for third-party use)
 
 ## Health metrics
 
 | Metric | Value | Target | Source |
 |---|---|---|---|
-| Contracts test count | 17 across 3 files | n/a | `codes/contracts/test/` |
-| Frontend lint | passes | passes | `npm run lint` in `codes/frontend/` |
+| Contracts test count | 268 across 9 files | n/a | `npm test` in `codes/contracts/` |
+| Relayer test count | 96 (2 skipped) | n/a | `npm test` in `codes/relayer/` |
+| Client static analysis | clean | clean | `flutter analyze` in `codes/mobile/` |
 | `npm run deploy:local` reproducible | yes | yes | deterministic Hardhat addresses |
-| CI status | none | green on every PR | — |
+| CI status | 3 jobs (contracts / relayer / mobile) | green on every PR | `.github/workflows/ci.yml` |
 | Open P0 items | 0 | 0 | `improvements/findings.md` |
 | Open P1 items | 8 | 0 before any deploy | `improvements/findings.md` |
 
