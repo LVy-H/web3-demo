@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { config, getCreateSecret, getRegistryAddress, getCreateDailyMax, getRegisterPerPollMax } from "./config";
-import { relayCastVote, relayApprovalVote, relayRankedVote, relayQuadraticVote, relaySurveyVote, relayClaimAirdrop, relayCreatePoll, relayRegisterVoter, relayStartVoting, checkRelayerBalance } from "./relay";
+import { relayCastVote, relayApprovalVote, relayRankedVote, relayQuadraticVote, relaySurveyVote, relayClaimAirdrop, relayCreatePoll, relayRegisterVoter, relayStartVoting, checkRelayerBalance, ClientFacingError } from "./relay";
 import { getRelayerInfo, getRelayerWallet } from "./wallet";
 import { validateVoteRequest, validateApprovalVoteRequest, validateRankedVoteRequest, validateQuadraticVoteRequest, validateSurveyVoteRequest, validateClaimRequest, validateCreatePollRequest, validateRegisterVoterRequest, validateStartVotingRequest } from "./validation";
 import { createTicketRouter } from "./tickets";
@@ -394,9 +394,14 @@ export function createApp(): express.Express {
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
             console.error(`[RELAY] ✗ registerVoter error:`, message);
-            // The relay step already maps contract reverts to clean copy; surface
-            // the "joining is closed" / "already registered" wording to the user.
-            res.status(400).json({ error: message });
+            // A ClientFacingError carries vetted copy ("joining is closed" /
+            // "already registered" / a mapped revert) → 400. Anything else (infra
+            // / node failure) → generic 500, mirroring the vote routes.
+            if (err instanceof ClientFacingError) {
+                res.status(400).json({ error: err.message });
+            } else {
+                res.status(500).json({ error: "Internal relayer error" });
+            }
         }
     });
 
@@ -432,7 +437,13 @@ export function createApp(): express.Express {
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
             console.error(`[RELAY] ✗ startVoting error:`, message);
-            res.status(400).json({ error: message });
+            // ClientFacingError (mapped revert / pre-check) → 400; else generic
+            // 500, mirroring the vote routes.
+            if (err instanceof ClientFacingError) {
+                res.status(400).json({ error: err.message });
+            } else {
+                res.status(500).json({ error: "Internal relayer error" });
+            }
         }
     });
 

@@ -272,34 +272,36 @@ export async function relayClaimAirdrop(
 // not vary by module, so the anon ABI is a safe generic.
 const MODULE_ABI = ZkAnonVotingABI.abi;
 
-/** An error whose message is already vetted, user-facing copy (a pre-check
- *  outcome like "joining is closed"). Distinguishes our own clear messages from
- *  raw ethers/RPC errors so the catch handler re-throws the former verbatim and
- *  funnels the latter through `lifecycleErrorMessage` (no raw RPC text leaks). */
-class ClientFacingError extends Error {}
+/** An error whose message is ALREADY vetted, user-facing copy (a known contract
+ *  revert mapped to plain language, or a pre-check outcome like "joining is
+ *  closed"). The routes return these as 400 with the message; ANY other error
+ *  (a raw RPC / infra failure such as the node being unreachable) is returned as
+ *  a generic 500 "Internal relayer error", mirroring the existing vote routes —
+ *  so no raw RPC text ever leaks and infra failures aren't mislabeled 400. */
+export class ClientFacingError extends Error {}
 
-/** Map a raw ethers/contract error into a plain, non-leaky message for the
- *  owner-side lifecycle calls. Recognizes the contract's custom-error names (in
- *  the revert data / message) and surfaces user-facing copy; falls back to a
- *  generic message so internal RPC detail never reaches the client. */
-function lifecycleErrorMessage(err: unknown, fallback: string): string {
+/** If `err` is a recognized contract revert, return a ClientFacingError carrying
+ *  plain copy; otherwise return null (the caller re-throws the raw error so the
+ *  route maps it to a generic 500). Recognizes the modules' custom-error names in
+ *  the revert data/message. */
+function mapLifecycleRevert(err: unknown): ClientFacingError | null {
     const raw = err instanceof Error ? err.message : String(err);
     if (/NotInRegistration|CanOnlyStartFromRegistration/.test(raw)) {
-        return "Joining is closed — voting has already started on this poll.";
+        return new ClientFacingError("Joining is closed — voting has already started on this poll.");
     }
     if (/AlreadyRegistered/.test(raw)) {
-        return "This identity is already registered for this poll.";
+        return new ClientFacingError("This identity is already registered for this poll.");
     }
     if (/NeedAtLeastOneVoter/.test(raw)) {
-        return "Can't open voting yet — at least one voter must join first.";
+        return new ClientFacingError("Can't open voting yet — at least one voter must join first.");
     }
     if (/NeedAtLeastTwoOptions/.test(raw)) {
-        return "Can't open voting — the poll needs at least two options.";
+        return new ClientFacingError("Can't open voting — the poll needs at least two options.");
     }
     if (/OwnableUnauthorizedAccount/.test(raw)) {
-        return "This poll isn't hosted by this relayer.";
+        return new ClientFacingError("This poll isn't hosted by this relayer.");
     }
-    return fallback;
+    return null;
 }
 
 /** Sponsored CREATE: the relayer pays gas to clone + initialize a poll via
@@ -382,11 +384,13 @@ export async function relayRegisterVoter(
         const receipt = await tx.wait();
         return { txHash: receipt.hash, alreadyRegistered: false };
     } catch (err) {
-        // A ClientFacingError carries already-vetted copy; everything else (a
-        // contract revert OR an infra error like the node being unreachable) goes
-        // through the mapper so raw RPC text never reaches the client.
+        // Our own pre-check copy is already client-facing → re-throw verbatim.
+        // A recognized contract revert → plain 400 copy. Anything else (infra /
+        // node down) → re-throw raw so the route maps it to a generic 500.
         if (err instanceof ClientFacingError) throw err;
-        throw new Error(lifecycleErrorMessage(err, "Could not register this voter."));
+        const mapped = mapLifecycleRevert(err);
+        if (mapped) throw mapped;
+        throw err;
     }
 }
 
@@ -412,7 +416,9 @@ export async function relayStartVoting(
         return { txHash: receipt.hash };
     } catch (err) {
         if (err instanceof ClientFacingError) throw err;
-        throw new Error(lifecycleErrorMessage(err, "Could not open voting for this poll."));
+        const mapped = mapLifecycleRevert(err);
+        if (mapped) throw mapped;
+        throw err;
     }
 }
 
