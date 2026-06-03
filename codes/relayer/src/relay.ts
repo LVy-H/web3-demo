@@ -5,6 +5,7 @@ import type { SemaphoreProof } from "./validation";
 import ZkAnonVotingABI from "./abi/ZkAnonVoting.json";
 import ZkApprovalVotingABI from "./abi/ZkApprovalVoting.json";
 import ZkRankedVotingABI from "./abi/ZkRankedVoting.json";
+import ZkQuadraticVotingABI from "./abi/ZkQuadraticVoting.json";
 import ZkAirdropABI from "./abi/ZkAirdrop.json";
 
 function toProofStruct(proof: SemaphoreProof) {
@@ -128,6 +129,51 @@ export async function relayRankedVote(
     const proofStruct = toProofStruct(proof);
 
     const tx = await contract.castVote(packedRanking, proofStruct, {
+        gasLimit: config.maxGasLimit,
+    });
+
+    const receipt = await tx.wait();
+    return { txHash: receipt.hash };
+}
+
+export async function relayQuadraticVote(
+    pollAddress: string,
+    packedAlloc: number,
+    proof: SemaphoreProof
+): Promise<{ txHash: string }> {
+    const wallet = getRelayerWallet();
+    const contract = new ethers.Contract(pollAddress, ZkQuadraticVotingABI.abi, wallet);
+
+    // Pre-check: poll must be in Voting state (state == 1)
+    const state = await contract.getState();
+    if (Number(state) !== 1) {
+        throw new Error("Poll is not in voting phase");
+    }
+
+    // Pre-check: no allocation to a non-existent option (cheap ghost-slot
+    // fast-reject). The contract owns the full validation — the quadratic budget
+    // (Σvᵢ² ≤ CREDITS), the empty-ballot check, and the high-bits guard. Here we
+    // only confirm every slot at index >= optionCount is 0, mirroring the
+    // contract's ghost-slot rule so an obviously-malformed ballot fails fast.
+    const optionCount = Number(await contract.getOptionCount());
+    for (let i = optionCount; i < 8; i++) {
+        const v = (packedAlloc >> (4 * i)) & 0xf;
+        if (v !== 0) {
+            throw new Error(
+                `Invalid quadratic ballot: slot ${i} allocates ${v} to a non-existent option (poll has ${optionCount} options)`
+            );
+        }
+    }
+
+    // Pre-check: nullifier not already used
+    const isUsed = await contract.isNullifierUsed(BigInt(proof.nullifier));
+    if (isUsed) {
+        throw new Error("This vote token has already been used (nullifier consumed)");
+    }
+
+    const proofStruct = toProofStruct(proof);
+
+    const tx = await contract.castVote(packedAlloc, proofStruct, {
         gasLimit: config.maxGasLimit,
     });
 

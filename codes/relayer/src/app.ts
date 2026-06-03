@@ -2,9 +2,9 @@ import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { config } from "./config";
-import { relayCastVote, relayApprovalVote, relayRankedVote, relayClaimAirdrop, checkRelayerBalance } from "./relay";
+import { relayCastVote, relayApprovalVote, relayRankedVote, relayQuadraticVote, relayClaimAirdrop, checkRelayerBalance } from "./relay";
 import { getRelayerInfo } from "./wallet";
-import { validateVoteRequest, validateApprovalVoteRequest, validateRankedVoteRequest, validateClaimRequest } from "./validation";
+import { validateVoteRequest, validateApprovalVoteRequest, validateRankedVoteRequest, validateQuadraticVoteRequest, validateClaimRequest } from "./validation";
 import { createTicketRouter } from "./tickets";
 
 /** Build the Express app WITHOUT listening, so tests (supertest) can import it
@@ -127,6 +127,43 @@ export function createApp(): express.Express {
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
             console.error(`[RELAY] ✗ rankedVote error:`, message);
+            res.status(500).json({ error: "Internal relayer error" });
+        }
+    });
+
+    // ── POST /api/relay/quadratic-vote ──────────────────────────────────────
+    // Quadratic ballots (module "quadratic-vote"): the vote is a PACKED ALLOCATION
+    // (4-bit vote-count slots). The voter spends a uniform CREDITS budget where
+    // casting vᵢ votes for option i costs vᵢ²; the contract enforces Σvᵢ² ≤ CREDITS
+    // and tallies the votes per option. getResults() is the authoritative outcome.
+    // Separate from /vote, /approval-vote, and /ranked-vote so those are untouched.
+    app.post("/api/relay/quadratic-vote", async (req, res) => {
+        try {
+            const validation = validateQuadraticVoteRequest(req.body);
+            if (!validation.ok) {
+                res.status(400).json({ error: validation.error });
+                return;
+            }
+
+            const balanceCheck = await checkRelayerBalance();
+            if (!balanceCheck.sufficient) {
+                res.status(503).json({
+                    error: "Relayer has insufficient funds to pay gas",
+                    balance: balanceCheck.balance,
+                });
+                return;
+            }
+
+            const { pollAddress, packedAlloc, proof } = validation.data;
+            console.log(`[RELAY] quadraticVote → poll=${pollAddress} packedAlloc=${packedAlloc}`);
+
+            const result = await relayQuadraticVote(pollAddress, packedAlloc, proof);
+            console.log(`[RELAY] ✓ txHash=${result.txHash}`);
+
+            res.json({ success: true, txHash: result.txHash });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[RELAY] ✗ quadraticVote error:`, message);
             res.status(500).json({ error: "Internal relayer error" });
         }
     });

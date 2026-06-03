@@ -27,6 +27,12 @@ export interface RankedVoteRequest {
     proof: SemaphoreProof;
 }
 
+export interface QuadraticVoteRequest {
+    pollAddress: string;
+    packedAlloc: number;
+    proof: SemaphoreProof;
+}
+
 export interface ClaimAirdropRequest {
     airdropAddress: string;
     receiver: string;
@@ -241,6 +247,80 @@ export function validateRankedVoteRequest(
         data: {
             pollAddress: b.pollAddress as string,
             packedRanking: b.packedRanking as number,
+            proof,
+        },
+    };
+}
+
+// Max packed-allocation value (exclusive). A quadratic ballot packs up to 8
+// allocation slots of 4 bits each ⇒ 32 bits ⇒ valid range is [1, 2^32). The
+// contract owns the quadratic budget (Σvᵢ² ≤ CREDITS), the ghost-slot rule, and
+// the high-bits guard; the relayer only fast-rejects empty / out-of-word-range
+// values and binds message+scope. We do NOT reimplement the budget here —
+// duplicating that math is a divergence risk and the contract is authoritative.
+// See docs/superpowers/specs/2026-06-03-quadratic-voting-design.md.
+const MAX_PACKED_ALLOC = 2 ** 32;
+
+/** Validate a QUADRATIC-vote relay request. The ballot is a packed allocation
+ *  (4-bit vote-count slots in the low 32 bits). Mirrors validateRankedVoteRequest
+ *  but for the packedAlloc field: rejects empty/out-of-32-bit-range values and
+ *  binds message==packedAlloc, scope==poll. The contract owns the budget
+ *  (Σvᵢ² ≤ CREDITS) and ghost-slot/structure validation. */
+export function validateQuadraticVoteRequest(
+    body: unknown
+): { ok: true; data: QuadraticVoteRequest } | { ok: false; error: string } {
+    if (!body || typeof body !== "object") {
+        return { ok: false, error: "Request body must be a JSON object" };
+    }
+
+    const b = body as Record<string, unknown>;
+
+    if (!isValidAddress(b.pollAddress)) {
+        return { ok: false, error: "Invalid pollAddress: must be a valid Ethereum address" };
+    }
+
+    // packedAlloc must be a positive integer that fits in 32 bits. 0 is an empty
+    // ballot (rejected on-chain as EmptyBallot); >= 2^32 can never be a valid
+    // packed allocation. The contract still enforces the per-poll budget + rules.
+    if (typeof b.packedAlloc !== "number" || !Number.isInteger(b.packedAlloc)) {
+        return { ok: false, error: "Invalid packedAlloc: must be an integer" };
+    }
+    if (b.packedAlloc <= 0) {
+        return { ok: false, error: "Invalid packedAlloc: must be > 0 (empty ballot is not allowed)" };
+    }
+    if (b.packedAlloc >= MAX_PACKED_ALLOC) {
+        return { ok: false, error: "Invalid packedAlloc: must fit in 32 bits (< 2^32)" };
+    }
+
+    if (!isValidProof(b.proof)) {
+        return {
+            ok: false,
+            error: "Invalid proof: must include merkleTreeDepth, merkleTreeRoot, nullifier, message, scope, and points (array of 8 strings)",
+        };
+    }
+
+    const proof = b.proof as SemaphoreProof;
+
+    if (proof.message !== String(b.packedAlloc)) {
+        return {
+            ok: false,
+            error: `Proof message (${proof.message}) does not match packedAlloc (${b.packedAlloc})`,
+        };
+    }
+
+    const expectedScope = BigInt(b.pollAddress as string).toString();
+    if (proof.scope !== expectedScope) {
+        return {
+            ok: false,
+            error: `Proof scope does not match pollAddress. Expected ${expectedScope}, got ${proof.scope}`,
+        };
+    }
+
+    return {
+        ok: true,
+        data: {
+            pollAddress: b.pollAddress as string,
+            packedAlloc: b.packedAlloc as number,
             proof,
         },
     };
