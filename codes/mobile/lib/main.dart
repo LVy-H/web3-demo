@@ -71,6 +71,7 @@ Future<void> main() async {
     anonAbiJson: anonAbiArr,
     blindAbiJson: blindAbiArr,
     approvalAbiJson: approvalAbiArr,
+    surveyAbiJson: surveyAbiArr,
   ));
 }
 
@@ -81,6 +82,7 @@ class ZkVoteApp extends StatelessWidget {
   final String anonAbiJson;
   final String blindAbiJson;
   final String approvalAbiJson;
+  final String surveyAbiJson;
   const ZkVoteApp({
     super.key,
     required this.reader,
@@ -89,6 +91,7 @@ class ZkVoteApp extends StatelessWidget {
     required this.anonAbiJson,
     required this.blindAbiJson,
     required this.approvalAbiJson,
+    required this.surveyAbiJson,
   });
 
   @override
@@ -157,6 +160,7 @@ class ZkVoteApp extends StatelessWidget {
             registryAbiJson: registryAbiJson,
             anonAbiJson: anonAbiJson,
             approvalAbiJson: approvalAbiJson,
+            surveyVotingAbiJson: surveyAbiJson,
           ),
         ),
         Provider<LiveHostRepository>(

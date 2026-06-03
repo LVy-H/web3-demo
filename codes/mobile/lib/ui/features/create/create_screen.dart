@@ -8,6 +8,7 @@ import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../wallet/wallet_button.dart';
+import 'survey_question_builder.dart';
 
 /// Create an anon-vote poll from mobile. Signs `PollRegistry.createPoll` through
 /// the connected wallet (via [WalletService]). Deploy is gated on a wallet
@@ -21,11 +22,20 @@ class CreateScreen extends StatefulWidget {
 
 /// Module type the Create screen can deploy. `anonVote` is the single-choice
 /// default; `approvalVote` is the multi-select bitmask module; `rankedVote` is
-/// instant-runoff; `quadraticVote` is credit-allocation. `blindVote` is shown
-/// for discoverability but DISABLED here — its `initialize` needs a reveal-window
-/// param the mobile create flow doesn't collect yet, so deploying it from mobile
-/// is web-only (selecting it must never mis-deploy an anon poll).
-enum _ModuleType { anonVote, approvalVote, rankedVote, quadraticVote, blindVote }
+/// instant-runoff; `quadraticVote` is credit-allocation; `surveyVote` is a
+/// multi-question survey (its own question builder, NOT the flat OPTIONS list).
+/// `blindVote` is shown for discoverability but DISABLED here — its `initialize`
+/// needs a reveal-window param the mobile create flow doesn't collect yet, so
+/// deploying it from mobile is web-only (selecting it must never mis-deploy an
+/// anon poll).
+enum _ModuleType {
+  anonVote,
+  approvalVote,
+  rankedVote,
+  quadraticVote,
+  surveyVote,
+  blindVote,
+}
 
 /// On-chain `MAX_OPTIONS` for the ranked + quadratic modules (each packs a
 /// per-option nibble into a 32-bit word). The form enforces 2..8 options when
@@ -39,6 +49,9 @@ class _CreateScreenState extends State<CreateScreen> {
     TextEditingController(text: 'Yes'),
     TextEditingController(text: 'No'),
   ];
+  // The multi-question survey draft — only used when `surveyVote` is selected.
+  // Owns its own per-question option controllers (NOT the flat `_options`).
+  final _survey = SurveyDraft();
   _ModuleType _module = _ModuleType.anonVote;
   bool _busy = false;
 
@@ -49,8 +62,14 @@ class _CreateScreenState extends State<CreateScreen> {
     for (final c in _options) {
       c.dispose();
     }
+    _survey.dispose();
     super.dispose();
   }
+
+  /// Whether the multi-question survey builder is the active form (its own
+  /// 1..16-questions / 2..32-options-per-question validation replaces the flat
+  /// OPTIONS editor + the ranked/quadratic 2..8 guard).
+  bool get _isSurvey => _module == _ModuleType.surveyVote;
 
   /// Ranked + quadratic cap options at 8 on-chain; everything else allows the
   /// module's own (higher) cap, so only the row count matters here.
@@ -72,6 +91,15 @@ class _CreateScreenState extends State<CreateScreen> {
   Future<void> _deploy(WalletService w) async {
     final creator = context.read<PollCreator>();
     final title = _title.text.trim();
+    // Survey is its OWN deploy path — it doesn't use the flat `_options` list, so
+    // it must branch BEFORE the `opts.length < 2` guard below (which would
+    // otherwise block a perfectly valid survey). Survey is dev-signer-only: its
+    // tile is disabled without the dev-signer, so the wallet path never reaches
+    // here — keeping the wallet path anon-only (no anon mis-deploy).
+    if (_isSurvey) {
+      await _deploySurvey(creator, title);
+      return;
+    }
     final opts =
         _options.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
     if (title.isEmpty || opts.length < 2) {
@@ -107,6 +135,10 @@ class _CreateScreenState extends State<CreateScreen> {
           case _ModuleType.quadraticVote:
             tx = await creator.createQuadraticPoll(
                 title: title0, description: desc0, options: opts);
+          case _ModuleType.surveyVote:
+            // Unreachable: `_isSurvey` returns early into `_deploySurvey` above.
+            // Listed only for switch exhaustiveness; never deploys via `opts`.
+            return;
           case _ModuleType.anonVote:
           case _ModuleType.blindVote:
             tx = await creator.createAnonPoll(
@@ -120,6 +152,37 @@ class _CreateScreenState extends State<CreateScreen> {
         tx = await w.createPoll(
             title: title, description: _desc.text.trim(), options: opts);
       }
+      if (!mounted) return;
+      _snack('Deploy sent · ${shortAddr(tx)}');
+      context.canPop() ? context.pop() : context.go('/');
+    } catch (e) {
+      if (mounted) _snack('Deploy failed: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Deploy the multi-question survey via the dev-signer. Validates the draft's
+  /// own 1..16-questions / 2..32-options-per-question caps (the contract's
+  /// `MAX_QUESTIONS` / `MAX_OPTIONS`) before signing — the flat option-count
+  /// guard does NOT apply to surveys.
+  Future<void> _deploySurvey(PollCreator creator, String title) async {
+    if (title.isEmpty) {
+      _snack('Add a title.');
+      return;
+    }
+    final err = _survey.validationError;
+    if (err != null) {
+      _snack(err);
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final tx = await creator.createSurveyPoll(
+        title: title,
+        description: _desc.text.trim(),
+        questions: _survey.toQuestions(),
+      );
       if (!mounted) return;
       _snack('Deploy sent · ${shortAddr(tx)}');
       context.canPop() ? context.pop() : context.go('/');
@@ -165,14 +228,28 @@ class _CreateScreenState extends State<CreateScreen> {
                   const SizedBox(height: 16),
                   _field('DESCRIPTION', _desc, 'Optional context', maxLines: 3),
                   const SizedBox(height: 20),
-                  Text('OPTIONS', style: dbLabel(size: 10, tracking: 0.16)),
-                  const SizedBox(height: 10),
-                  for (var i = 0; i < _options.length; i++) _optionRow(i),
-                  const SizedBox(height: 6),
-                  _addOptionButton(),
-                  if (_moduleCapsAtEight && !_optionCountOk) ...[
-                    const SizedBox(height: 8),
-                    _optionLimitHint(),
+                  if (_isSurvey) ...[
+                    Text('QUESTIONS',
+                        style: dbLabel(size: 10, tracking: 0.16)),
+                    const SizedBox(height: 10),
+                    SurveyQuestionBuilder(
+                      draft: _survey,
+                      onChanged: () => setState(() {}),
+                    ),
+                    if (_survey.validationError != null) ...[
+                      const SizedBox(height: 10),
+                      _surveyHint(_survey.validationError!),
+                    ],
+                  ] else ...[
+                    Text('OPTIONS', style: dbLabel(size: 10, tracking: 0.16)),
+                    const SizedBox(height: 10),
+                    for (var i = 0; i < _options.length; i++) _optionRow(i),
+                    const SizedBox(height: 6),
+                    _addOptionButton(),
+                    if (_moduleCapsAtEight && !_optionCountOk) ...[
+                      const SizedBox(height: 8),
+                      _optionLimitHint(),
+                    ],
                   ],
                   const SizedBox(height: 28),
                   _deployButton(w, devSigner),
@@ -245,6 +322,17 @@ class _CreateScreenState extends State<CreateScreen> {
             : 'Needs the dev-signer to deploy from mobile. (quadratic-vote)',
         icon: Icons.calculate_outlined,
         accent: Db.catSocial,
+        enabled: devSigner,
+      ),
+      _moduleTile(
+        type: _ModuleType.surveyVote,
+        title: 'Survey — multiple questions',
+        subtitle: devSigner
+            ? 'Compose several questions (single-choice or multi-select); voters '
+                'answer them all in one ballot. (survey-vote)'
+            : 'Needs the dev-signer to deploy from mobile. (survey-vote)',
+        icon: Icons.list_alt,
+        accent: Db.oltremare,
         enabled: devSigner,
       ),
       _moduleTile(
@@ -450,9 +538,21 @@ class _CreateScreenState extends State<CreateScreen> {
     ]);
   }
 
+  // The survey's own validation hint (1..16 questions / 2..32 options each),
+  // surfaced so the user sees WHY deploy is disabled before an `initialize`
+  // revert. Distinct from the flat-options `_optionLimitHint`.
+  Widget _surveyHint(String msg) => Row(children: [
+        const Icon(Icons.info_outline, size: 13, color: Db.amber),
+        const SizedBox(width: 8),
+        Expanded(child: Text(msg, style: dbMono(10, Db.amber, height: 1.5))),
+      ]);
+
   Widget _deployButton(WalletService w, bool devSigner) {
     final canDeploy = devSigner || w.isConnected;
-    final enabled = canDeploy && !_busy && _optionCountOk;
+    // Survey gates on its OWN validity (1..16 questions / 2..32 options each);
+    // every other module gates on the flat option-row count.
+    final formOk = _isSurvey ? _survey.isValid : _optionCountOk;
+    final enabled = canDeploy && !_busy && formOk;
     return SizedBox(
       width: double.infinity,
       child: FilledButton(
