@@ -101,20 +101,24 @@ These ride alongside every phase:
   effort: **Phase 11** (and reframed as emulator-verifiable, not device-pending).
 - ~~Decouple `codes/frontend`~~ — **DONE** (React removed; prover self-contained).
 
-## Phase 11: Close the loop on mobile — scan + native proving — **NEXT**
+## Phase 11: Close the loop on mobile — scan + native proving — **PARTIAL**
 
 > Spec: `docs/superpowers/specs/2026-06-02-mobile-scan-and-native-proving-design.md`.
 > Makes the live-meeting flow complete device-to-device on a phone.
 
-- **In-app QR scanner** (`mobile_scanner`) on the live-vote `needsTicket` stage —
-  scan the host's rotating QR instead of pasting; paste stays as the fallback.
-- **Native on-device proving** (`ProofServiceMobile`): a headless `webview_flutter`
-  hosting the same `zkprover.js`, with the Semaphore depth-16 artifacts **bundled**
-  (~5.2 MB). `entry.js` gets an *additive* artifact-override arg — **web/desktop
-  provers untouched** (LeanIMT root is member-derived, so depth need not match
-  across clients).
-- **Milestone gate:** M1 is a WebView-proving **go/no-go spike** (blob-URL artifact
-  injection; loopback-server fallback; native FFI is out of scope) before the rest.
+- **M3 — In-app QR scanner** (`mobile_scanner`) on the live-vote `needsTicket`
+  stage — scan the host's rotating QR instead of pasting; paste stays as the
+  fallback. **PENDING** (device-gated follow-up; not yet landed).
+- **M2 — Native on-device proving** (`ProofServiceMobile`): a headless
+  `webview_flutter` hosting the same `zkprover.js`, with the Semaphore depth-16
+  artifacts **bundled** (~5.2 MB). `entry.js` gets an *additive* artifact-override
+  arg — **web/desktop provers untouched** (LeanIMT root is member-derived, so depth
+  need not match across clients). Factory-selected on Android; iOS fenced. **DONE**
+  (emulator-verified against the real Groth16 vkey, PR #48).
+- **M1 — WebView-proving go/no-go spike** (blob-URL artifact injection;
+  loopback-server fallback; native FFI is out of scope). **DONE — spike returned
+  GO**: a Groth16 proof generated inside a headless `webview_flutter` on the
+  API-31 emulator, verified against the real vkey (PR #48).
 - **Verified-or-fenced:** proving is **emulator-verified** against the real Groth16
   vkey; the **camera** is the only real-device/fenced piece (paste = verified
   fallback). Real-device confirmation is a follow-up gate.
@@ -142,12 +146,15 @@ These ride alongside every phase:
   dispatch → multi-select checkbox `ApprovalPollScreen` → bitmask cast, results
   as per-option approvals over the voter count).
 - **12b — Ranked-choice (IRV)** — voters rank options; instant-runoff elimination.
-  Heavier tally (decide on-chain vs verifiable off-chain). **NEXT** in the epic.
+  Off-chain Dart IRV tally with the pinned canonical elimination rule. **DONE** —
+  contract + relayer (#49) and Flutter UI + off-chain Dart IRV tally (#53).
 - **12c — Weighted / quadratic** — votes carry weight (token-weighted or quadratic
-  cost); needs a weight/credit source. Governance-oriented.
+  cost); uniform `CREDITS=100` budget, `Σvᵢ²≤100`. **backend DONE (#51); UI in
+  progress** (separate PR open).
 - **12d — Multi-question survey ("Google-Forms")** — a poll = several questions,
   each single-choice / multi-select / rating. **Redefines the poll data model**;
-  largest scope; depends on lessons from 12a–12c.
+  largest scope; depends on lessons from 12a–12c. **PLANNED** — next-largest
+  remaining item in the epic.
 
 Each sub-module gets its own design spec before implementation.
 
