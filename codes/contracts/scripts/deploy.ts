@@ -130,6 +130,20 @@ async function main() {
     await regRankedTx.wait();
     console.log('Registered "ranked-vote" module in PollRegistry');
 
+    // ── 6h. Deploy ZkQuadraticVoting implementation (bare, uninitialized) ─
+    const ZkQuadraticVotingFactory = await ethers.getContractFactory("ZkQuadraticVoting");
+    const zkQuadraticVotingImpl = await ZkQuadraticVotingFactory.deploy();
+    await zkQuadraticVotingImpl.waitForDeployment();
+    const quadraticVotingImplAddress = await zkQuadraticVotingImpl.getAddress();
+    console.log("ZkQuadraticVoting (impl) deployed to:", quadraticVotingImplAddress);
+
+    // ── 6i. Register "quadratic-vote" module in PollRegistry ────────
+    // Canonical module string "quadratic-vote" — used IDENTICALLY in the test
+    // harness and the relayer (see docs/superpowers/specs/2026-06-03-quadratic-voting-design.md).
+    const regQuadraticTx = await pollRegistry.registerModule("quadratic-vote", quadraticVotingImplAddress);
+    await regQuadraticTx.wait();
+    console.log('Registered "quadratic-vote" module in PollRegistry');
+
     console.log("\n==============================================");
 
     // ── 7. Deploy ZkAirdrop (unchanged) ─────────────────────────────
@@ -162,6 +176,7 @@ async function main() {
         BLIND_VOTING_IMPL: blindVotingImplAddress,
         APPROVAL_VOTING_IMPL: approvalVotingImplAddress,
         RANKED_VOTING_IMPL: rankedVotingImplAddress,
+        QUADRATIC_VOTING_IMPL: quadraticVotingImplAddress,
         AIRDROP_ADDRESS: airdropAddress,
     };
 
