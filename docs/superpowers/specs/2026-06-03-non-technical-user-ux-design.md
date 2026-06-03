@@ -63,15 +63,21 @@ poll, which is the existing live-meeting/ticket flow and locks out late arrivals
 | **0A — Minimal contract change: open self-registration during voting (CHOSEN, pending user confirmation)** | A new sponsored module (or a new init flag on a forked module) lets a registered owner — the relayer — call `registerVoter` while `state == Voting`, OR collapses Registration+Voting into a single "Open" phase where commitments are added lazily on first contact. The relayer remains the gatekeeper (still `onlyOwner`); the difference is purely that registration is no longer phase-locked out. | **The only option that delivers the actual mandate** (async share-a-link, join anytime). Cost: a new/forked module + Hardhat tests + an audit pass, sequenced as **M0 BEFORE** the relayer work. Anonymity is unchanged (still one nullifier per voter; the merkle root simply grows during voting — Semaphore proofs already carry the root they proved against, so late joiners prove against the then-current group). Late-join honesty note: a vote proves membership in *some* root ≤ the cast time; the contract already accepts any historical root Semaphore tracks. |
 | 0B — No contract change: relayer-windowed (register in a join window, then sponsored `startVoting`, then voting) | The relayer registers commitments during a creator-controlled join window; when the creator taps "Open voting" (sponsored), the relayer `startVoting`s; thereafter only voting. | Zero contract change, ships fastest. **Fatal for the async use case:** anyone who arrives after "Open voting" is permanently locked out — exactly the non-tech "I got the link an hour late" path. "Join & Vote" degrades to a state-aware **"Join now / vote when it opens"**, and the creator must babysit the window. Acceptable only for scheduled/synchronous polls; it does not satisfy "anyone opens the link and votes." |
 
-**Lean: 0A.** The non-tech use case *is* asynchronous sharing, and 0B cannot
-serve it. But 0A costs a contract milestone and an audit, so the choice is the
-user's. **If the user accepts a windowed/synchronous-only v1, flip to 0B and
-delete M0** — the relayer endpoints, the silent identity, and the entire
-plain-language sweep are identical either way; only the join UX copy and the
-milestone count change. *This is the call flagged for the user to confirm.*
+**Lean (spec author): 0A** — but the **USER CHOSE 0B (2026-06-03)**: a windowed /
+synchronous v1, **no contract change**, ships fastest. So **M0 is DROPPED** and
+the implementation follows the **[0B: …]** markers throughout: the relayer
+registers commitments during a creator-controlled **join window** while the poll
+is in `Registration`; the creator taps **"Start voting"** (sponsored
+`startVoting`) to open the ballot; thereafter only voting. "Join & Vote" becomes
+the state-aware **"Join now / vote when it opens"**, and the honest limitation —
+**anyone who arrives after voting starts is locked out** — is surfaced in-product
+(a clear "Voting has started — joining is closed" state), not hidden. The relayer
+endpoints, the silent identity, and the entire plain-language sweep are identical
+to 0A; only the join UX copy changes.
 
-> The remainder of this spec is written for **0A** (it delivers the mandate). Each
-> place that 0B would change is marked **[0B: …]**.
+> Implementation path: **0B (chosen)**. The spec body below describes the 0A
+> mechanics for completeness; wherever a **[0B: …]** marker appears, the 0B text
+> is authoritative. Milestones start at **M1** (no M0 contract change).
 
 ### Decision 1 — Custodial ownership of sponsored polls
 
