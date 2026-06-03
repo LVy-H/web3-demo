@@ -131,7 +131,7 @@ These ride alongside every phase:
   (replace the local Mock). Per-network `deployed-addresses.<net>.json`.
 - This + "no open P0/P1" is the bar to move from `0.x` to **`1.0.0`**.
 
-## Phase 12: Richer voting types — **IN PROGRESS (epic — own design per sub-module)**
+## Phase 12: Richer voting types — **COMPLETE (epic — 12a/12b/12c/12d all shipped)**
 
 > User-requested (2026-06-02): all four. Each is a **new on-chain module** (new
 > Solidity + tests + ABIs + `PollRegistry` registration + deploy wiring) behind
@@ -155,18 +155,36 @@ These ride alongside every phase:
   Flutter UI (#53); ranked-choice and quadratic polls are now **creatable from the
   mobile Create screen** (dev-signer-gated, ≤8-option guard, #57).
 - **12d — Multi-question survey ("Google-Forms")** — a poll = several questions,
-  each single-choice / multi-select / rating. **Redefines the poll data model**;
-  largest scope; depends on lessons from 12a–12c. **IN PROGRESS**:
-  - Design spec merged (#56): one `ZkSurveyVoting` module, one ballot/nullifier per
-    survey, `message = keccak256(abi.encode(answers)) >> 8`.
-  - Gate 1 — prover signal widened `Number→BigInt` in `entry.js`, regression-verified
-    against all four shipped modules' real-vkey proofs (#59). Unblocks survey's wide
-    keccak-commitment message.
-  - M2 — `ZkSurveyVoting` contract + hardhat tests: **in review** (#60).
-  - Remaining: M3 (ABIs + relayer + deploy) → M4 (Flutter read/results) →
-    M5 (create UI) → M6 (e2e + docs).
+  each single-choice / multi-select. **Redefines the poll data model**; largest
+  scope; depended on lessons from 12a–12c. **DONE / SHIPPED FULL-STACK** — one
+  `ZkSurveyVoting` module, one ballot/nullifier per survey, hash-commitment
+  `message = keccak256(abi.encode(answers)) >> 8`. Shipped across the whole stack:
+  - **Contract** — `ZkSurveyVoting` with nested per-question storage, the
+    commitment recompute, per-question validation + no-lockout, and per-question
+    results (`getSurveyResults`); 45 hardhat tests (#60).
+  - **Relayer** — `POST /api/relay/survey-vote` route + `validateSurveyVoteRequest`
+    (14 tests); ABIs + `deploy.ts` register + `SURVEY_VOTING_IMPL` persist.
+  - **Flutter** — survey read/answer/cast/results (N `ResultsBars`, one per
+    question) (#65) **and** the question-builder create flow
+    (`?module=survey-vote` dispatch) (#66).
+  - **Prover** — Gate 1 widened the shared web prover signal `Number→BigInt` in
+    `entry.js`, regression-verified against all four shipped SNARK-message modules'
+    real-vkey proofs (#59), unblocking the wide keccak-commitment message.
+  - **Gate 2 (cross-impl)** — Dart `surveyCommitment` ≡ ethers ≡ Solidity
+    `keccak256(abi.encode(answers)) >> 8` (the load-bearing serialization match),
+    plus the init-encoding cross-check.
+  - **Stack e2e** — `scripts/demo-poll.ts` seeds a real survey on the local chain
+    (create → register → cast `[2,5]` → per-question `getSurveyResults`), proving
+    the full stack end-to-end (no emulator).
+  - Design spec: `docs/superpowers/specs/2026-06-03-survey-voting-design.md`;
+    architecture: `docs/architecture/module-survey.md`. The on-device mobile UI
+    survey cast is the same device-gated/fenced bound as every other module's
+    on-device proving (a named follow-up, not a regression risk).
 
-Each sub-module gets its own design spec before implementation.
+The **Phase 12 voting-types epic is complete**: approval (12a), ranked-choice
+(12b), quadratic (12c), and survey (12d) all shipped — contract + relayer +
+Flutter — behind the existing `IZkPoll` / module-type dispatch. Each sub-module
+has its own design spec and `architecture/module-*.md`.
 
 ## Out of scope (explicit)
 

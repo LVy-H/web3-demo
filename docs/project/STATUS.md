@@ -1,6 +1,6 @@
 # Status
 
-> **Snapshot:** 2026-06-02 — keep this date current when editing.
+> **Snapshot:** 2026-06-03 — keep this date current when editing.
 
 ## TL;DR
 
@@ -17,9 +17,17 @@ A working PoC of a modular ZK voting system runs end-to-end on a local Hardhat n
 ## Shipped (works today)
 
 ### Contracts (`codes/contracts/`)
-- `PollRegistry` — EIP-1167 factory, two modules registered (`anon-vote`, `blind-vote`)
+- `PollRegistry` — EIP-1167 factory, six modules registered (`anon-vote`,
+  `blind-vote`, `approval-vote`, `ranked-vote`, `quadratic-vote`, `survey-vote`)
 - `ZkAnonVoting` (M1) — Semaphore-based anonymous voting; tested ✓
 - `ZkBlindVoting` (M2) — commit-reveal voting; tested ✓
+- `ZkApprovalVoting` / `ZkRankedVoting` / `ZkQuadraticVoting` (Phase 12a/12b/12c)
+  — richer voting types; tested ✓
+- `ZkSurveyVoting` (Phase 12d) — multi-question ("Google-Forms") survey: one
+  ballot / one nullifier per survey, hash-commitment
+  `message = keccak256(abi.encode(answers)) >> 8`, per-question single-choice /
+  multi-select tallies. **Shipped full-stack** (contract + relayer + Flutter
+  read/answer/cast/results + question-builder create flow); 45 hardhat tests ✓
 - `ZkAirdrop` — standalone Semaphore-gated ETH airdrop; **untested** ✗
 - `MockSemaphoreVerifier` — local verifier that always returns true (no SNARK artifacts needed)
 - Deploy script wires it all together and writes `deployed-addresses.json` for the frontend
