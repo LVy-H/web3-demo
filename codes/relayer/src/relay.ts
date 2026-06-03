@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import { getRelayerWallet, getProvider } from "./wallet";
-import { config, getRegistryAddress } from "./config";
+import { getTxManager } from "./tx_manager";
+import { getRegistryAddress } from "./config";
 import type { SemaphoreProof } from "./validation";
 import ZkAnonVotingABI from "./abi/ZkAnonVoting.json";
 import ZkApprovalVotingABI from "./abi/ZkApprovalVoting.json";
@@ -49,11 +50,9 @@ export async function relayCastVote(
 
     const proofStruct = toProofStruct(proof);
 
-    const tx = await contract.castVote(vote, proofStruct, {
-        gasLimit: config.maxGasLimit,
-    });
-
-    const receipt = await tx.wait();
+    const { receipt } = await getTxManager().send("castVote", () =>
+        contract.castVote.populateTransaction(vote, proofStruct)
+    );
     return { txHash: receipt.hash };
 }
 
@@ -89,11 +88,9 @@ export async function relayApprovalVote(
 
     const proofStruct = toProofStruct(proof);
 
-    const tx = await contract.castVote(bitmask, proofStruct, {
-        gasLimit: config.maxGasLimit,
-    });
-
-    const receipt = await tx.wait();
+    const { receipt } = await getTxManager().send("approvalVote", () =>
+        contract.castVote.populateTransaction(bitmask, proofStruct)
+    );
     return { txHash: receipt.hash };
 }
 
@@ -130,11 +127,9 @@ export async function relayRankedVote(
 
     const proofStruct = toProofStruct(proof);
 
-    const tx = await contract.castVote(packedRanking, proofStruct, {
-        gasLimit: config.maxGasLimit,
-    });
-
-    const receipt = await tx.wait();
+    const { receipt } = await getTxManager().send("rankedVote", () =>
+        contract.castVote.populateTransaction(packedRanking, proofStruct)
+    );
     return { txHash: receipt.hash };
 }
 
@@ -175,11 +170,9 @@ export async function relayQuadraticVote(
 
     const proofStruct = toProofStruct(proof);
 
-    const tx = await contract.castVote(packedAlloc, proofStruct, {
-        gasLimit: config.maxGasLimit,
-    });
-
-    const receipt = await tx.wait();
+    const { receipt } = await getTxManager().send("quadraticVote", () =>
+        contract.castVote.populateTransaction(packedAlloc, proofStruct)
+    );
     return { txHash: receipt.hash };
 }
 
@@ -218,15 +211,12 @@ export async function relaySurveyVote(
     // wide uint256 answer word survives). toProofStruct already BigInt-izes the
     // proof's `message` (the wide keccak commitment) and `scope`, so the full-width
     // commitment flows through unchanged.
-    const tx = await contract.castVote(
-        answers.map((a) => BigInt(a)),
-        proofStruct,
-        {
-            gasLimit: config.maxGasLimit,
-        }
+    const { receipt } = await getTxManager().send("surveyVote", () =>
+        contract.castVote.populateTransaction(
+            answers.map((a) => BigInt(a)),
+            proofStruct
+        )
     );
-
-    const receipt = await tx.wait();
     return { txHash: receipt.hash };
 }
 
@@ -252,11 +242,9 @@ export async function relayClaimAirdrop(
 
     const proofStruct = toProofStruct(proof);
 
-    const tx = await contract.claimAirdrop(receiver, proofStruct, {
-        gasLimit: config.maxGasLimit,
-    });
-
-    const receipt = await tx.wait();
+    const { receipt } = await getTxManager().send("claimAirdrop", () =>
+        contract.claimAirdrop.populateTransaction(receiver, proofStruct)
+    );
     return { txHash: receipt.hash };
 }
 
@@ -324,10 +312,9 @@ export async function relayCreatePoll(
     const wallet = getRelayerWallet();
     const registry = new ethers.Contract(registryAddress, PollRegistryABI.abi, wallet);
 
-    const tx = await registry.createPoll(moduleType, title, description, initData, {
-        gasLimit: config.maxGasLimit,
-    });
-    const receipt = await tx.wait();
+    const { receipt } = await getTxManager().send("createPoll", () =>
+        registry.createPoll.populateTransaction(moduleType, title, description, initData)
+    );
 
     // Parse PollCreated(address pollAddress, string moduleType, string title,
     // address creator) out of the logs — createPoll's returned address is not
@@ -378,10 +365,9 @@ export async function relayRegisterVoter(
             return { txHash: "", alreadyRegistered: true };
         }
 
-        const tx = await contract.registerVoter(BigInt(identityCommitment), {
-            gasLimit: config.maxGasLimit,
-        });
-        const receipt = await tx.wait();
+        const { receipt } = await getTxManager().send("registerVoter", () =>
+            contract.registerVoter.populateTransaction(BigInt(identityCommitment))
+        );
         return { txHash: receipt.hash, alreadyRegistered: false };
     } catch (err) {
         // Our own pre-check copy is already client-facing → re-throw verbatim.
@@ -411,8 +397,9 @@ export async function relayStartVoting(
             throw new ClientFacingError("Voting is already open (or the poll has ended).");
         }
 
-        const tx = await contract.startVoting({ gasLimit: config.maxGasLimit });
-        const receipt = await tx.wait();
+        const { receipt } = await getTxManager().send("startVoting", () =>
+            contract.startVoting.populateTransaction()
+        );
         return { txHash: receipt.hash };
     } catch (err) {
         if (err instanceof ClientFacingError) throw err;

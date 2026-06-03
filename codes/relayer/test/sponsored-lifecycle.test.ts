@@ -473,31 +473,58 @@ describe.runIf(!!process.env.REGISTRY_ADDRESS)("wallet-free lifecycle e2e (live 
         const pollAddress: string = created.body.pollAddress;
         expect(E.isAddress(pollAddress)).toBe(true);
 
-        // 2. REGISTER — a test identity commitment (any non-zero in-field value;
-        //    the mock verifier doesn't bind it to a real Semaphore identity).
-        const commitment = "1111111111111111111111111111111111111111";
-        const reg = await request(app)
-            .post("/api/relay/register-voter")
-            .send({ pollAddress, identityCommitment: commitment });
-        expect(reg.status).toBe(200);
+        // 2. REGISTER — TWO distinct test identity commitments. The mock verifier
+        //    accepts dummy proof points, but the core Semaphore contract still
+        //    validates the merkle tree DEPTH against the supported range [1,32]
+        //    (Semaphore__MerkleTreeDepthIsNotSupported otherwise). A single member
+        //    is a depth-0 LeanIMT, which is rejected; two distinct members make a
+        //    depth-1 tree whose real root/depth we read below. We still cast just
+        //    one vote, so the asserted tally stays 1.
+        for (const commitment of ["1111111111111111111111111111111111111111", "2222222222222222222222222222222222222222"]) {
+            const reg = await request(app)
+                .post("/api/relay/register-voter")
+                .send({ pollAddress, identityCommitment: commitment });
+            expect(reg.status).toBe(200);
+        }
 
         // 3. START VOTING — the creator's "Open voting" action.
         const start = await request(app).post("/api/relay/start-voting").send({ pollAddress });
         expect(start.status).toBe(200);
 
-        // 4. VOTE — the EXISTING sponsored path. With the mock verifier any proof
-        //    is accepted; the relayer's own validators require message==vote and
-        //    scope==BigInt(poll).
+        // 4. VOTE — the EXISTING sponsored path. The MockSemaphoreVerifier mocks
+        //    only the SNARK check, so dummy proof POINTS are accepted — but the
+        //    core Semaphore contract still validates that merkleTreeRoot/Depth
+        //    match the group (it rejects a stale/placeholder root with
+        //    Semaphore__MerkleTreeRootIsNotPartOfTheGroup). So we read the REAL
+        //    group root + depth from the live Semaphore (after registration) and
+        //    use them; message==vote and scope==BigInt(poll) are the relayer's
+        //    own validator requirements.
         const vote = 1; // "No"
         const scope = E.toBigInt(pollAddress).toString();
+        const semaphoreContract = new E.Contract(
+            semaphore,
+            [
+                "function getMerkleTreeRoot(uint256) view returns (uint256)",
+                "function getMerkleTreeDepth(uint256) view returns (uint256)",
+            ],
+            provider
+        );
+        const pollForGroup = new E.Contract(
+            pollAddress,
+            ["function groupId() view returns (uint256)"],
+            provider
+        );
+        const groupId: bigint = await pollForGroup.groupId();
+        const merkleTreeRoot = (await semaphoreContract.getMerkleTreeRoot(groupId)).toString();
+        const merkleTreeDepth = Number(await semaphoreContract.getMerkleTreeDepth(groupId));
         const voteRes = await request(app)
             .post("/api/relay/vote")
             .send({
                 pollAddress,
                 vote,
                 proof: {
-                    merkleTreeDepth: 1,
-                    merkleTreeRoot: "1",
+                    merkleTreeDepth,
+                    merkleTreeRoot,
                     nullifier: "999",
                     message: String(vote),
                     scope,
@@ -515,4 +542,97 @@ describe.runIf(!!process.env.REGISTRY_ADDRESS)("wallet-free lifecycle e2e (live 
         const results: bigint[] = await poll.getResults();
         expect(Number(results[vote])).toBe(1);
     }, 60_000);
+});
+
+// ── 4. The nonce-race proof: N concurrent sends through the ONE signer ───────
+//
+// This is the test that proves the nonce-race CLASS is dead. The relayer is ONE
+// signer shared by every endpoint and every concurrent request. Before the fix,
+// firing several sponsored txs at once raced on the provider's pending nonce and
+// produced "Nonce too low. Expected N got N-1". Here we fire N=10 register-voter
+// requests SIMULTANEOUSLY (Promise.all) through the real HTTP path against the
+// live chain, then assert:
+//   (a) ALL 10 return 200 (no nonce-race failure),
+//   (b) the 10 on-chain tx nonces are DISTINCT and SEQUENTIAL (the serial queue
+//       handed out one nonce each, in order — the direct proof), and
+//   (c) every commitment is actually a registered member on-chain (real effect).
+//
+// N=10 is under both abuse caps (global 20/min, register 50/poll) so the limiter
+// never causes a spurious failure. Gated on REGISTRY_ADDRESS like the e2e so it
+// EXECUTES against the deployed stack (not a vacuous skip).
+describe.runIf(!!process.env.REGISTRY_ADDRESS)("nonce-race: 10 simultaneous sends (live chain)", () => {
+    it("fires 10 concurrent register-voters; all succeed with distinct sequential nonces", async () => {
+        const mod = await import("../src/app");
+        const app = mod.createApp();
+        const { ethers: E } = await import("ethers");
+
+        const RPC = process.env.RPC_URL || "http://127.0.0.1:8545";
+        const provider = new E.JsonRpcProvider(RPC);
+
+        // CREATE a fresh poll, owned by the relayer, left in Registration.
+        const info = await request(app).get("/api/relay/info");
+        const relayerAddr: string = info.body.relayer;
+        const semaphore = process.env.SEMAPHORE_ADDRESS || SEMAPHORE;
+        const iface = new E.Interface(["function initialize(address,address,string[])"]);
+        const initData = iface.encodeFunctionData("initialize", [semaphore, relayerAddr, ["Yes", "No"]]);
+        const created = await request(app)
+            .post("/api/relay/create-poll")
+            .send({ moduleType: "anon-vote", title: "nonce-race poll", description: "", initData });
+        expect(created.status).toBe(200);
+        const pollAddress: string = created.body.pollAddress;
+        expect(E.isAddress(pollAddress)).toBe(true);
+
+        // 10 DISTINCT in-field commitments (so each is a real, separate insert —
+        // no idempotent short-circuit; every one must send its own tx).
+        const N = 10;
+        const commitments = Array.from({ length: N }, (_, i) => String(1000000n + BigInt(i)));
+
+        // FIRE ALL 10 AT ONCE. Before the fix this raced the shared signer's
+        // nonce; with the serial queue every send gets a unique sequential nonce.
+        const responses = await Promise.all(
+            commitments.map((c) =>
+                request(app)
+                    .post("/api/relay/register-voter")
+                    .send({ pollAddress, identityCommitment: c })
+            )
+        );
+
+        // (a) ALL succeeded — no "Nonce too low" failure leaked through.
+        for (const r of responses) {
+            expect(r.status).toBe(200);
+            expect(r.body.success).toBe(true);
+            expect(r.body.alreadyRegistered).toBe(false);
+            expect(typeof r.body.txHash).toBe("string");
+            expect(r.body.txHash.length).toBeGreaterThan(0);
+        }
+
+        // (b) The 10 on-chain tx nonces are DISTINCT and SEQUENTIAL. Read each
+        //     tx's nonce from the chain by its returned hash — the direct proof
+        //     the serial queue assigned one nonce per tx with no gap/collision.
+        const txs = await Promise.all(
+            responses.map((r) => provider.getTransaction(r.body.txHash))
+        );
+        const nonces = txs.map((t) => {
+            expect(t).not.toBeNull();
+            return t!.nonce;
+        });
+        const distinct = new Set(nonces);
+        expect(distinct.size).toBe(N); // no two txs shared a nonce
+        const sorted = [...nonces].sort((a, b) => a - b);
+        for (let i = 1; i < sorted.length; i++) {
+            // consecutive — a perfectly sequential block, no nonce gap.
+            expect(sorted[i]).toBe(sorted[i - 1] + 1);
+        }
+
+        // (c) The real on-chain effect: every commitment is now a member.
+        const poll = new E.Contract(
+            pollAddress,
+            ["function registeredCommitments(uint256) view returns (bool)"],
+            provider
+        );
+        for (const c of commitments) {
+            const isMember: boolean = await poll.registeredCommitments(BigInt(c));
+            expect(isMember).toBe(true);
+        }
+    }, 120_000);
 });
