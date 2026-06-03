@@ -1,6 +1,6 @@
 # Documentation
 
-Living references for the Anonymous Web3 Voting System (`codes/`).
+Living references for **Tessera** — the modular zero-knowledge voting platform (`codes/`).
 
 ## Structure
 
@@ -11,12 +11,16 @@ docs/
 │   ├── system-overview.md     Top-level: registry, clones, IZkPoll, deploy stack
 │   ├── module-m1-anon-voting.md   ZkAnonVoting (Semaphore-based ZK voting)
 │   ├── module-m2-blind-voting.md  ZkBlindVoting (commit-reveal)
+│   ├── module-approval.md         ZkApprovalVoting (multi-select bitmask)
+│   ├── module-ranked.md           ZkRankedVoting (ranked-choice / IRV)
+│   ├── module-quadratic.md        ZkQuadraticVoting (credit budget, Σv²≤100)
+│   ├── module-survey.md           ZkSurveyVoting (multi-question survey)
 │   └── module-airdrop.md          ZkAirdrop (standalone, not in registry)
 ├── framework/                 Conceptual frameworks shared across modules
 │   ├── privacy-dimensions.md  3-axis privacy model (identity / content / temporality)
 │   └── module-comparison.md   Which module fits which use case
 ├── standards/                 Coding & UX rules every PR must follow
-│   ├── frontend-conventions.md
+│   ├── client-conventions.md  Flutter/Dart conventions for codes/mobile
 │   ├── ux-design-principles.md
 │   └── visual-design-guide.md
 ├── project/                   Project lifecycle & operations
@@ -50,7 +54,7 @@ docs/
 | Pick something to work on | `improvements/README.md` → `improvements/findings.md` |
 | Cut a release | `project/RELEASING.md` + `project/VERSIONING.md` |
 | Add a new voting module | `framework/privacy-dimensions.md` + an existing `architecture/module-*.md` as a template |
-| Touch the frontend | `standards/frontend-conventions.md` + `standards/visual-design-guide.md` |
+| Touch the client (Flutter) | `standards/client-conventions.md` + `standards/visual-design-guide.md` |
 | See how the system was originally designed | `archive/specs/` (frozen, may be stale) |
 
 ## Conventions

@@ -1,280 +1,253 @@
-# Using the Voting Hub — End-user / Demo-runner Guide
+# Using Tessera — End-user / Demo-runner Guide
 
-What you are going to do: connect a wallet (or skip it via the Relayer),
-register an anonymous identity, cast a vote in either an **M1 anonymous
-poll** or an **M2 blind (commit-reveal) poll**, then read the tallied
-results. Two voting modules + one optional gasless relayer; one UI.
+What you are going to do: launch the **Tessera** app, browse polls, create a
+poll, cast a vote in any of the six voting modules, verify a participation
+receipt, and (optionally) run a live in-person meeting with a rotating QR.
 
-This file documents the **runtime user flow**. For architecture, contract
-layout, and developer docs, start at [`codes/README.md`](codes/README.md)
-and the index in [`README.md`](README.md).
+Tessera is one Flutter codebase that runs on **mobile, desktop, and web**. There
+is no separate browser dApp — this single app is the only client. For developer
+setup (start the chain, deploy contracts, run the app), start at
+[`codes/README.md`](codes/README.md). For how the system fits together, see
+[`docs/architecture/system-overview.md`](docs/architecture/system-overview.md).
 
----
-
-## Prerequisites
-
-| Requirement                 | Notes                                                                                                                |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Node.js **22.x**            | LTS is fine. Check with `node --version`.                                                                            |
-| npm **9+**                  | Ships with Node 22.                                                                                                  |
-| Browser                     | Any modern browser. Chrome / Firefox tested.                                                                         |
-| MetaMask                    | **Optional.** Only needed for Flow A/B in *Direct (Wallet)* mode. Flow C (Relayer) works with no wallet at all.      |
-
-The local stack runs entirely on `http://localhost` — Hardhat node on
-`8545`, Vite dev server on `5173`, optional relayer on `3001`.
+> **Voting (proof generation) currently runs on the web build.** Native and
+> desktop builds are read-only for voting today — you can browse, verify, and
+> (with a dev signer) create and host, but casting a vote needs the in-browser
+> prover. The vote panels say so when proving is unavailable. Run
+> `flutter run -d chrome` to vote.
 
 ---
 
-## Setup (one-time)
+## Run the app
 
-Install dependencies for both packages. The full multi-terminal runbook
-(start node, deploy contracts) lives in
-[`codes/README.md`](codes/README.md) — do not duplicate it here; come
-back once contracts are deployed and the frontend dev server is up.
+The full multi-terminal runbook lives in
+[`codes/README.md`](codes/README.md#quick-start-local-4-terminals) — start the
+Hardhat node, deploy contracts, then launch the app. Don't duplicate it here;
+come back once contracts are deployed.
+
+One-step local stack (chain + deploy + a seeded demo poll + relayer):
 
 ```bash
-# Contracts
-cd codes/contracts && npm install
-
-# Frontend
-cd codes/frontend && npm install
+./dev-stack.sh up       # ./dev-stack.sh down to stop, status to inspect
 ```
 
-Then follow the **Quick start** in
-[`codes/README.md`](codes/README.md#quick-start-local-4-terminals) to:
-
-1. Start the Hardhat node (`npm run node` in `codes/contracts/`).
-2. Deploy contracts to it (`npm run deploy:local` in `codes/contracts/`).
-3. Start the dev server (`npm run dev` in `codes/frontend/`).
-
-The deploy step writes addresses into
-`codes/frontend/src/deployed-addresses.json`, which the dev server picks
-up automatically. Open [`http://localhost:5173`](http://localhost:5173)
-when all three are running.
-
-> **MetaMask network setup** (skip if using *Test Account* or Relayer):
-> Add a custom network — RPC `http://127.0.0.1:8545`, chain ID `31337`,
-> currency `ETH`. Import any Hardhat test private key printed by
-> `npm run node` to get a funded wallet. Full table in
-> [`codes/README.md`](codes/README.md#metamask-setup).
-
----
-
-## Flow A — Anonymous vote (M1)
-
-M1 uses [Semaphore v4](https://docs.semaphore.pse.dev/) group membership.
-You register a commitment to a group, then prove "I am in this group" via
-a zero-knowledge proof when you vote. The chain learns *that* a member
-voted, never *which* one.
-
-### 1. Connect
-
-Open [`http://localhost:5173`](http://localhost:5173) and use **one** of:
-
-- **Test Account** (top-right, dev build only) — connects a wagmi `mock`
-  connector wired to Hardhat account `#0`. No wallet, no popup, no gas
-  confirmations. This is what the Playwright E2E suite drives.
-- **Connect Wallet** — opens MetaMask. If you are on the wrong chain a
-  yellow "Switch to Hardhat Network" banner appears.
-
-_[screenshot: header with Test Account and Connect Wallet buttons]_
-
-### 2. Create or open an M1 poll
-
-From the **Dashboard** (`/`), either:
-
-- Click **Create Poll**, pick **M1 — Anonymous voting**, set a question
-  and 2–4 options, submit. The factory (`PollRegistry`) deploys an
-  EIP-1167 clone of `ZkAnonVoting` and you land on its page.
-- Or click any existing M1 poll tile to open it directly.
-
-### 3. Register
-
-In the voter panel, click **Generate Local Identity**. This creates a
-Semaphore keypair in your browser `localStorage`, keyed by your wallet
-address so multiple test accounts don't collide. Then click
-**Register**. The transaction adds your identity commitment to the
-poll's Semaphore group.
-
-> The poll creator is the admin. They click **Start Voting** to move the
-> poll from `Registration` to `Voting`. Until they do, the vote button
-> stays disabled.
-
-_[screenshot: voter panel showing Generate Local Identity → Register flow]_
-
-### 4. Vote
-
-Pick an option. Click **Vote**. The browser generates a Groth16 SNARK
-proof client-side (the `MockSemaphoreVerifier` accepts any proof on
-local dev — see [Troubleshooting](#troubleshooting)). MetaMask prompts
-to send `castVote(option, proof)`; confirm. The on-chain contract
-re-verifies the proof, records the nullifier so you cannot vote twice,
-and increments the tally.
-
-### 5. Results
-
-The results panel updates live via the contract's `VoteCast` event. The
-admin clicks **End Voting** to seal the tally; the UI then shows the
-final counts and the winning option.
-
----
-
-## Flow B — Blind vote (M2)
-
-M2 uses a **commit-reveal** scheme — no SNARK. You first commit a hash
-of `(your option, your secret)` during the commit phase, then reveal the
-plaintext during the reveal phase. Tallies are only computable after
-reveal. Trades off ZK anonymity for simpler crypto and no trusted setup.
-
-The phases:
-
-| Phase          | Admin action       | Voter action                                |
-| -------------- | ------------------ | ------------------------------------------- |
-| Registration   | (initial state)    | **Register** — claim a voter slot.          |
-| Voting         | **Start Voting**   | **Commit** — submit `keccak256(option‖salt)`. |
-| Reveal         | **End Voting**     | **Reveal** — submit `(option, salt)`.       |
-| Tally          | (auto on deadline) | Read results panel.                         |
-
-### 1. Connect & open a blind poll
-
-Same as M1, then open or create a poll with module **M2 — Blind voting**.
-
-### 2. Register
-
-Click **Register**. M2 does not need a Semaphore identity; the contract
-just tracks `address → registered` to cap who can commit.
-
-### 3. Commit (during the Voting phase)
-
-Pick an option. Click **Commit Vote**. The frontend generates a random
-32-byte salt, stores `(option, salt)` in `localStorage`, and submits the
-hash on-chain. The poll cannot see your choice yet.
-
-### 4. Reveal (after admin runs **End Voting**)
-
-Reveal-phase opens. Click **Reveal Vote**. The frontend reads `(option,
-salt)` from `localStorage` and submits them; the contract recomputes
-the hash, matches it to your stored commitment, and increments the
-tally for the revealed option.
-
-> **Do not clear `localStorage` between commit and reveal.** Without the
-> salt you cannot reveal and your vote is lost. The reveal deadline
-> shown in the UI is enforced on-chain — past it, your commitment is
-> dead.
-
-### 5. Results
-
-Same panel as M1 — live `VoteRevealed` events, sealed totals once the
-reveal deadline passes.
-
----
-
-## Flow C — Optional gasless vote via Relayer
-
-The relayer is an Express service in [`codes/relayer/`](codes/relayer/)
-that submits your M1 vote (or airdrop claim) on-chain for you. **You
-still generate the proof client-side** — the relayer never learns your
-identity and cannot tamper with your vote (the option index is bound
-into `proof.message`, enforced on-chain). It can only refuse to
-forward.
-
-### When to use it
-
-- You want to try the demo without installing MetaMask.
-- You want to demonstrate that the voter never has to hold ETH.
-- You are running a kiosk-style demo where a single relayer wallet pays
-  for many voters.
-
-### Start the relayer
-
-In a fourth terminal:
+Then launch the app:
 
 ```bash
-cd codes/relayer
-cp .env.example .env   # defaults are fine for local dev
-npm install
-npm start              # listens on http://localhost:3001
+cd codes/mobile
+flutter run -d chrome    # web — voting works here
+# or: flutter run -d linux        (desktop; read-only voting)
+# or: flutter run -d <android-serial>
 ```
 
-Health check:
-
-```bash
-curl http://localhost:3001/api/relay/status
-```
-
-Full runbook, API surface, and trust model:
-[`codes/relayer/README.md`](codes/relayer/README.md).
-
-### Toggle the UI
-
-When the relayer is reachable, the M1 poll page shows two tabs in the
-vote panel:
-
-- **Direct (Wallet)** — voter signs and pays gas. Default.
-- **Relayer (No Wallet)** — voter generates proof, POSTs it to
-  `/api/relay/vote`, relayer signs + sends the tx.
-
-If `/api/relay/status` does not respond, the tabs collapse to
-*Direct (Wallet)* only.
-
-The frontend reads the relayer URL from `VITE_RELAYER_URL` (default
-`http://localhost:3001`). Unset it to hide the tab entirely.
-
-> Flow C is M1-only. M2 has no SNARK and no nullifier; gasless commit/
-> reveal would require a different design (signed messages) that is not
-> implemented.
+No wallet or MetaMask is required for the default local flow. The app signs with
+a **dev signer** (`DEV_PRIVATE_KEY`) or routes through the **sponsored relayer**,
+so non-technical demo voters never touch a wallet. (MetaMask / WalletConnect is
+only relevant to the optional wallet path on desktop/web.)
 
 ---
 
-## Troubleshooting
+## The app at a glance
 
-**Transactions fail immediately after restarting the Hardhat node.**
-Hardhat resets state on every `npm run node`, but MetaMask still
-remembers stale nonces. In MetaMask: *Settings → Advanced → Clear
-activity tab data* (or *Reset Account*). Then refresh the dApp.
+A persistent **bottom navigation bar** has four tabs:
 
-**"Could not find deployed addresses for chainId 31337"** in the
-frontend. You started the dev server before `npm run deploy:local`
-finished, or you restarted the Hardhat node and the addresses file is
-now stale. Re-run `npm run deploy:local` in `codes/contracts/`.
+| Tab          | What it does                                                       |
+| ------------ | ----------------------------------------------------------------- |
+| **POLLS**    | Browse all polls; tap one to open its detail + vote screen.       |
+| **VERIFY**   | Confirm a vote was counted from a poll address + nullifier.       |
+| **CREATE**   | Deploy a new poll (pick the voting type).                         |
+| **IDENTITY** | Manage your Semaphore identity seed (create / import / copy).     |
 
-**The dev server works, but `npm run build` (production) renders an
-empty page.** Vite production builds enforce stricter env-var checks.
-For Sepolia or any non-Hardhat target, you must set `VITE_NETWORK` and
-`VITE_RPC_URL` (see `codes/frontend/.env.example`). The dev build falls
-back to localhost defaults; the production build does not.
+The top bar shows the **TESSERA** wordmark and a **LOCAL / REMOTE** network chip.
+The hamburger **drawer** holds the wallet button, network + relayer hosts, a
+link to **Settings**, and an about line.
 
-**`USE_REAL_VERIFIER` and `MockSemaphoreVerifier`.** `deploy:local`
-deploys a `MockSemaphoreVerifier` that accepts any proof — this is the
-fast path for local dev and CI. Public networks (Sepolia, mainnet)
-require `USE_REAL_VERIFIER=true` plus the real-verifier wiring (tracked
-as `P4-23` / `P4-24` in `docs/improvements/findings.md`). Until that
-lands, `deploy:sepolia` will refuse to run. Full Sepolia runbook:
-[`codes/contracts/README.md`](codes/contracts/README.md#deploy-to-sepolia).
+---
 
-**Relayer tab does not appear in the UI.** Confirm
-`curl http://localhost:3001/api/relay/status` returns JSON. If not, the
-relayer process is not running or `VITE_RELAYER_URL` points somewhere
-else. The frontend silently hides the tab when the health check fails —
-that is by design.
+## Browse polls (POLLS tab)
 
-**Relayer responds with `Relayer balance too low to cover gas`.** The
-hot wallet is empty. For local dev, restart the Hardhat node (the
-default `RELAYER_PRIVATE_KEY` is Hardhat account `#0`, which respawns
-funded). For Sepolia, top up the deployer/relayer address from a
-faucet.
+The Polls screen lists every poll the registry knows about as a card grid. Each
+card shows the category, a state chip (**VOTING** / **UPCOMING** / **ENDED**),
+the title, the short creator address, and the live vote tally.
+
+- **Filter** by status (Active / Upcoming / Ended / All) and category, and
+  **search** by title or description, from the strip under the hero.
+- **Pull to refresh** (or it reloads on open) to re-read the chain.
+- **Tap a card** to open its detail screen. The card passes the on-chain module
+  type, so the app opens the right ballot for that poll.
+
+---
+
+## Create a poll (CREATE tab)
+
+1. Pick a **VOTING TYPE**:
+   - **Anonymous — single choice** (anon-vote, M1) — the default; pick exactly
+     one option.
+   - **Approval — multi-select** (approval-vote) — approve any number of options.
+   - **Ranked choice** (ranked-vote) — rank up to 8 options; an instant-runoff
+     finds the winner.
+   - **Quadratic** (quadratic-vote) — spend a 100-credit budget; cost grows as
+     votes².
+   - **Survey — multiple questions** (survey-vote) — compose several questions
+     answered in one ballot.
+   - **Blind — commit-reveal** (blind-vote) is shown but **disabled in the app**;
+     it needs a reveal window the create form doesn't collect yet, so create
+     blind polls from the web app's create flow.
+2. Enter a **title** and optional **description**.
+3. Add **options** (at least two; ranked/quadratic cap at 8). For a survey, use
+   the **question builder** instead (1–16 questions, 2–32 options each).
+4. **Deploy.** With the dev signer active, deploy is signed locally and broadcast
+   to the configured RPC — no wallet needed. The anonymous type can also deploy
+   over a connected wallet; the other types require the dev signer today.
+
+> A phone wallet can only broadcast to a chain it can reach — a public testnet,
+> not the host-local Hardhat node. For local demos, use the dev signer (it's on
+> by default with `./dev-stack.sh up`).
+
+---
+
+## Vote
+
+Open a poll from the Polls tab. Every poll detail screen shows a **phase strip**
+(Registration → Voting → Ended), a **live results** panel, and — during the
+Voting phase, on a build with the prover — the ballot for that module. Voting is
+anonymous: you prove membership in the poll's Semaphore group with a
+zero-knowledge proof, so the chain records *that* a member voted — counting the
+choice toward a public aggregate tally — never *who* cast it.
+
+To be eligible you need a **Semaphore identity** (manage it on the IDENTITY tab —
+see below) whose commitment has been registered in the poll. The ballot prefills
+your saved identity seed; if you're not yet registered, it shows your commitment
+to copy and hand to the organizer.
+
+### Anonymous — single choice (M1)
+
+Select one option, confirm the identity seed is filled in, then
+**CAST ANONYMOUS VOTE**. The app generates the proof
+(*GENERATING PROOF…* → *SUBMITTING…*) and the vote lands; the results panel and
+the *VOTES CAST* counter update.
+
+### Blind — commit-reveal (M2)
+
+The blind poll drives a three-phase lifecycle in the **YOUR ACTIONS** panel:
+**REGISTER TO VOTE** during Registration, **COMMIT VOTE** (your choice stays
+hidden) during Voting, and **REVEAL MY VOTE** after voting ends. The tally is
+empty until voters reveal. The poll owner also gets START / END / FINALIZE
+controls here. Reveal where you committed — the salt is saved on that device.
+
+### Approval — multi-select
+
+Tick any number of options, then **CAST APPROVAL BALLOT (n)**. The tally counts
+every approval.
+
+### Ranked choice
+
+Tap options to add them to your ranking, **drag to reorder** (1 = top choice),
+remove any you change your mind on, then **CAST RANKED BALLOT (n)**. The winner
+is decided by an instant-runoff computed off-chain.
+
+### Quadratic
+
+Use the **+ / −** steppers to spend your 100 credits across options. The budget
+meter shows **CREDITS SPENT / 100** and casting *v* votes for one option costs
+*v²* credits. When you're done, **CAST QUADRATIC BALLOT (n)**.
+
+### Survey — multiple questions
+
+Answer each question (single-choice picks one; multi-select checks any that
+apply), then **CAST SURVEY BALLOT** — one anonymous ballot binds your whole
+answer vector.
+
+> **Gasless / wallet-free voting.** You still generate the proof on your device;
+> the optional relayer signs and submits it for you, so you never hold ETH. The
+> relayer can't see your identity or change your vote (the option/answers are
+> bound into the proof) — it can only refuse to forward. See
+> [`codes/relayer/README.md`](codes/relayer/README.md).
+
+---
+
+## Verify a receipt (VERIFY tab)
+
+Anyone can confirm a vote was counted without learning who voted or which option
+they chose. Paste the **poll address** and the **nullifier**, then
+**VERIFY RECEIPT**:
+
+- **VOTE VERIFIED** — the nullifier is on-chain; the vote was counted (the option
+  stays hidden).
+- **NOT FOUND** — no vote with that nullifier in that poll.
+
+Verify also accepts a deep link (`/verify?poll=…&nullifier=…`) that prefills both
+fields and checks automatically.
+
+---
+
+## Identity (IDENTITY tab)
+
+Your Semaphore **seed** is the one secret you need to vote anonymously across
+polls. On this screen you can **create a new identity**, **import** an existing
+seed or organizer invite token, **reveal / copy** the seed, or **clear** it. When
+a prover is available the screen also derives your **commitment** — copy it and
+hand it to an organizer to be registered in their poll. The seed never leaves the
+device unless you explicitly copy it; anyone holding it can vote as you, so keep
+it secret.
+
+---
+
+## Live in-person meeting
+
+Tessera can run a face-to-face meeting where the organizer admits voters in real
+time with a rotating QR — no wallets, no pre-shared identities.
+
+### Host a session
+
+From a poll you own that's still in **Registration**, the detail screen shows
+**ORGANIZE LIVE SESSION →**. That opens the host dashboard:
+
+- A **QR** that rotates every 25 seconds (a signed ticket) for voters to scan.
+- A **PENDING QUEUE** of voters who've joined, each showing a **4-digit code**.
+- Hosting needs the dev signer (or owner wallet); without it the screen is
+  read-only.
+
+When a voter shows you their code in person, tap **CONFIRM** on their row — that
+registers their ephemeral commitment on-chain. Use **START VOTING** / **END
+VOTING** to drive the phase.
+
+### Join as a voter
+
+Open the live vote screen (the QR deep-links straight to it). **Scan** the
+organizer's QR (camera on mobile) or **paste** the ticket link, then **JOIN**.
+The app mints an **ephemeral identity** and shows you a large **4-digit code** —
+show it to the organizer. Once they confirm you face-to-face, voting unlocks
+automatically: pick an option and **CAST ANONYMOUS VOTE**. (As elsewhere, casting
+needs the prover, so run the web build.)
+
+---
+
+## Settings & diagnostics
+
+The drawer's **Settings** screen is read-only diagnostics: the chain ID, RPC and
+relayer hosts, the registry address, how the app **signs** (dev signer vs.
+wallet) and **proves** (web / desktop sidecar / read-only), a shortcut to manage
+your identity, and the app version.
 
 ---
 
 ## What's next
 
-- **Architecture deep dive** — [`docs/architecture/system-overview.md`](docs/architecture/system-overview.md)
-  plus the per-module files (`module-m1-anon-voting.md`,
-  `module-m2-blind-voting.md`, `module-airdrop.md`). The relayer
-  subsection lands with `F-10`.
-- **Deploy to a real testnet** — Sepolia runbook in
-  [`codes/contracts/README.md`](codes/contracts/README.md#deploy-to-sepolia).
-- **Backlog and known gaps** — [`docs/improvements/findings.md`](docs/improvements/findings.md)
-  (`P4-23` / `P4-24` for real-verifier wiring, plus the open priority bands).
-- **Issues** — file bugs and feature requests against the repo's GitHub
-  issue tracker.
+- **Architecture deep dive** —
+  [`docs/architecture/system-overview.md`](docs/architecture/system-overview.md)
+  plus the per-module files
+  ([m1-anon](docs/architecture/module-m1-anon-voting.md),
+  [m2-blind](docs/architecture/module-m2-blind-voting.md),
+  [approval](docs/architecture/module-approval.md),
+  [ranked](docs/architecture/module-ranked.md),
+  [quadratic](docs/architecture/module-quadratic.md),
+  [survey](docs/architecture/module-survey.md),
+  [airdrop](docs/architecture/module-airdrop.md)).
+- **Developer setup & the local stack** — [`codes/README.md`](codes/README.md).
+- **Gasless relay & sponsored lifecycle** —
+  [`codes/relayer/README.md`](codes/relayer/README.md).
+- **Backlog and known gaps** —
+  [`docs/improvements/findings.md`](docs/improvements/findings.md)
+  (`P4-23` / `P4-24` track wiring the real Groth16 verifier for public
+  networks).

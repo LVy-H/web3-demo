@@ -138,10 +138,10 @@ The blockchain is the backend. Users don't need to know it exists. Save technica
 
 The development environment must be reproducible with zero configuration.
 
-- **Deterministic addresses:** On a fresh Hardhat node, contract addresses are always the same. Bake them into the frontend at build time.
-- **No external dependencies for local dev:** Everything runs locally via podman-compose. No Cloudflare tunnels, no external RPCs, no testnet faucets needed.
-- **One command to start:** `podman compose up` gives you a working system.
-- **Mock wallet for testing:** Keep the wagmi `mock` connector for automated testing without MetaMask.
+- **Deterministic addresses:** On a fresh Hardhat node, contract addresses are always the same. The deploy script writes them to `deployed-addresses.json`, which the client reads.
+- **No external dependencies for local dev:** Everything runs locally. No Cloudflare tunnels, no external RPCs, no testnet faucets needed.
+- **One command to start:** `./dev-stack.sh up` (node → deploy → demo poll → relayer) gives you a working system.
+- **No wallet needed for testing:** the dev signer (`DEV_PRIVATE_KEY`) and the sponsored relayer let automated tests and demo voters transact without MetaMask.
 
 ---
 

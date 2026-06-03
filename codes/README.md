@@ -1,11 +1,15 @@
-# Anonymous Web3 Voting System
+# Tessera — modular zero-knowledge voting
 
-A modular zero-knowledge voting platform on Ethereum. A central `PollRegistry`
-factory deploys per-poll EIP-1167 minimal proxies for two voting modules —
-**M1 anonymous voting** (Semaphore-based ZK group membership) and
-**M2 blind voting** (commit-reveal). A standalone `ZkAirdrop` contract reuses
-Semaphore for one-shot anonymous claims and is intentionally not part of the
+A modular, privacy-preserving on-chain voting platform built on the Semaphore
+Protocol (v4), with an optional gasless/sponsored relayer. A central
+`PollRegistry` factory deploys per-poll EIP-1167 minimal proxies for **six
+registered voting modules** — anonymous, blind (commit-reveal), approval,
+ranked-choice, quadratic, and survey. A standalone `ZkAirdrop` contract reuses
+Semaphore for one-shot anonymous claims and is intentionally **not** part of the
 registry.
+
+The sole client is the Flutter app in `codes/mobile/` — one codebase across
+mobile, desktop, and web.
 
 ## Quick start (local, 4 terminals)
 
@@ -35,34 +39,60 @@ sole client.
 ## Architecture at a glance
 
 ```
-PollRegistry (factory, EIP-1167 clones)
-├── ZkAnonVoting   — M1: Semaphore group membership + nullifier
-└── ZkBlindVoting  — M2: commit-reveal, no Semaphore dependency
+PollRegistry (factory, EIP-1167 clones) — six registered module types
+├── ZkAnonVoting       — M1: Semaphore anonymous (single choice + nullifier)
+├── ZkBlindVoting      — M2: commit-reveal, no Semaphore dependency
+├── ZkApprovalVoting   — multi-select bitmask ballot
+├── ZkRankedVoting     — ranked-choice (instant-runoff tally computed in Dart)
+├── ZkQuadraticVoting  — credit allocation (CREDITS=100, sum of squares ≤ 100)
+└── ZkSurveyVoting     — multi-question "Google-Forms"; one ballot per survey
 
-ZkAirdrop          — standalone, uses Semaphore directly (not registered)
+ZkAirdrop              — standalone, uses Semaphore directly (not registered)
 
-Relayer (optional) — Express service, submits M1 votes / airdrop claims
-                     on behalf of voters so they don't need a wallet or ETH.
-                     See ./relayer/README.md.
+Relayer (optional)     — Express service; submits the SNARK-message votes
+                         (anon / approval / ranked / quadratic / survey) and
+                         airdrop claims on behalf of voters, plus a sponsored
+                         (wallet-free) poll lifecycle. See ./relayer/README.md.
 ```
 
-Frontend reads polls from `PollRegistry.getAllPolls()`, then a `PollRouter`
-component reads each poll's module type and renders `Poll.tsx` (M1) or
-`BlindPoll.tsx` (M2).
+The Flutter app reads registered polls from `PollRegistry.getAllPolls()`. Browse
+then navigates to `/poll/<address>?module=<moduleType>`, and `buildPollDetail`
+in `codes/mobile/lib/router.dart` dispatches on that module type to the matching
+screen (blind / approval / ranked / quadratic / survey), defaulting to the M1
+anon single-choice screen.
 
 ## Optional: gasless voting via relayer
 
 `codes/relayer/` is an Express service that signs and submits ZK vote /
 airdrop transactions on behalf of a voter, so the voter needs neither a
 wallet nor ETH. Voters still generate their ZK proof client-side — the
-relayer cannot see who they are and cannot alter the vote (the option
-index is bound into the proof's `message` field, enforced on-chain).
+relayer cannot see who they are and cannot alter the vote (the option /
+answers are bound into the proof's `message` field, enforced on-chain). It
+can only refuse to forward.
 
-The relayer is **off by default**. Skip Terminal 4 above and the frontend
-falls back to direct wallet voting only. When the relayer is running, the
-frontend exposes an additional "Relayer (No Wallet)" tab on the vote UI.
+The relayer also provides a **sponsored** (wallet-free) poll lifecycle
+(create / register / start) so non-technical users never touch a wallet.
+
+In the app, casting a vote always runs in two steps: prove (client-side) then
+relay — the vote screen shows `GENERATING PROOF…` then `SUBMITTING…`. The
+relayer URL is configured via `AppConfig.relayerUrl`; the Settings screen shows
+the active host.
 
 Trust model and API reference: [`./relayer/README.md`](./relayer/README.md).
+
+## Tests & CI
+
+- Contracts: `cd contracts && npm test` (Hardhat — 268 passing).
+- Relayer: `cd relayer && npm test` (Vitest — 96 passing, 2 skipped).
+- Flutter: `cd mobile && flutter analyze` and `flutter test`.
+
+CI (`.github/workflows/ci.yml`) runs three jobs — contracts, relayer, and
+mobile. The **mobile** job (`flutter analyze` + `flutter test` +
+`flutter build web`) is the canonical-client release gate.
+
+> Local dev and CI use `MockSemaphoreVerifier` (an always-true verifier), so no
+> SNARK artifacts are needed. Public networks require the real Groth16
+> `SemaphoreVerifier` (`USE_REAL_VERIFIER=true`; tracked as P4-23/P4-24).
 
 ## Documentation
 
@@ -71,13 +101,24 @@ Trust model and API reference: [`./relayer/README.md`](./relayer/README.md).
 - Contributor backlog: [`../docs/improvements/README.md`](../docs/improvements/README.md)
 - Relayer service: [`./relayer/README.md`](./relayer/README.md)
 
-Per-module deep dives live alongside the overview in
-`../docs/architecture/` (`module-m1-anon-voting.md`,
-`module-m2-blind-voting.md`, `module-airdrop.md`).
+Per-module deep dives live alongside the overview in `../docs/architecture/`:
+[`module-m1-anon-voting.md`](../docs/architecture/module-m1-anon-voting.md),
+[`module-m2-blind-voting.md`](../docs/architecture/module-m2-blind-voting.md),
+[`module-approval.md`](../docs/architecture/module-approval.md),
+[`module-ranked.md`](../docs/architecture/module-ranked.md),
+[`module-quadratic.md`](../docs/architecture/module-quadratic.md),
+[`module-survey.md`](../docs/architecture/module-survey.md), and
+[`module-airdrop.md`](../docs/architecture/module-airdrop.md).
 
-## MetaMask setup
+## Wallets & signing (local dev)
 
-Add a custom network for the local Hardhat node:
+The default local flow needs **no wallet**: contracts are deployed with the
+deterministic Hardhat key, and votes are submitted through the dev-signer
+(`DEV_PRIVATE_KEY`) or the sponsored relayer. MetaMask is only relevant to the
+optional desktop/web WalletConnect (Reown) path.
+
+If you do connect a wallet for the WalletConnect path, add a custom network for
+the local Hardhat node:
 
 | Field | Value |
 | --- | --- |

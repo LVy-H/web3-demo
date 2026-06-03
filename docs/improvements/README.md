@@ -25,7 +25,7 @@ If you discover a new issue while working an item, **add a new entry to `finding
 |------|---------|--------|
 | **P0** | Real bugs, missing tests on existing contracts, stale docs that mislead readers. | Fix this week. |
 | **P1** | Contract security hardening: OZ Initializable/Ownable, pragma unify, escape hatches. | Fix before any external use. |
-| **P2** | Frontend refactor — break up the 855-LOC and 710-LOC pages. Pure refactor, no behavior change. | Do once, in one PR per page. |
+| **P2** | ~~Frontend refactor — break up the 855-LOC and 710-LOC React pages.~~ **Retired (MOOT)** — the React frontend was deleted; the Flutter client supersedes it. | — |
 | **P3** | DX & CI — lint, format, GH Actions, remove committed cruft. | Background work. |
 | **P4** | Production-readiness path — pagination, event indexing, real Groth16 in CI, SNARK artifact bundling. | After everything else. |
 
@@ -37,42 +37,45 @@ Source of truth lives in `findings.md` — this table is a snapshot. If they dis
 
 | ID | Title | Owner | Status | Branch |
 |----|-------|-------|--------|--------|
-| P0-1 | `localStorage['my-nullifier']` is global, not per-poll | — | In Progress | `imp/P0-1-P0-2-poll-page-state-fixes` |
-| P0-2 | Module-scope `let group` / `let isGroupSynced` in `Poll.tsx` | — | In Progress | `imp/P0-1-P0-2-poll-page-state-fixes` |
-| P0-3 | `ZkAirdrop` has no test file | — | In Progress | `imp/P0-3-airdrop-tests` |
-| P0-4 | Top-level docs describe the old `ZkVotingLottery` design | — | In Progress | `imp/P0-4-readme-cleanup` |
+| P0-1 | `localStorage['my-nullifier']` is global, not per-poll | — | Won't Fix (MOOT — React deleted) | — |
+| P0-2 | Module-scope `let group` / `let isGroupSynced` in `Poll.tsx` | — | Won't Fix (MOOT — React deleted) | — |
+| P0-3 | `ZkAirdrop` has no test file | — | Done | `imp/P0-3-airdrop-tests` |
+| P0-4 | Top-level docs describe the old `ZkVotingLottery` design | — | Done | `imp/P0-4-readme-cleanup` |
 
 ### P1 — Contract security (9)
 
+> All Open per `findings.md`; this is the next engineering increment toward `1.0`.
+
 | ID | Title | Owner | Status | Branch |
 |----|-------|-------|--------|--------|
-| P1-5  | Replace hand-rolled `_initialized` with OZ `Initializable` | — | In Progress | `imp/P1-5-P1-6-P1-10-modernize-foundations` |
-| P1-6  | Replace ad-hoc `onlyOwner` modifier with OZ `Ownable` / `Ownable2Step` | — | In Progress | `imp/P1-5-P1-6-P1-10-modernize-foundations` |
-| P1-7  | Custom errors instead of revert strings | — | In Progress | `imp/P1-7-custom-errors` |
-| P1-8  | Add `ReentrancyGuard` to `ZkAirdrop.claimAirdrop` | — | In Progress | `imp/P1-8-P1-9-airdrop-hardening` |
-| P1-9  | Owner escape hatch for unclaimed airdrop ETH | — | In Progress | `imp/P1-8-P1-9-airdrop-hardening` |
-| P1-10 | Unify Solidity pragma across all contracts | — | In Progress | `imp/P1-5-P1-6-P1-10-modernize-foundations` |
-| P1-11 | `ZkAnonVoting.startVoting` should require ≥1 voter | — | In Progress | `imp/P1-11-P1-12-anon-invariants` |
-| P1-12 | Cap batch size in `registerVoters` | — | In Progress | `imp/P1-11-P1-12-anon-invariants` |
+| P1-5  | Replace hand-rolled `_initialized` with OZ `Initializable` | — | Open | — |
+| P1-6  | Replace ad-hoc `onlyOwner` modifier with OZ `Ownable` / `Ownable2Step` | — | Open | — |
+| P1-7  | Custom errors instead of revert strings | — | Open | — |
+| P1-8  | Add `ReentrancyGuard` to `ZkAirdrop.claimAirdrop` | — | Open | — |
+| P1-9  | Owner escape hatch for unclaimed airdrop ETH | — | Open | — |
+| P1-10 | Unify Solidity pragma across all contracts | — | Open | — |
+| P1-11 | `ZkAnonVoting.startVoting` should require ≥1 voter | — | Open | — |
+| P1-12 | Cap batch size in `registerVoters` | — | Open | — |
 | P1-13 | `registerVoters` cap of 100 exceeds mainnet block gas | — | Open | — |
 
 ### P2 — Frontend refactor (2)
 
 | ID | Title | Owner | Status |
 |----|-------|-------|--------|
-| P2-13 | Split `Poll.tsx` (855 LOC) into composed components + hooks | — | Open |
-| P2-14 | Split `BlindPoll.tsx` (710 LOC) into composed components + hooks | — | Open |
+| P2-13 | Split `Poll.tsx` (855 LOC) into composed components + hooks | — | Won't Fix (MOOT — React deleted) |
+| P2-14 | Split `BlindPoll.tsx` (710 LOC) into composed components + hooks | — | Won't Fix (MOOT — React deleted) |
 
-### P3 — DX & CI (6)
+### P3 — DX & CI (7)
 
 | ID | Title | Owner | Status |
 |----|-------|-------|--------|
-| P3-15 | Add `solhint` + `prettier-plugin-solidity` + `lint`/`format` scripts | — | Open |
-| P3-16 | Add GitHub Actions CI (test + lint, both packages) | — | Open |
-| P3-17 | Untrack `accounts.txt`, `hardhat-node.log` | — | Open |
-| P3-18 | Remove committed binaries (`web3-demo.zip`, `system-description.pdf/.txt`) | — | Open |
+| P3-15 | Add `solhint` + `prettier-plugin-solidity` + `lint`/`format` scripts | — | Done |
+| P3-16 | Add GitHub Actions CI (test + lint, all packages) | — | Done |
+| P3-17 | Untrack `accounts.txt`, `hardhat-node.log` | — | Done |
+| P3-18 | Remove committed binaries (`web3-demo.zip`, `system-description.pdf/.txt`) | — | Done |
 | P3-19 | Loud banner when deploying with `MockSemaphoreVerifier` + a real-verifier deploy variant | — | Open |
 | P3-20 | Parallel agents need git worktree isolation | — | Open |
+| P3-21 | Dangling `codes/frontend/src/lib/*` provenance comments in the Flutter client | — | Open |
 
 ### P4 — Production readiness (5)
 
@@ -93,3 +96,4 @@ When you find a new issue mid-task, append a one-liner here with date + ID, then
 | 2026-04-27 | P0-1..P4-24 | Initial codebase audit | Seed entries from first read-through |
 | 2026-04-27 | P3-20 | Sprint 1 dispatch retrospective | Parallel agents sharing one working tree caused branch-checkout races; A2's commit briefly landed on A1's branch (recovered via `git rebase --onto`). Future sprints must use `isolation: "worktree"` per agent. |
 | 2026-04-27 | P1-13 | A7 empirical gas measurement during P1-12 implementation | 100-element registerVoters costs ~50M gas — exceeds mainnet's 30M block limit and Hardhat's 16.7M tx cap. Cap value chosen in P1-12 was wrong; recommend lowering to 50 (mainnet-fits) or 25 (Hardhat-fits) or making it a configurable initializer arg. |
+| 2026-06-03 | P3-21 | Docs-truth-up sweep | Repo-wide grep for stale React-frontend references surfaced ~12 dangling `codes/frontend/src/lib/*` provenance comments in the Flutter client (and a broken golden-vectors regenerate pointer). Deferred from the docs-only truth-up PR. |

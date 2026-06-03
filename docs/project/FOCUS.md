@@ -6,7 +6,7 @@ Use this file to answer "what should I open my laptop and work on right now?" â€
 
 ## This iteration's goal
 
-*One sentence. Examples: "Land all P0 bugs and ship CI." / "Refactor `Poll.tsx` into composed components without behavior change." / "Stand up a Sepolia deploy."*
+*One sentence. Examples: "Land the P1 contract-hardening pass." / "Truth-up every doc to the current Tessera/Flutter reality." / "Stand up a Sepolia deploy."*
 
 **Goal:** _________________________________________________
 

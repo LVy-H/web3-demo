@@ -265,7 +265,7 @@ removed; `codes/README.md` rewritten (no lottery refs remain, 2026-06-02).
 
 ### P2-13 — Split `Poll.tsx` (855 LOC) into composed components + hooks {#p2-13}
 
-**Priority:** P2 — **Status:** Open — **Owner:** —
+**Priority:** P2 — **Status:** Won't Fix — MOOT (React `Poll.tsx` deleted 2026-06-02; the Flutter client `codes/mobile/` supersedes it with per-screen, per-ViewModel state) — **Owner:** —
 
 **Where:** `codes/frontend/src/pages/Poll.tsx` (855 lines).
 
@@ -273,7 +273,7 @@ removed; `codes/README.md` rewritten (no lottery refs remain, 2026-06-02).
 
 ### P2-14 — Split `BlindPoll.tsx` (710 LOC) into composed components + hooks {#p2-14}
 
-**Priority:** P2 — **Status:** Open — **Owner:** —
+**Priority:** P2 — **Status:** Won't Fix — MOOT (React `BlindPoll.tsx` deleted 2026-06-02; the Flutter client `codes/mobile/` supersedes it) — **Owner:** —
 
 **Where:** `codes/frontend/src/pages/BlindPoll.tsx` (710 lines).
 
@@ -285,27 +285,27 @@ removed; `codes/README.md` rewritten (no lottery refs remain, 2026-06-02).
 
 ### P3-15 — Add `solhint` + `prettier-plugin-solidity` {#p3-15}
 
-**Priority:** P3 — **Status:** Open — **Owner:** —
+**Priority:** P3 — **Status:** Done — `codes/contracts/.solhint.json` + `.prettierrc.json` present; `lint` / `format` / `format:check` scripts wired; CI runs `npm run lint` + `npm run format:check`. — **Owner:** —
 
 **Summary:** Contract-side linting + formatting. Add `lint` and `format` scripts to `codes/contracts/package.json`. Standard config; pre-baked rule sets work.
 
 ### P3-16 — GitHub Actions CI {#p3-16}
 
-**Priority:** P3 — **Status:** Open — **Owner:** —
+**Priority:** P3 — **Status:** Done — `.github/workflows/ci.yml` runs three jobs: `contracts` (npm ci + lint + format:check + test), `relayer` (npm ci + build + test), `mobile` (flutter analyze + test + build web). The contracts `npm test` step was un-gated (its `continue-on-error` removed) once the hardhat config landed on `main`. — **Owner:** —
 
-**Summary:** `.github/workflows/ci.yml`: matrix on `codes/contracts` and `codes/frontend`, runs `npm ci && npm test && npm run lint`. Required check on `main`. Cache `~/.npm` per package.
+**Summary:** `.github/workflows/ci.yml`: jobs for `codes/contracts`, `codes/relayer`, and `codes/mobile`, each running install + lint/build + test. (The original `codes/frontend` job was dropped when the React frontend was deleted.) Recommend marking the three jobs as required checks on `main`.
 
 ### P3-17 — Untrack `accounts.txt`, `hardhat-node.log` {#p3-17}
 
-**Priority:** P3 — **Status:** Open — **Owner:** —
+**Priority:** P3 — **Status:** Done — neither file is tracked (`git ls-files` confirms); both are gitignored. — **Owner:** —
 
 **Summary:** `git rm --cached codes/contracts/accounts.txt codes/contracts/hardhat-node.log`, append to `.gitignore` under `codes/contracts/` (or root `.gitignore`).
 
 ### P3-18 — Remove committed binaries {#p3-18}
 
-**Priority:** P3 — **Status:** Open — **Owner:** —
+**Priority:** P3 — **Status:** Done — `git rm`'d `system-description.pdf`, `system-description.txt`, and `web3-demo.zip` (they were at the repo **root**, not under `codes/` as this entry originally claimed). — **Owner:** —
 
-**Summary:** `git rm codes/web3-demo.zip codes/system-description.pdf codes/system-description.txt`. They're snapshot artifacts — keep the live source, drop the frozen blobs.
+**Summary:** Remove the snapshot binaries `web3-demo.zip`, `system-description.pdf`, `system-description.txt` — keep the live source, drop the frozen blobs.
 
 ### P3-19 — Loud banner on Mock-verifier deploy + real-verifier variant {#p3-19}
 
@@ -372,6 +372,24 @@ Mainnet block gas limit: 30M. Hardhat's default per-tx cap: 16.7M. **A 100-eleme
 **Notes:**
 - Single-agent dispatch (e.g. one implementer fixing one item) does NOT need worktree isolation — overhead not worth it.
 - Worktrees may interact awkwardly with the `codes/` reorganization that's still in working tree. Test on a clean repo first.
+
+---
+
+### P3-21 — Dangling `codes/frontend/src/lib/*` provenance comments in the Flutter client {#p3-21}
+
+**Priority:** P3 — **Status:** Open — **Owner:** —
+
+**Where:** ~12 files under `codes/mobile/` — e.g. `lib/core/crypto/{ticket,org_keypair,confirmation_code}.dart`, `lib/data/services/relay_client.dart`, `lib/data/models/{poll_info,relay_proof,pending_voter}.dart`, `lib/config.dart`, `pubspec.yaml` — plus `test/fixtures/cross_client_vectors.json`.
+
+**Observed:** Dart provenance comments read "Dart port of `codes/frontend/src/lib/ticket.ts`" (etc.), and the golden-vectors fixture says "Regenerate via `codes/frontend/src/lib/__vectors.gen.test.ts`" — but the React frontend (`codes/frontend/`) was deleted, so those paths no longer exist.
+
+**Why it matters:** The Dart implementations are now the canonical cross-client reference; the comments point at deleted files and the regeneration instruction is broken. Low severity (comments + a fixture note, not behavior), but exactly the kind of scattered stale fingerprint worth clearing.
+
+**Fix:** Update each comment so the Dart impl reads as canonical (byte-/golden-tested against the relayer + Solidity), and replace the `__vectors.gen.test.ts` pointer with the current source of truth (or note the vectors are frozen goldens).
+
+**Acceptance:** `git grep 'codes/frontend' codes/mobile/` returns nothing; `flutter analyze` clean; `flutter test` green.
+
+**Notes:** Deferred out of the 2026-06-03 docs-truth-up PR to keep that PR docs-only; tracked here so the cleanup isn't lost.
 
 ---
 

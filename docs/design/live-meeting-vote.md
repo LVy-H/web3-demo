@@ -1,8 +1,15 @@
 # Live Meeting Vote — Design Document
 
-**Status:** Draft for review.
+**Status:** SHIPPED — historical design record (do not treat as current state).
 **Authors:** [Hoang] + Claude.
 **Date:** 2026-05-14.
+
+> This is the original design. The live-meeting flow **shipped** in the Tessera
+> Flutter client (`codes/mobile/`) — host dashboard + voter flow + rotating
+> signed-ticket QR + face-to-face confirm. Any `codes/frontend/…` (React) paths
+> below describe the original plan, not the implementation; see
+> [`docs/architecture/system-overview.md`](../architecture/system-overview.md)
+> and [`INSTRUCTIONS.md`](../../INSTRUCTIONS.md) for how it actually works today.
 
 ---
 

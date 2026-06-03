@@ -8,8 +8,8 @@ This project ships two things that need to stay coordinated: **smart contracts**
 
 - **Repo:** semver tags on the git repo for releases (`v0.2.0`).
 - **Contracts:** an *implementation* version is the git tag at which the contract was compiled and deployed. The *deployed instance* is identified by its address, captured in `deployed-addresses.<network>.json` per network.
-- **Frontend:** semver, same tag as the repo.
-- **ABIs:** copied from compiled artifacts at release time, committed under `codes/frontend/src/abi/`. The version is the repo tag they came from.
+- **Client:** semver, same tag as the repo (the Tessera Flutter app, `codes/mobile/`).
+- **ABIs:** generated into `codes/contracts/artifacts/` by `npm run compile`; the client and relayer encode the calls they need directly. The version is the repo tag they came from.
 
 ## Repo versioning (semver)
 
@@ -62,23 +62,23 @@ Each per-network file should also include the git tag at which the contracts wer
 
 A swap is therefore equivalent to a minor bump for the registry's module catalog. Document it in CHANGELOG with the old/new impl addresses.
 
-## Frontend versioning
+## Client versioning
 
-Same tag as the repo. The frontend bundle should display the version somewhere (footer or about page) so users know what they're running.
+Same tag as the repo. The Tessera client (`codes/mobile/`) displays its version on the Settings screen so users know what they're running.
 
-`package.json` `version` field tracks the latest released version. Bump it as part of the release commit.
+`codes/mobile/pubspec.yaml` (`version: X.Y.Z+N`) is the canonical client version; `codes/contracts/package.json` and `codes/relayer/package.json` track the same repo semver. Bump all three as part of the release commit.
 
 ## ABI versioning
 
-ABIs in `codes/frontend/src/abi/*.json` are copied from `codes/contracts/artifacts/` at release time. They must be regenerated and re-copied any time a contract changes.
+The contract ABIs are generated into `codes/contracts/artifacts/` by `npm run compile`. The Flutter client and the relayer encode the calls they need directly, so there is no separate copied-ABI directory to keep in sync (the old `codes/frontend/src/abi/` is gone with the deleted frontend).
 
 Workflow:
 1. Change a contract.
 2. `npm run compile` in `codes/contracts/`.
-3. Re-copy ABIs into `codes/frontend/src/abi/` (consider adding a `npm run copy-abis` script — currently exists per `package.json` but the script file may be missing; verify).
-4. Test the frontend against the new ABI before tagging.
+3. Re-run the suites that would catch an encoding mismatch: `npm test` (contracts), `npm test` (relayer), and `flutter test` (client — the cross-impl crypto/encoding tests).
+4. Commit the regenerated `artifacts/` alongside the contract change before tagging.
 
 ## What we don't do
 
 - **No upgrade proxies** for voting modules. Polls are immutable per the EIP-1167 design. If you need to change behavior, deploy a new module impl and register it for new polls.
-- **No off-chain version negotiation.** The frontend reads the contract address from `deployed-addresses.<network>.json` and assumes ABI compatibility per the committed ABI files. If you change a deployed contract's storage layout or function set, you must bump the repo and redeploy.
+- **No off-chain version negotiation.** The client reads the contract address from `deployed-addresses.<network>.json` and assumes ABI compatibility per the compiled artifacts. If you change a deployed contract's storage layout or function set, you must bump the repo and redeploy.

@@ -31,7 +31,7 @@
 
 1. Decide the version number per `VERSIONING.md`.
 2. Update `CHANGELOG.md`: rename `## [Unreleased]` → `## [vX.Y.Z] — YYYY-MM-DD`, add a fresh empty `## [Unreleased]` above it.
-3. Update the version: `codes/contracts/package.json` and **`codes/mobile/pubspec.yaml`** (`version: X.Y.Z+N` — the canonical client). `codes/frontend/` is deprecated; skip it.
+3. Update the version in all three packages so they stay aligned: `codes/contracts/package.json`, `codes/relayer/package.json`, and **`codes/mobile/pubspec.yaml`** (`version: X.Y.Z+N` — the canonical client).
 4. If applicable, update the `VERSION` constant on each contract (proposed; skip if not adopted).
 5. Commit: `chore: release vX.Y.Z`.
 6. Tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`.

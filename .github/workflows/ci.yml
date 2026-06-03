@@ -22,15 +22,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run format:check
-      # TODO(P3-16): drop `continue-on-error` once Sprint 2 modernize-foundations
-      # lands on main. Today `hardhat.config.ts`, `tsconfig.json`, and
-      # `MockSemaphoreVerifier.sol` are untracked on main — they live on
-      # imp/P1-5-P1-6-P1-10-modernize-foundations. Without them, `hardhat test`
-      # exits with HH1 ("not inside a Hardhat project"). The step is kept so
-      # the wiring is in place; it'll go green automatically once those files
-      # are tracked.
       - run: npm test
-        continue-on-error: true
 
   # (The React/Vite frontend job was removed — the frontend is deprecated and
   # deleted; the Flutter app `mobile` job below is the canonical web/client gate.)
@@ -48,8 +40,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: codes/relayer/package-lock.json
       - run: npm ci
-      - run: npm run lint || true
       - run: npm run build
+      - run: npm test
 
   # Flutter recurring-member app (codes/mobile). Runs the VM test suite
   # (browser-only ZK test is @TestOn('browser') → skipped here; the on-chain

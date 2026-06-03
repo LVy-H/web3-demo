@@ -30,17 +30,17 @@
 - Frontend page with countdown + reveal UI — DONE
 - **Original spec split this into M2a (live tally) and M2b (sealed); we shipped a single hybrid called `blind-vote`.** Decide: do we keep one module, or split into two for stronger guarantees?
 
-## Phase 2.5: Stabilization — **NEXT**
+## Phase 2.5: Stabilization — **IN PROGRESS**
 
 > *Inserted between original Phase 2 and 3 to address P0/P1 debt before adding more modules.*
 
-- Fix all P0 bugs (`improvements/findings.md`)
-- Land P1 contract hardening (OZ Initializable / Ownable / pragma unify)
-- Set up CI
-- Real-Groth16 deploy variant + nightly integration test
-- Refactor `Poll.tsx` and `BlindPoll.tsx` (P2)
+- Fix all P0 bugs (`improvements/findings.md`) — **DONE**
+- Set up CI (`.github/workflows/ci.yml`: contracts / relayer / mobile jobs) — **DONE**
+- Land P1 contract hardening (OZ Initializable / Ownable / custom errors / pragma unify) — **NEXT** (8 items open)
+- Real-Groth16 deploy variant + nightly integration test (P3-19 / P4-23) — PLANNED
+- ~~Refactor `Poll.tsx` and `BlindPoll.tsx` (P2)~~ — **MOOT** (React frontend deleted; the Flutter client `codes/mobile/` supersedes it)
 
-**Exit criteria:** zero open P0, zero open P1, CI green, frontend pages under 250 LOC each.
+**Exit criteria:** zero open P0 (met), zero open P1, CI green (met), real-verifier path exercised.
 
 ## Phase 3: M3 — Participation Receipts — **PLANNED**
 - `verifyParticipation(nullifierHash)` already exists on `IZkPoll` — UI surface missing
