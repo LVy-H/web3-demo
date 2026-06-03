@@ -20,11 +20,17 @@ class CreateScreen extends StatefulWidget {
 }
 
 /// Module type the Create screen can deploy. `anonVote` is the single-choice
-/// default; `approvalVote` is the multi-select bitmask module. `blindVote` is
-/// shown for discoverability but DISABLED here — its `initialize` needs a
-/// reveal-window param the mobile create flow doesn't collect yet, so deploying
-/// it from mobile is web-only (selecting it must never mis-deploy an anon poll).
-enum _ModuleType { anonVote, approvalVote, blindVote }
+/// default; `approvalVote` is the multi-select bitmask module; `rankedVote` is
+/// instant-runoff; `quadraticVote` is credit-allocation. `blindVote` is shown
+/// for discoverability but DISABLED here — its `initialize` needs a reveal-window
+/// param the mobile create flow doesn't collect yet, so deploying it from mobile
+/// is web-only (selecting it must never mis-deploy an anon poll).
+enum _ModuleType { anonVote, approvalVote, rankedVote, quadraticVote, blindVote }
+
+/// On-chain `MAX_OPTIONS` for the ranked + quadratic modules (each packs a
+/// per-option nibble into a 32-bit word). The form enforces 2..8 options when
+/// either is selected so `initialize` can't revert with `TooManyOptions`.
+const int _rankedQuadraticMaxOptions = 8;
 
 class _CreateScreenState extends State<CreateScreen> {
   final _title = TextEditingController();
@@ -46,6 +52,23 @@ class _CreateScreenState extends State<CreateScreen> {
     super.dispose();
   }
 
+  /// Ranked + quadratic cap options at 8 on-chain; everything else allows the
+  /// module's own (higher) cap, so only the row count matters here.
+  bool get _moduleCapsAtEight =>
+      _module == _ModuleType.rankedVote ||
+      _module == _ModuleType.quadraticVote;
+
+  /// True when the current option-row count is valid for the selected module.
+  /// Ranked/quadratic require 2..8; anon/approval require ≥2 (no upper bound the
+  /// form needs to police). Reactive off `_options.length`, which only changes
+  /// via add/remove-row `setState` — exactly when the submit gate should update.
+  bool get _optionCountOk {
+    final n = _options.length;
+    if (n < 2) return false;
+    if (_moduleCapsAtEight && n > _rankedQuadraticMaxOptions) return false;
+    return true;
+  }
+
   Future<void> _deploy(WalletService w) async {
     final creator = context.read<PollCreator>();
     final title = _title.text.trim();
@@ -55,22 +78,45 @@ class _CreateScreenState extends State<CreateScreen> {
       _snack('Add a title and at least two options.');
       return;
     }
+    // Guard the ranked/quadratic 8-option cap before signing so the on-chain
+    // `initialize` can't revert with `TooManyOptions`. (The submit button is also
+    // disabled in this state; this is the belt-and-braces check.)
+    if (_moduleCapsAtEight && opts.length > _rankedQuadraticMaxOptions) {
+      _snack('Ranked & quadratic polls allow at most '
+          '$_rankedQuadraticMaxOptions options.');
+      return;
+    }
     setState(() => _busy = true);
     try {
       // Dev-signer (DEV_PRIVATE_KEY) bypasses wallet connection for local dev.
-      // Module dispatch: approval-vote deploys the bitmask module; everything
-      // else is the anon single-choice module. (Blind is disabled in the picker
-      // so it can't reach here.)
+      // Module dispatch is an explicit switch so an unhandled type can NEVER
+      // silently fall through to an anon deploy — each enabled module maps to its
+      // own creator call, and only anonVote reaches createAnonPoll. (Blind is
+      // disabled in the picker so it can't reach here.)
       final String tx;
       if (creator.canSign) {
-        tx = _module == _ModuleType.approvalVote
-            ? await creator.createApprovalPoll(
-                title: title, description: _desc.text.trim(), options: opts)
-            : await creator.createAnonPoll(
-                title: title, description: _desc.text.trim(), options: opts);
+        final title0 = title;
+        final desc0 = _desc.text.trim();
+        switch (_module) {
+          case _ModuleType.approvalVote:
+            tx = await creator.createApprovalPoll(
+                title: title0, description: desc0, options: opts);
+          case _ModuleType.rankedVote:
+            tx = await creator.createRankedPoll(
+                title: title0, description: desc0, options: opts);
+          case _ModuleType.quadraticVote:
+            tx = await creator.createQuadraticPoll(
+                title: title0, description: desc0, options: opts);
+          case _ModuleType.anonVote:
+          case _ModuleType.blindVote:
+            tx = await creator.createAnonPoll(
+                title: title0, description: desc0, options: opts);
+        }
       } else {
-        // The wallet path only deploys anon-vote today; approval over the wallet
-        // path is a follow-up (the dev-signer is the supported approval create).
+        // The wallet path only deploys anon-vote today; approval/ranked/quadratic
+        // over the wallet path are a follow-up (the dev-signer is the supported
+        // path for those). Their tiles are disabled without the dev-signer, so a
+        // wallet user can only ever select anon here — no anon mis-deploy.
         tx = await w.createPoll(
             title: title, description: _desc.text.trim(), options: opts);
       }
@@ -124,6 +170,10 @@ class _CreateScreenState extends State<CreateScreen> {
                   for (var i = 0; i < _options.length; i++) _optionRow(i),
                   const SizedBox(height: 6),
                   _addOptionButton(),
+                  if (_moduleCapsAtEight && !_optionCountOk) ...[
+                    const SizedBox(height: 8),
+                    _optionLimitHint(),
+                  ],
                   const SizedBox(height: 28),
                   _deployButton(w, devSigner),
                   const SizedBox(height: 14),
@@ -146,11 +196,14 @@ class _CreateScreenState extends State<CreateScreen> {
     );
   }
 
-  // Module-type picker: anon (default) / approval / blind. Approval deploys the
-  // multi-select bitmask module (the `approval-vote` string Browse uses to
-  // dispatch the approval screen). Blind is shown but disabled — see [_ModuleType].
-  // Approval create needs the dev-signer (the wallet path is anon-only today),
-  // so when [devSigner] is false the approval tile is also disabled with a hint.
+  // Module-type picker: anon (default) / approval / ranked / quadratic / blind.
+  // Approval deploys the multi-select bitmask module; ranked is instant-runoff;
+  // quadratic is credit-allocation (each is the canonical module string Browse
+  // uses to dispatch the matching screen). Blind is shown but disabled — see
+  // [_ModuleType]. Approval/ranked/quadratic create all need the dev-signer (the
+  // wallet path is anon-only today), so when [devSigner] is false those tiles are
+  // disabled with a hint — which also keeps the wallet path anon-only (a wallet
+  // user can never select them, so no anon mis-deploy).
   Widget _modulePicker(bool devSigner) {
     final tiles = <Widget>[
       _moduleTile(
@@ -170,6 +223,28 @@ class _CreateScreenState extends State<CreateScreen> {
             : 'Needs the dev-signer to deploy from mobile. (approval-vote)',
         icon: Icons.check_box,
         accent: Db.oltremare,
+        enabled: devSigner,
+      ),
+      _moduleTile(
+        type: _ModuleType.rankedVote,
+        title: 'Ranked choice — rank your favorites',
+        subtitle: devSigner
+            ? 'Rank options; an instant-runoff finds the winner. Up to 8 options. '
+                '(ranked-vote)'
+            : 'Needs the dev-signer to deploy from mobile. (ranked-vote)',
+        icon: Icons.format_list_numbered,
+        accent: Db.success,
+        enabled: devSigner,
+      ),
+      _moduleTile(
+        type: _ModuleType.quadraticVote,
+        title: 'Quadratic — spend 100 credits, cost = votes²',
+        subtitle: devSigner
+            ? 'Allocate a credit budget across options; cost grows as votes². '
+                'Up to 8 options. (quadratic-vote)'
+            : 'Needs the dev-signer to deploy from mobile. (quadratic-vote)',
+        icon: Icons.calculate_outlined,
+        accent: Db.catSocial,
         enabled: devSigner,
       ),
       _moduleTile(
@@ -359,9 +434,25 @@ class _CreateScreenState extends State<CreateScreen> {
         ),
       );
 
+  // Shown only for ranked/quadratic when the option-row count is out of the 2..8
+  // range the on-chain `initialize` accepts (so the user can see WHY submit is
+  // disabled instead of hitting a `TooManyOptions` revert).
+  Widget _optionLimitHint() {
+    final n = _options.length;
+    final msg = n > _rankedQuadraticMaxOptions
+        ? 'Ranked & quadratic polls allow at most '
+            '$_rankedQuadraticMaxOptions options — remove ${n - _rankedQuadraticMaxOptions}.'
+        : 'Add at least 2 options.';
+    return Row(children: [
+      const Icon(Icons.info_outline, size: 13, color: Db.amber),
+      const SizedBox(width: 8),
+      Expanded(child: Text(msg, style: dbMono(10, Db.amber, height: 1.5))),
+    ]);
+  }
+
   Widget _deployButton(WalletService w, bool devSigner) {
     final canDeploy = devSigner || w.isConnected;
-    final enabled = canDeploy && !_busy;
+    final enabled = canDeploy && !_busy && _optionCountOk;
     return SizedBox(
       width: double.infinity,
       child: FilledButton(
