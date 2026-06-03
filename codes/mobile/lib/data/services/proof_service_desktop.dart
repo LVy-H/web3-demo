@@ -117,6 +117,30 @@ class ProofServiceDesktop implements ProofService {
   }
 
   @override
+  Future<RelayProof> generateVoteProofWide({
+    required String identitySeed,
+    required List<String> memberCommitments,
+    required String message,
+    required String scope,
+  }) async {
+    // Mirrors generateVoteProof but ships the WIDE decimal-string [message] to
+    // the Node sidecar. The sidecar forwards `req.message` straight into the
+    // bundle's `BigInt(message)`, and JSON carries a decimal string fine, so no
+    // sidecar change is needed for a full-width (248-bit) survey commitment.
+    final res = await _send({
+      'op': 'prove',
+      'seed': identitySeed,
+      'members': memberCommitments,
+      'message': message,
+      'scope': scope,
+    });
+    if (res['ok'] != true) {
+      throw Exception('desktop prover failed: ${res['error']}');
+    }
+    return RelayProof.fromJson(res['proof'] as Map<String, dynamic>);
+  }
+
+  @override
   Future<String> deriveCommitment(String identitySeed) async {
     final res = await _send({'op': 'commitment', 'seed': identitySeed});
     if (res['ok'] != true) {

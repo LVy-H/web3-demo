@@ -127,6 +127,10 @@ class WebViewProverHost {
 
   /// Generate a depth-16 vote proof in the WebView using [delivery] for the
   /// artifacts. Returns the proof JSON map (`merkleTreeDepth`, `points`, …).
+  ///
+  /// [message] is a small int (option index / bitmask) — emitted as a bare JS
+  /// NUMBER literal; the host's `runProof` does `Number(message)`. The verified
+  /// single-question path; its emitted JS is byte-identical to before.
   Future<Map<String, dynamic>> generateProof({
     required String seed,
     required List<String> members,
@@ -134,6 +138,39 @@ class WebViewProverHost {
     required String scope,
     ArtifactDelivery delivery = ArtifactDelivery.localhostHttp,
   }) async {
+    // The int message is emitted as a bare JS numeric literal (e.g. `5`).
+    return _runProof('runProof', '$message', seed, members, scope, delivery);
+  }
+
+  /// WIDE variant for the survey module: [message] is a DECIMAL STRING (a
+  /// 248-bit `keccak256(abi.encode(answers)) >> 8` commitment). It is
+  /// JSON-encoded into a QUOTED JS string literal and the host's `runProofWide`
+  /// passes it to the bundle WITHOUT `Number()` (the bundle does
+  /// `BigInt(message)`), so the full field element survives. [generateProof]
+  /// above stays byte-identical.
+  ///
+  /// HONESTY: this JS/WebView path is NOT exercised by `flutter test` (it needs
+  /// a device/emulator), same bound as the rest of the on-device proving path.
+  Future<Map<String, dynamic>> generateProofWide({
+    required String seed,
+    required List<String> members,
+    required String message,
+    required String scope,
+    ArtifactDelivery delivery = ArtifactDelivery.localhostHttp,
+  }) async {
+    // JSON-encode → a quoted JS string literal, so it is NOT lossily coerced to
+    // a JS number on the Dart→JS string bridge.
+    return _runProof(
+        'runProofWide', jsonEncode(message), seed, members, scope, delivery);
+  }
+
+  /// Shared driver for [generateProof]/[generateProofWide]. [jsFn] is the host
+  /// page function to call (`runProof` or `runProofWide`); [messageLiteral] is
+  /// the already-encoded JS literal for `message` (a bare number for the int
+  /// path, a quoted string for the wide path).
+  Future<Map<String, dynamic>> _runProof(String jsFn, String messageLiteral,
+      String seed, List<String> members, String scope,
+      ArtifactDelivery delivery) async {
     final id = _nextId++;
     final c = Completer<Map<String, dynamic>>();
     _pending[id] = c;
@@ -144,7 +181,7 @@ class WebViewProverHost {
 
     if (delivery == ArtifactDelivery.localhostHttp) {
       await controller.runJavaScript(
-        'runProof($id, $seedJs, $membersJs, $message, $scopeJs, $_depth, '
+        '$jsFn($id, $seedJs, $membersJs, $messageLiteral, $scopeJs, $_depth, '
         '{ wasm: ${jsonEncode(_httpWasm)}, zkey: ${jsonEncode(_httpZkey)} });',
       );
     } else {
@@ -152,7 +189,7 @@ class WebViewProverHost {
       final wasmB64 = base64Encode(_wasm!);
       final zkeyB64 = base64Encode(_zkey!);
       await controller.runJavaScript(
-        'runProof($id, $seedJs, $membersJs, $message, $scopeJs, $_depth, '
+        '$jsFn($id, $seedJs, $membersJs, $messageLiteral, $scopeJs, $_depth, '
         '{ wasm: blobUrlFromBase64(${jsonEncode(wasmB64)}, "application/wasm"), '
         'zkey: blobUrlFromBase64(${jsonEncode(zkeyB64)}, "application/octet-stream") });',
       );

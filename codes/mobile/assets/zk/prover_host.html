@@ -31,11 +31,30 @@
       }
 
       // Generate a proof. `artifacts` is {wasm, zkey} URLs (blob: or http://).
-      // Posts {tag:'proof', id, ok, proof|error} back to Dart.
+      // Posts {tag:'proof', id, ok, proof|error} back to Dart. `message` is a
+      // small option-index/bitmask — Number() is safe (the int/shipped path).
       async function runProof(id, seed, members, message, scope, depth, artifacts) {
         try {
           const json = await window.zkGenerateVoteProof(
             seed, members, Number(message), scope,
+            { depth: depth, wasm: artifacts.wasm, zkey: artifacts.zkey }
+          );
+          _post({ tag: 'proof', id: id, ok: true, proof: JSON.parse(json) });
+        } catch (e) {
+          _post({ tag: 'proof', id: id, ok: false, error: String((e && e.message) || e) });
+        }
+      }
+
+      // WIDE variant for the survey module: `message` is a DECIMAL STRING (a
+      // 248-bit keccak commitment). It is passed STRAIGHT to the bundle WITHOUT
+      // Number() — the bundle does BigInt(message), so a full field element
+      // survives. Dart quotes `message` (JSON-encodes it) so it arrives as a
+      // string here. runProof (above) is left untouched so the verified int path
+      // never moves.
+      async function runProofWide(id, seed, members, message, scope, depth, artifacts) {
+        try {
+          const json = await window.zkGenerateVoteProof(
+            seed, members, message, scope,
             { depth: depth, wasm: artifacts.wasm, zkey: artifacts.zkey }
           );
           _post({ tag: 'proof', id: id, ok: true, proof: JSON.parse(json) });

@@ -77,6 +77,29 @@ class ProofServiceMobile implements ProofService {
   }
 
   @override
+  Future<RelayProof> generateVoteProofWide({
+    required String identitySeed,
+    required List<String> memberCommitments,
+    required String message,
+    required String scope,
+  }) async {
+    await _ensureReady();
+    // Mirrors generateVoteProof but routes the WIDE decimal-string [message]
+    // through the host's wide path ([WebViewProverHost.generateProofWide] →
+    // `runProofWide` in prover_host.html), which quotes the message as a JS
+    // string and skips `Number()` so a 248-bit survey commitment isn't
+    // narrowed. The int path above is untouched.
+    final proof = await _host.generateProofWide(
+      seed: identitySeed,
+      members: memberCommitments,
+      message: message,
+      scope: scope,
+      delivery: ArtifactDelivery.localhostHttp,
+    );
+    return RelayProof.fromJson(proof);
+  }
+
+  @override
   Future<String> deriveCommitment(String identitySeed) async {
     await _ensureReady();
     return _host.deriveCommitment(identitySeed);

@@ -39,6 +39,22 @@ class ProofServiceUnsupported implements ProofService {
   }
 
   @override
+  Future<RelayProof> generateVoteProofWide({
+    required String identitySeed,
+    required List<String> memberCommitments,
+    required String message,
+    required String scope,
+  }) {
+    // Same unsupported error as the int path — survey proving is no more
+    // available here than single-question proving.
+    throw UnsupportedError(
+      'Client-side proof generation is not yet implemented on this platform. '
+      'Voting currently works on web (snarkjs via js_interop); the native '
+      'mobile/desktop prover is pending (see plan D2 / Open-Q6).',
+    );
+  }
+
+  @override
   Future<String> deriveCommitment(String identitySeed) {
     throw UnsupportedError(
       'Commitment derivation needs the prover, which is not available on this '
