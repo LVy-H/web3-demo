@@ -1,8 +1,69 @@
+import 'dart:typed_data';
+
 import 'package:wallet/wallet.dart' show EthereumAddress;
 import 'package:web3dart/web3dart.dart';
 
 import '../../config.dart';
 import 'chain_writer.dart';
+
+/// The v1 survey question types, matching the on-chain `enum QType`
+/// (`SingleChoice = 0`, `MultiSelect = 1`). The [solidityValue] is the `uint8`
+/// the inner `(uint8,string[])[]` ABI encoding carries for this type.
+enum SurveyQType {
+  singleChoice(0),
+  multiSelect(1);
+
+  const SurveyQType(this.solidityValue);
+
+  /// The `uint8` value the contract's `QType` enum assigns to this type.
+  final int solidityValue;
+}
+
+/// A single survey question for the `survey-vote` create flow: its [qType] and
+/// its own ordered option labels. Mirrors the on-chain
+/// `struct Question { QType qType; string[] options; }`.
+class SurveyQuestion {
+  const SurveyQuestion({required this.qType, required this.options});
+
+  final SurveyQType qType;
+  final List<String> options;
+}
+
+/// web3dart ABI type for the inner survey `initData` preimage:
+/// `(uint8 qType, string[] options)[]` — a dynamic array of
+/// `(uint8, string[])` tuples. Encoding the [SurveyQuestion]s through this type
+/// reproduces Solidity's `abi.encode((uint8,string[])[])`, which is exactly what
+/// `ZkSurveyVoting.initialize`'s `abi.decode(initData, (Question[]))` accepts.
+final _questionsArrayType = DynamicLengthArray<List<dynamic>>(
+  type: TupleType([
+    const UintType(length: 8),
+    DynamicLengthArray<String>(type: const StringType()),
+  ]),
+);
+
+/// `abi.encode((uint8,string[])[])` of [questions] — the INNER bytes that
+/// become the `bytes initData` arg of `ZkSurveyVoting.initialize`.
+///
+/// This is a raw `abi.encode` (NO selector), byte-identical to ethers'
+/// `AbiCoder.encode(["tuple(uint8,string[])[]"], [value])` and to Solidity's
+/// `abi.decode(initData, (Question[]))`. The questions array is wrapped in an
+/// outer single-element [TupleType] before encoding so the leading 32-byte
+/// offset word (`0x…20`) is emitted — exactly as ethers' param-tuple does and as
+/// `abi.decode` requires. Encoding the bare array would instead start with the
+/// array LENGTH, and every survey creation would revert `InitFailed`. The
+/// cross-impl gate-2 test pins this against the frozen ethers literal.
+Uint8List encodeSurveyInitData(List<SurveyQuestion> questions) {
+  // Value shape: [ [qTypeInt(BigInt), [opt0, opt1, …]], … ].
+  // UintType.encode requires a BigInt, not an int.
+  final value = [
+    for (final q in questions)
+      <dynamic>[BigInt.from(q.qType.solidityValue), q.options],
+  ];
+  final sink = LengthTrackingByteSink();
+  // Wrap in an outer tuple so the top-level dynamic array gets its offset head.
+  TupleType([_questionsArrayType]).encode([value], sink);
+  return sink.asBytes();
+}
 
 /// Creates polls through the local dev-signer ([ChainWriter]) — the wallet-free
 /// path for local development. When [canSign] is true (DEV_PRIVATE_KEY set), the
@@ -13,12 +74,14 @@ class PollCreator {
   final String registryAbiJson;
   final String anonAbiJson;
   final String approvalAbiJson;
+  final String surveyVotingAbiJson;
 
   PollCreator({
     required this.writer,
     required this.registryAbiJson,
     required this.anonAbiJson,
     required this.approvalAbiJson,
+    required this.surveyVotingAbiJson,
   });
 
   bool get canSign => writer.canSign;
@@ -106,6 +169,47 @@ class PollCreator {
         description: description,
         options: options,
       );
+
+  /// Deploy a SURVEY poll (module `survey-vote`), signed by the dev key.
+  ///
+  /// UNLIKE every other module, `ZkSurveyVoting.initialize` takes
+  /// `(address semaphore, address owner, bytes initData)` — NOT a flat
+  /// `string[] options`. The init blob is therefore DOUBLE-wrapped:
+  ///
+  /// 1. INNER bytes = `abi.encode((uint8,string[])[])` of the [questions]
+  ///    ([encodeSurveyInitData]) — the raw question structure the contract
+  ///    decodes via `abi.decode(initData, (Question[]))`.
+  /// 2. OUTER initData = `initialize(semaphore, owner, innerBytes)` encoded with
+  ///    the SURVEY ABI — wrapping the inner bytes as the `bytes initData` arg.
+  ///
+  /// then deployed via `PollRegistry.createPoll('survey-vote', …)`. The module
+  /// string is the canonical `survey-vote` (Browse `?module=` / relayer /
+  /// deploy.ts). If the inner encoding doesn't match Solidity's decode, every
+  /// survey creation reverts `InitFailed`; the gate-2 cross-check pins it.
+  Future<String> createSurveyPoll({
+    required String title,
+    required String description,
+    required List<SurveyQuestion> questions,
+  }) {
+    final owner = writer.signerAddress!;
+    final innerBytes = encodeSurveyInitData(questions);
+    final survey = DeployedContract(
+      ContractAbi.fromJson(surveyVotingAbiJson, 'ZkSurveyVoting'),
+      EthereumAddress.fromHex('0x0000000000000000000000000000000000000000'),
+    );
+    final initData = survey.function('initialize').encodeCall([
+      EthereumAddress.fromHex(AppConfig.semaphoreAddress),
+      EthereumAddress.fromHex(owner),
+      innerBytes,
+    ]);
+    return writer.send(
+      to: AppConfig.registryAddress,
+      abiJson: registryAbiJson,
+      abiName: 'PollRegistry',
+      function: 'createPoll',
+      params: ['survey-vote', title, description, initData],
+    );
+  }
 
   /// Shared encoder for the anon/approval/ranked/quadratic modules. They all take
   /// the same `initialize(semaphore, owner, options)` shape, so the only thing
