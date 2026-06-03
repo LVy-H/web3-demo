@@ -84,8 +84,8 @@ Source of truth lives in `findings.md` — this table is a snapshot. If they dis
 | P4-20 | Document module immutability (clones can't be upgraded) | — | Open |
 | P4-21 | Pagination for `getAllPolls` | — | Open |
 | P4-22 | Event-driven poll list (replace `getAllPolls` polling) | — | Open |
-| P4-23 | Real Groth16 verifier path in nightly CI | — | Open |
-| P4-24 | SNARK artifact bundling instead of CDN fetch | — | Open |
+| P4-23 | Real Groth16 verifier path (wired; `RUN_REAL_VERIFIER=1` test) | — | Done |
+| P4-24 | SNARK artifact bundling instead of CDN fetch | — | Partial (mobile assets/zk bundled; web prover CDN remains) |
 
 ## Discovery log
 

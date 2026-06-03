@@ -64,8 +64,16 @@ up() {
   for _ in $(seq 1 40); do rpc | grep -q result && break; echo -n "."; sleep 1; done; echo
   rpc | grep -q result || { echo "    node failed to start; see $NODE_LOG" >&2; exit 1; }
 
-  echo "==> Deploying contracts (local MockSemaphoreVerifier — real verifier is not wired on this branch)"
-  ( cd "$CONTRACTS" && npx hardhat run scripts/deploy.ts --network localhost )
+  # ZK_REAL_VERIFIER=1 deploys the REAL Groth16 SemaphoreVerifier (P4-23) so the
+  # local chain actually verifies proofs — treat Hardhat as a real chain. Default
+  # stays the always-true MockSemaphoreVerifier (fast; no real proofs needed).
+  if [ "${ZK_REAL_VERIFIER:-0}" = "1" ]; then
+    echo "==> Deploying contracts with the REAL Groth16 SemaphoreVerifier (ZK_REAL_VERIFIER=1)"
+    ( cd "$CONTRACTS" && USE_REAL_VERIFIER=true npx hardhat run scripts/deploy.ts --network localhost )
+  else
+    echo "==> Deploying contracts (MockSemaphoreVerifier — set ZK_REAL_VERIFIER=1 for the real Groth16 verifier)"
+    ( cd "$CONTRACTS" && npx hardhat run scripts/deploy.ts --network localhost )
+  fi
 
   echo "==> Seeding demo poll"
   ( cd "$CONTRACTS" && npx hardhat run scripts/demo-poll.ts --network localhost )
