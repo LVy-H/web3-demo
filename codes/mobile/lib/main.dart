@@ -9,6 +9,7 @@ import 'data/repositories/approval_repository.dart';
 import 'data/repositories/blind_repository.dart';
 import 'data/repositories/live_host_repository.dart';
 import 'data/repositories/poll_repository.dart';
+import 'data/repositories/ranked_repository.dart';
 import 'data/repositories/verify_repository.dart';
 import 'data/services/blind_commit_store.dart';
 import 'data/services/chain_reader.dart';
@@ -122,6 +123,12 @@ class ZkVoteApp extends StatelessWidget {
         // so this just wraps the shared reader (no extra ABI for reads).
         Provider<ApprovalRepository>(
           create: (_) => ChainApprovalRepository(reader),
+        ),
+        // M4 ranked-vote reads — likewise the shared IZkPoll surface (getResults
+        // here is the ROUND-1 first-preference tally; the IRV winner is computed
+        // off-chain). No extra ABI for reads.
+        Provider<RankedRepository>(
+          create: (_) => ChainRankedRepository(reader),
         ),
         Provider<PollCreator>(
           create: (_) => PollCreator(

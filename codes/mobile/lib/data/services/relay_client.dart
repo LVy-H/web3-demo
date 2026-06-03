@@ -188,6 +188,41 @@ class RelayClient {
     }
   }
 
+  /// Relay a RANKED-CHOICE ballot (gasless): the vote is a [packedRanking] — up
+  /// to 8 rank slots, 4 bits each (`packedRanking < 2^32`), most-preferred in
+  /// slot 0 — not a single index and not a bitmask. POSTs to
+  /// `/api/relay/ranked-vote`, which rejects unless `proof.message ==
+  /// String(packedRanking)` (ballot ↔ proof binding) and the scope matches the
+  /// poll. The contract stores the full ranking + tallies the ROUND-1 first
+  /// preference; the instant-runoff winner is computed off-chain. Never throws —
+  /// returns a [RelayResult]. Mirrors [relayApprovalVote]; the `/vote` and
+  /// `/approval-vote` paths are left untouched.
+  Future<RelayResult> relayRankedVote(
+    String pollAddress,
+    int packedRanking,
+    RelayProof proof,
+  ) async {
+    try {
+      final r = await _postJson('/api/relay/ranked-vote', {
+        'pollAddress': pollAddress,
+        'packedRanking': packedRanking,
+        'proof': proof.toJson(),
+      }, timeout: voteTimeout);
+      if (!r.ok) {
+        return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
+      }
+      return RelayResult(
+        success: true,
+        txHash: r.data['txHash'] is String ? r.data['txHash'] as String : null,
+      );
+    } on TimeoutException {
+      return const RelayResult(
+          success: false, error: 'Relayer did not respond in time. Try again.');
+    } catch (e) {
+      return RelayResult(success: false, error: e.toString());
+    }
+  }
+
   /// One-shot relayer health/balance probe. Returns null on any error.
   Future<RelayStatus?> fetchStatus() async {
     try {
