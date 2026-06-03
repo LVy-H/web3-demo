@@ -336,7 +336,7 @@ Reuse the sibling error set (`NotInVoting`, `AlreadyVoted`, `InvalidScope`,
 
 ## The THREE de-risking gates (load-bearing)
 
-### Gate M1 — prover widening + 4-module regression (the go/no-go gate)
+### Gate 1 — prover widening + 4-module regression (the go/no-go gate)
 
 The hash commitment produces a **full field-element `message`** that **cannot**
 survive `Number(message)`. The widening is changing
@@ -392,7 +392,7 @@ safe (small-integer ballots round-trip through `BigInt` unchanged). But the spec
 > are exactly the ones that pass a `message` through the shared prover, and they
 > are exactly the regression set.
 
-### Gate M2 — keccak serialization cross-implementation match (#1 correctness trap)
+### Gate 2 — keccak serialization cross-implementation match (#1 correctness trap)
 
 The client computes `message = keccak256(serialize(answers)) >> 8` before
 proving; the contract recomputes it from calldata. **If the client's byte
@@ -425,7 +425,7 @@ achievable in Dart, but it uses `abi.encodePacked`, the **wrong** layout for thi
 commitment; the survey encoder must reproduce `abi.encode`'s header. This test is
 the gate that catches a one-byte divergence before it bricks every cast.
 
-### Gate M3 — per-question results without changing `IZkPoll`
+### Gate 3 — per-question results without changing `IZkPoll`
 
 Specified in "Per-question results" above. The gate is a **discipline**: `IZkPoll`
 is frozen; the survey adds `getQuestionResults(q)` / `getSurveyResults()` /
@@ -471,7 +471,7 @@ per-question tally (single-choice one option, multi-select every set bit),
 nullifier single-use, scope/message binding, the no-lockout retry, and the
 `SurveyVoteCast` emission — but it does **NOT** prove real SNARK validity.
 Identical honesty bound to M1/M2/M3/QV. Real Groth16 verification is gated behind
-`USE_REAL_VERIFIER` (P4-23/P4-24). The **cross-impl serialization** is what M2's
+`USE_REAL_VERIFIER` (P4-23/P4-24). The **cross-impl serialization** is what Gate 2's
 fixed-vector test (Dart === JS === Solidity) proves, independent of the mock.
 
 ---
