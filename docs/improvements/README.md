@@ -44,19 +44,19 @@ Source of truth lives in `findings.md` — this table is a snapshot. If they dis
 
 ### P1 — Contract security (9)
 
-> All Open per `findings.md`; this is the next engineering increment toward `1.0`.
+> **All DONE** — the contract-hardening pass is on `main` (verified 2026-06-03 against the contracts). P1-13 (cap value) closed by lowering the `registerVoters` cap to 50.
 
 | ID | Title | Owner | Status | Branch |
 |----|-------|-------|--------|--------|
-| P1-5  | Replace hand-rolled `_initialized` with OZ `Initializable` | — | Open | — |
-| P1-6  | Replace ad-hoc `onlyOwner` modifier with OZ `Ownable` / `Ownable2Step` | — | Open | — |
-| P1-7  | Custom errors instead of revert strings | — | Open | — |
-| P1-8  | Add `ReentrancyGuard` to `ZkAirdrop.claimAirdrop` | — | Open | — |
-| P1-9  | Owner escape hatch for unclaimed airdrop ETH | — | Open | — |
-| P1-10 | Unify Solidity pragma across all contracts | — | Open | — |
-| P1-11 | `ZkAnonVoting.startVoting` should require ≥1 voter | — | Open | — |
-| P1-12 | Cap batch size in `registerVoters` | — | Open | — |
-| P1-13 | `registerVoters` cap of 100 exceeds mainnet block gas | — | Open | — |
+| P1-5  | Replace hand-rolled `_initialized` with OZ `Initializable` | — | Done | — |
+| P1-6  | Replace ad-hoc `onlyOwner` modifier with OZ `Ownable` / `Ownable2Step` | — | Done | — |
+| P1-7  | Custom errors instead of revert strings | — | Done | — |
+| P1-8  | Add `ReentrancyGuard` to `ZkAirdrop.claimAirdrop` | — | Done | — |
+| P1-9  | Owner escape hatch for unclaimed airdrop ETH | — | Done | — |
+| P1-10 | Unify Solidity pragma across all contracts | — | Done | — |
+| P1-11 | `ZkAnonVoting.startVoting` should require ≥1 voter | — | Done | — |
+| P1-12 | Cap batch size in `registerVoters` | — | Done | — |
+| P1-13 | `registerVoters` cap of 100 exceeds mainnet block gas (→ lowered to 50) | — | Done | — |
 
 ### P2 — Frontend refactor (2)
 
@@ -97,3 +97,4 @@ When you find a new issue mid-task, append a one-liner here with date + ID, then
 | 2026-04-27 | P3-20 | Sprint 1 dispatch retrospective | Parallel agents sharing one working tree caused branch-checkout races; A2's commit briefly landed on A1's branch (recovered via `git rebase --onto`). Future sprints must use `isolation: "worktree"` per agent. |
 | 2026-04-27 | P1-13 | A7 empirical gas measurement during P1-12 implementation | 100-element registerVoters costs ~50M gas — exceeds mainnet's 30M block limit and Hardhat's 16.7M tx cap. Cap value chosen in P1-12 was wrong; recommend lowering to 50 (mainnet-fits) or 25 (Hardhat-fits) or making it a configurable initializer arg. |
 | 2026-06-03 | P3-21 | Docs-truth-up sweep | Repo-wide grep for stale React-frontend references surfaced ~12 dangling `codes/frontend/src/lib/*` provenance comments in the Flutter client (and a broken golden-vectors regenerate pointer). Deferred from the docs-only truth-up PR. |
+| 2026-06-03 | P1-5..P1-12 | P1 premise re-check | All P1 hardening items were already implemented on `main` (OZ Initializable/Ownable, custom errors, airdrop ReentrancyGuard + escape hatch, unified pragma, anon invariants) but `findings.md` + the board still showed them Open. Verified against the contracts and flipped to Done; closed the lone real-open item P1-13 (cap → 50). |

@@ -57,6 +57,15 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
   existing CI). Closed/MOOT statuses synced to reality (P0-*, P2-*, P3-15..18).
 
 ### Security
+- **`registerVoters` batch cap lowered 100 → 50** (`ZkAnonVoting`, P1-13) so a full
+  batch fits a 30M mainnet block (~24.5M gas; 100 ≈ 50M is unreachable). Test
+  boundary and `module-m1-anon-voting.md` updated; full suite green (268).
+- **P1 contract-hardening pass verified complete** (P1-5..P1-12): OZ
+  `Initializable` + `Ownable` on every module, custom errors throughout,
+  `ZkAirdrop` `ReentrancyGuard` + `endClaiming`/`withdrawUnclaimed` escape hatch,
+  unified `0.8.28` pragma, anon-vote `≥1`-voter + batch-cap invariants. The stale
+  "Open" statuses in `findings.md` / `improvements/README.md` were corrected to
+  Done.
 
 ---
 

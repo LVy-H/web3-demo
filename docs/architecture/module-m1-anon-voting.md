@@ -65,3 +65,4 @@ A `_initialized` guard prevents double initialization.
 - Small group deanonymization: if 5 voters and 4 voted "Yes," the 5th is identified by elimination.
 - MockSemaphoreVerifier used in local tests -- real verifier required for production.
 - Gas costs: voters currently pay gas to submit votes, creating a potential traceability vector. Relayer integration (Phase 5+) addresses this.
+- `registerVoters()` caps a single batch at **50** commitments. `Semaphore.addMember` cost grows with tree depth, so ~50 inserts (~24.5M gas) fit a 30M mainnet block while 100 (~50M) would not. Chunk larger registrations client-side into batches of ≤50 (findings P1-12 / P1-13).
