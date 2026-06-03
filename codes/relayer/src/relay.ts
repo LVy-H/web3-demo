@@ -6,6 +6,7 @@ import ZkAnonVotingABI from "./abi/ZkAnonVoting.json";
 import ZkApprovalVotingABI from "./abi/ZkApprovalVoting.json";
 import ZkRankedVotingABI from "./abi/ZkRankedVoting.json";
 import ZkQuadraticVotingABI from "./abi/ZkQuadraticVoting.json";
+import ZkSurveyVotingABI from "./abi/ZkSurveyVoting.json";
 import ZkAirdropABI from "./abi/ZkAirdrop.json";
 
 function toProofStruct(proof: SemaphoreProof) {
@@ -176,6 +177,53 @@ export async function relayQuadraticVote(
     const tx = await contract.castVote(packedAlloc, proofStruct, {
         gasLimit: config.maxGasLimit,
     });
+
+    const receipt = await tx.wait();
+    return { txHash: receipt.hash };
+}
+
+export async function relaySurveyVote(
+    pollAddress: string,
+    answers: string[],
+    proof: SemaphoreProof
+): Promise<{ txHash: string }> {
+    const wallet = getRelayerWallet();
+    const contract = new ethers.Contract(pollAddress, ZkSurveyVotingABI.abi, wallet);
+
+    // Pre-check: poll must be in Voting state (state == 1)
+    const state = await contract.getState();
+    if (Number(state) !== 1) {
+        throw new Error("Poll is not in voting phase");
+    }
+
+    // NOTE: unlike the single-question modules there is NO getOptionCount /
+    // per-answer range pre-check here. A survey ballot is a full answer vector and
+    // the contract owns ALL of its validation — the per-question type/range checks
+    // (option index < optionCount, bitmask in range) AND the message binding
+    // (proof.message == keccak256(abi.encode(answers)) >> 8). The relayer does NOT
+    // recompute that commitment (re-deriving it in JS risks a Dart/JS/Solidity
+    // mismatch), so it must NOT bind message to answers — that is the contract's
+    // job. We only fast-check the cheap off-chain signals: state + nullifier.
+
+    // Pre-check: nullifier not already used
+    const isUsed = await contract.isNullifierUsed(BigInt(proof.nullifier));
+    if (isUsed) {
+        throw new Error("This vote token has already been used (nullifier consumed)");
+    }
+
+    const proofStruct = toProofStruct(proof);
+
+    // The answer vector goes through as the first castVote arg (BigInt-ized so a
+    // wide uint256 answer word survives). toProofStruct already BigInt-izes the
+    // proof's `message` (the wide keccak commitment) and `scope`, so the full-width
+    // commitment flows through unchanged.
+    const tx = await contract.castVote(
+        answers.map((a) => BigInt(a)),
+        proofStruct,
+        {
+            gasLimit: config.maxGasLimit,
+        }
+    );
 
     const receipt = await tx.wait();
     return { txHash: receipt.hash };

@@ -2,9 +2,9 @@ import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { config } from "./config";
-import { relayCastVote, relayApprovalVote, relayRankedVote, relayQuadraticVote, relayClaimAirdrop, checkRelayerBalance } from "./relay";
+import { relayCastVote, relayApprovalVote, relayRankedVote, relayQuadraticVote, relaySurveyVote, relayClaimAirdrop, checkRelayerBalance } from "./relay";
 import { getRelayerInfo } from "./wallet";
-import { validateVoteRequest, validateApprovalVoteRequest, validateRankedVoteRequest, validateQuadraticVoteRequest, validateClaimRequest } from "./validation";
+import { validateVoteRequest, validateApprovalVoteRequest, validateRankedVoteRequest, validateQuadraticVoteRequest, validateSurveyVoteRequest, validateClaimRequest } from "./validation";
 import { createTicketRouter } from "./tickets";
 
 /** Build the Express app WITHOUT listening, so tests (supertest) can import it
@@ -164,6 +164,46 @@ export function createApp(): express.Express {
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
             console.error(`[RELAY] ✗ quadraticVote error:`, message);
+            res.status(500).json({ error: "Internal relayer error" });
+        }
+    });
+
+    // ── POST /api/relay/survey-vote ─────────────────────────────────────────
+    // Survey ballots (module "survey-vote"): the vote is the FULL answer VECTOR
+    // (`answers`: one uint256 word per question, in question order). The Semaphore
+    // `message` is a keccak COMMITMENT — keccak256(abi.encode(answers)) >> 8 — that
+    // the CONTRACT recomputes from calldata and binds. The relayer does NOT
+    // recompute the commitment and does NOT bind message to answers (re-deriving it
+    // in JS risks a Dart/JS/Solidity mismatch); its message check is SHAPE-ONLY (a
+    // non-zero in-field element). Separate from the single-value paths above so
+    // /vote, /approval-vote, /ranked-vote, /quadratic-vote are untouched.
+    app.post("/api/relay/survey-vote", async (req, res) => {
+        try {
+            const validation = validateSurveyVoteRequest(req.body);
+            if (!validation.ok) {
+                res.status(400).json({ error: validation.error });
+                return;
+            }
+
+            const balanceCheck = await checkRelayerBalance();
+            if (!balanceCheck.sufficient) {
+                res.status(503).json({
+                    error: "Relayer has insufficient funds to pay gas",
+                    balance: balanceCheck.balance,
+                });
+                return;
+            }
+
+            const { pollAddress, answers, proof } = validation.data;
+            console.log(`[RELAY] surveyVote → poll=${pollAddress} answers=[${answers.join(",")}]`);
+
+            const result = await relaySurveyVote(pollAddress, answers, proof);
+            console.log(`[RELAY] ✓ txHash=${result.txHash}`);
+
+            res.json({ success: true, txHash: result.txHash });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[RELAY] ✗ surveyVote error:`, message);
             res.status(500).json({ error: "Internal relayer error" });
         }
     });
