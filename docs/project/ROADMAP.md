@@ -6,6 +6,7 @@
 
 - **DONE** — shipped and tested
 - **PARTIAL** — some scope shipped, more remains
+- **IN PROGRESS** — actively being built (some milestones merged, more open)
 - **NEXT** — the immediate next phase
 - **PLANNED** — committed but not started
 - **DEFERRED** — was on the list, may not happen
@@ -101,24 +102,25 @@ These ride alongside every phase:
   effort: **Phase 11** (and reframed as emulator-verifiable, not device-pending).
 - ~~Decouple `codes/frontend`~~ — **DONE** (React removed; prover self-contained).
 
-## Phase 11: Close the loop on mobile — scan + native proving — **PARTIAL**
+## Phase 11: Close the loop on mobile — scan + native proving — **DONE**
 
 > Spec: `docs/superpowers/specs/2026-06-02-mobile-scan-and-native-proving-design.md`.
 > Makes the live-meeting flow complete device-to-device on a phone.
 
-- **M3 — In-app QR scanner** (`mobile_scanner`) on the live-vote `needsTicket`
-  stage — scan the host's rotating QR instead of pasting; paste stays as the
-  fallback. **PENDING** (device-gated follow-up; not yet landed).
+- **M1 — WebView-proving go/no-go spike** (blob-URL artifact injection;
+  loopback-server fallback; native FFI is out of scope). **DONE — spike returned
+  GO**: a Groth16 proof generated inside a headless `webview_flutter` on the
+  API-31 emulator, verified against the real vkey (PR #48).
 - **M2 — Native on-device proving** (`ProofServiceMobile`): a headless
   `webview_flutter` hosting the same `zkprover.js`, with the Semaphore depth-16
   artifacts **bundled** (~5.2 MB). `entry.js` gets an *additive* artifact-override
   arg — **web/desktop provers untouched** (LeanIMT root is member-derived, so depth
   need not match across clients). Factory-selected on Android; iOS fenced. **DONE**
   (emulator-verified against the real Groth16 vkey, PR #48).
-- **M1 — WebView-proving go/no-go spike** (blob-URL artifact injection;
-  loopback-server fallback; native FFI is out of scope). **DONE — spike returned
-  GO**: a Groth16 proof generated inside a headless `webview_flutter` on the
-  API-31 emulator, verified against the real vkey (PR #48).
+- **M3 — In-app QR scanner** (`mobile_scanner`) on the live-vote `needsTicket`
+  stage — scan the host's rotating QR instead of pasting; paste stays as the
+  fallback. **DONE** (PR #61). Camera capability-gated; paste is the verified
+  fallback route. Live camera scan is real-device-pending — a follow-up gate.
 - **Verified-or-fenced:** proving is **emulator-verified** against the real Groth16
   vkey; the **camera** is the only real-device/fenced piece (paste = verified
   fallback). Real-device confirmation is a follow-up gate.
@@ -129,7 +131,7 @@ These ride alongside every phase:
   (replace the local Mock). Per-network `deployed-addresses.<net>.json`.
 - This + "no open P0/P1" is the bar to move from `0.x` to **`1.0.0`**.
 
-## Phase 12: Richer voting types — **PARTIAL (epic — own design per sub-module)**
+## Phase 12: Richer voting types — **IN PROGRESS (epic — own design per sub-module)**
 
 > User-requested (2026-06-02): all four. Each is a **new on-chain module** (new
 > Solidity + tests + ABIs + `PollRegistry` registration + deploy wiring) behind
@@ -149,12 +151,20 @@ These ride alongside every phase:
   Off-chain Dart IRV tally with the pinned canonical elimination rule. **DONE** —
   contract + relayer (#49) and Flutter UI + off-chain Dart IRV tally (#53).
 - **12c — Weighted / quadratic** — votes carry weight (token-weighted or quadratic
-  cost); uniform `CREDITS=100` budget, `Σvᵢ²≤100`. **backend DONE (#51); UI in
-  progress** (separate PR open).
+  cost); uniform `CREDITS=100` budget, `Σvᵢ²≤100`. **DONE** — backend (#51) and
+  Flutter UI (#53); ranked-choice and quadratic polls are now **creatable from the
+  mobile Create screen** (dev-signer-gated, ≤8-option guard, #57).
 - **12d — Multi-question survey ("Google-Forms")** — a poll = several questions,
   each single-choice / multi-select / rating. **Redefines the poll data model**;
-  largest scope; depends on lessons from 12a–12c. **PLANNED** — next-largest
-  remaining item in the epic.
+  largest scope; depends on lessons from 12a–12c. **IN PROGRESS**:
+  - Design spec merged (#56): one `ZkSurveyVoting` module, one ballot/nullifier per
+    survey, `message = keccak256(abi.encode(answers)) >> 8`.
+  - Gate 1 — prover signal widened `Number→BigInt` in `entry.js`, regression-verified
+    against all four shipped modules' real-vkey proofs (#59). Unblocks survey's wide
+    keccak-commitment message.
+  - M2 — `ZkSurveyVoting` contract + hardhat tests: **in review** (#60).
+  - Remaining: M3 (ABIs + relayer + deploy) → M4 (Flutter read/results) →
+    M5 (create UI) → M6 (e2e + docs).
 
 Each sub-module gets its own design spec before implementation.
 
