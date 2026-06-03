@@ -35,7 +35,12 @@ Run: `flutter test` (unit+widget+self-skipping integration) · with the live sta
 | Dev-signer tx lands | `integration/chain_writer_test` | sign + broadcast + receipt |
 | **Settings** diagnostics | `ui/.../settings_screen_test` | network/signer/proving/version |
 | **Proximity** seam (no-op where unsupported) | `data/services/proximity_service_test` | inert capability gate |
-| Contract-level reverts (double-vote, AlreadyRegistered/Committed, HashMismatch, phase guards) | `codes/contracts/test/*` (109 passing) | enforced on-chain |
+| **Survey (12d) contract** — commitment recompute, per-question validation + tally, no-lockout, nullifier/scope/message binding, `getSurveyResults` | `codes/contracts/test/ZkSurveyVoting.test.ts` (45 passing) | full survey ballot logic vs MockVerifier |
+| **Survey relayer** — survey-vote request validation (wide commitment `message`, `scope==pollAddress`, answer shape/range, proof shape) | `codes/relayer/test/survey-validation.test.ts` (14 passing) | `validateSurveyVoteRequest` accept/reject |
+| **Survey commitment crypto** (Gate 2 cross-impl + abi.encode header + field-element sanity) | `core/crypto/survey_commit_test` (8) | Dart `keccak256(abi.encode(answers))>>8` ≡ ethers ≡ Solidity |
+| **Survey init-encoding** ethers cross-check | `data/services/survey_init_encoding_test` (2) | Dart `(uint8,string[])[]` encode ≡ ethers `abi.encode` |
+| **Survey stack e2e** — create → register → cast `[2,5]` → per-question `getSurveyResults` non-empty | `codes/contracts/scripts/demo-poll.ts` (survey seed, local chain) | full stack on a real chain, no emulator |
+| Contract-level reverts (double-vote, AlreadyRegistered/Committed, HashMismatch, phase guards) | `codes/contracts/test/*` (268 passing) | enforced on-chain |
 
 ## Device-only / fenced (cannot be verified on this headless Linux box — flagged, not faked)
 
@@ -43,6 +48,7 @@ Run: `flutter test` (unit+widget+self-skipping integration) · with the live sta
 |---|---|---|
 | WalletConnect (Reown) connect + sign | needs a paired mobile wallet | code present; verified only on a device |
 | Mobile WebView prover | `webview_flutter`, needs a device/emulator | designed, device-pending |
+| **On-device survey UI cast** (browse → survey detail → answer → WebView-prove → relay → per-question results) | needs a device/emulator (same as the WebView prover) | data + contract + relayer + Dart-crypto + stack-e2e paths verified; the on-device UI cast is device-pending (same bound as every module's on-device proving) |
 | BLE/NFC proximity radio | needs Android + a beacon/tag | capability-gated no-op; Android impl device-pending |
 
 ## Known feature gaps (not test gaps)

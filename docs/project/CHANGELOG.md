@@ -5,6 +5,32 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Phase 12d — Multi-question survey voting (`survey-vote`)**, shipped
+  full-stack and closing the Phase 12 voting-types epic (12a/12b/12c/12d all
+  shipped):
+  - **Contract** `ZkSurveyVoting` — one survey = an ordered `Question[]` (per
+    question: single-choice or multi-select, own options, own tally); one ballot,
+    one Semaphore proof, one nullifier per voter per survey; the answer vector is
+    bound by a hash commitment `message = keccak256(abi.encode(answers)) >> 8`
+    that the contract recomputes on-chain; per-question results via
+    `getSurveyResults()` (`IZkPoll` frozen — `getResults()` is a documented
+    question-0 degenerate). 45 hardhat tests.
+  - **Relayer** `POST /api/relay/survey-vote` route + `validateSurveyVoteRequest`
+    (14 tests); ABIs + `deploy.ts` registers `survey-vote` and persists
+    `SURVEY_VOTING_IMPL`.
+  - **Flutter** — survey read / answer / cast / per-question results (N
+    `ResultsBars`) + a question-builder create flow (`?module=survey-vote`).
+  - **Prover** widened `Number→BigInt` (`web_prover/entry.js`, re-bundled +
+    parity-guarded) so the wide keccak-commitment message survives; regression-
+    verified against all four shipped SNARK-message modules.
+  - **Cross-impl gate** — Dart `surveyCommitment` ≡ ethers ≡ Solidity for the
+    commitment and the `(uint8,string[])[]` init encoding.
+  - **Stack e2e seed** — `scripts/demo-poll.ts` creates a survey on the local
+    chain, casts a ballot `[2,5]`, and reads non-empty per-question tallies. The
+    on-device mobile UI survey cast is device-gated/fenced (same bound as every
+    module's on-device proving), not a regression risk.
+  - Spec: `docs/superpowers/specs/2026-06-03-survey-voting-design.md`;
+    architecture: `docs/architecture/module-survey.md`.
 
 ### Changed
 
