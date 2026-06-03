@@ -423,11 +423,21 @@ Mainnet block gas limit: 30M. Hardhat's default per-tx cap: 16.7M. **A 100-eleme
 
 **Summary:** Replace 5-second polling of `getAllPolls` with: initial `getLogs` for `PollCreated` events, then `useWatchContractEvent` for incremental updates. Removes the per-page bandwidth cost as the registry grows.
 
-### P4-23 — Real Groth16 verifier path in nightly CI {#p4-23}
+### P4-23 — Real Groth16 verifier path {#p4-23}
 
-**Priority:** P4 — **Status:** Open — **Owner:** —
+**Priority:** P4 — **Status:** Done — wired 2026-06-04. — **Owner:** —
 
 **Summary:** Add `test/integration/RealVerifier.test.ts`. Deploy real `SemaphoreVerifier`, fetch SNARK artifacts in CI, generate a real proof, assert the contract verifies it. Slow (~30s) — run nightly only. Depends on P3-19.
+
+**Resolution (2026-06-04):** The real `SemaphoreVerifier` is now wired:
+`contracts/SemaphoreVerifierImport.sol` pulls it into the compile graph, and
+`deploy.ts` deploys it when `USE_REAL_VERIFIER=true` (so `npm run deploy:real-verifier`
+and `ZK_REAL_VERIFIER=1 ./dev-stack.sh up` work). `test/integration/RealVerifier.test.ts`
+generates a REAL Groth16 proof from the bundled depth-16 artifacts
+(`codes/mobile/assets/zk/semaphore-16.*` — no CDN, addressing P4-24's runtime-fetch
+concern) and asserts the real verifier ACCEPTS a valid vote and REJECTS a tampered
+one. It's gated behind `RUN_REAL_VERIFIER=1` (skipped by the fast suite; ~4s when
+run). Verified locally: 1 passing.
 
 ### P4-24 — SNARK artifact bundling {#p4-24}
 

@@ -5,6 +5,14 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Real Groth16 verifier wired (P4-23)** — `deploy.ts` deploys the real
+  `SemaphoreVerifier` when `USE_REAL_VERIFIER=true` (`npm run deploy:real-verifier`,
+  `ZK_REAL_VERIFIER=1 ./dev-stack.sh up`), pulled into the compile graph by
+  `contracts/SemaphoreVerifierImport.sol`. `test/integration/RealVerifier.test.ts`
+  generates a REAL proof from the bundled depth-16 artifacts (no CDN) and asserts
+  the verifier accepts a valid vote + rejects a tampered one — gated behind
+  `RUN_REAL_VERIFIER=1`. The local chain can now genuinely verify ZK proofs
+  instead of the accept-anything mock.
 - **QR scan in the navbar** — a 5th bottom-nav entry **SCAN** (`qr_code_scanner`)
   that opens the camera scanner (mobile) or an always-reachable paste dialog and
   **routes** the decoded Tessera deep-link: `tessera://live/<a>/vote?t=…` →

@@ -41,24 +41,24 @@ async function main() {
     console.log("PoseidonT3 deployed to:", poseidonAddress);
 
     // ── 2. Deploy verifier (Mock by default, real Groth16 when USE_REAL_VERIFIER=true) ──
+    // The real `SemaphoreVerifier` is the canonical Groth16 verifier; it's pulled
+    // into the compile graph by `contracts/SemaphoreVerifierImport.sol` so the
+    // factory resolves. Proofs from the web/desktop/mobile provers (real Semaphore
+    // circuit artifacts) verify against it — no MockVerifier "accept anything".
     let verifierAddress: string;
     if (useRealVerifier) {
-        // TODO(P4-23): wire real SemaphoreVerifier. Requires:
-        //   1. A stub source under contracts/ that imports
-        //      "@semaphore-protocol/contracts/base/SemaphoreVerifier.sol"
-        //      so hardhat compiles the artifact (currently not pulled in by any
-        //      source under ./contracts/, so getContractFactory("SemaphoreVerifier")
-        //      would fail at runtime).
-        //   2. SNARK artifact bundling (P4-24) so generated proofs actually verify.
-        throw new Error(
-            "USE_REAL_VERIFIER=true is not yet wired. See P4-23 / P4-24 in docs/improvements/findings.md."
-        );
+        const RealVerifierFactory = await ethers.getContractFactory("SemaphoreVerifier");
+        const realVerifier = await RealVerifierFactory.deploy();
+        await realVerifier.waitForDeployment();
+        verifierAddress = await realVerifier.getAddress();
+        console.log("SemaphoreVerifier (real Groth16) deployed to:", verifierAddress);
+    } else {
+        const MockVerifierFactory = await ethers.getContractFactory("MockSemaphoreVerifier");
+        const mockVerifier = await MockVerifierFactory.deploy();
+        await mockVerifier.waitForDeployment();
+        verifierAddress = await mockVerifier.getAddress();
+        console.log("MockSemaphoreVerifier deployed to:", verifierAddress);
     }
-    const MockVerifierFactory = await ethers.getContractFactory("MockSemaphoreVerifier");
-    const mockVerifier = await MockVerifierFactory.deploy();
-    await mockVerifier.waitForDeployment();
-    verifierAddress = await mockVerifier.getAddress();
-    console.log("MockSemaphoreVerifier deployed to:", verifierAddress);
 
     // ── 3. Deploy Semaphore (linked to PoseidonT3, using MockVerifier) ──
     const SemaphoreFactory = await ethers.getContractFactory("Semaphore", {
