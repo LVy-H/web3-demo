@@ -54,6 +54,7 @@ dependencies:
   flutter_secure_storage: ^9.2.4  # persist the member identity seed (Keychain/libsecret/DPAPI)
   qr_flutter: ^4.1.0
   package_info_plus: ^9.0.1
+  webview_flutter: ^4.10.0  # mobile on-device Semaphore prover host (Phase 11) — runs web/zkprover.js in a headless WebView
 
 dev_dependencies:
   flutter_test:
@@ -84,6 +85,7 @@ flutter:
 
   assets:
     - assets/abi/
+    - assets/zk/   # bundled depth-16 Semaphore Groth16 artifacts (wasm+zkey) for the mobile WebView prover
 
   fonts:
     - family: Inter
