@@ -1,0 +1,251 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:tessera/data/services/chain_writer.dart';
+import 'package:tessera/data/services/poll_creator.dart';
+import 'package:tessera/data/services/wallet_service.dart';
+import 'package:tessera/ui/features/create/create_screen.dart';
+
+/// Records which `create*Poll` the screen calls (and with which options) without
+/// touching a chain. [canSign] is parameterized so we can drive the dev-signer
+/// gate: true → ranked/quadratic tiles enabled; false → disabled + hinted.
+class _FakePollCreator extends PollCreator {
+  final bool signs;
+  String? calledModule;
+  List<String>? calledOptions;
+
+  _FakePollCreator({required this.signs})
+      : super(
+          writer: ChainWriter(
+              rpcUrl: 'http://localhost:0', chainId: 31337, privateKey: ''),
+          registryAbiJson: '[]',
+          anonAbiJson: '[]',
+          approvalAbiJson: '[]',
+        );
+
+  @override
+  bool get canSign => signs;
+  @override
+  String? get signer => '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+
+  Future<String> _record(String module, List<String> options) async {
+    calledModule = module;
+    calledOptions = options;
+    return '0xfeed';
+  }
+
+  @override
+  Future<String> createAnonPoll(
+          {required String title,
+          required String description,
+          required List<String> options}) =>
+      _record('anon-vote', options);
+  @override
+  Future<String> createApprovalPoll(
+          {required String title,
+          required String description,
+          required List<String> options}) =>
+      _record('approval-vote', options);
+  @override
+  Future<String> createRankedPoll(
+          {required String title,
+          required String description,
+          required List<String> options}) =>
+      _record('ranked-vote', options);
+  @override
+  Future<String> createQuadraticPoll(
+          {required String title,
+          required String description,
+          required List<String> options}) =>
+      _record('quadratic-vote', options);
+}
+
+/// The 5-tile picker + form is taller than the default 800×600 test viewport;
+/// a ListView culls below-the-fold children offstage, so TextFields/buttons
+/// wouldn't be findable. Pumping on a tall surface lays the whole form out
+/// onstage. Must run INSIDE the test body (setSurfaceSize asserts `inTest`).
+Future<void> _pumpCreate(WidgetTester tester, PollCreator creator) async {
+  await tester.binding.setSurfaceSize(const Size(800, 2600));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  await tester.pumpWidget(_wrap(creator));
+  await tester.pumpAndSettle();
+}
+
+/// `MaterialApp.router` harness with a `/` route so `_deploy`'s success-path
+/// `context.go('/')` resolves (a plain MaterialApp would throw `GoRouter.of`).
+Widget _wrap(PollCreator creator) {
+  final router = GoRouter(
+    initialLocation: '/create',
+    routes: [
+      GoRoute(path: '/', builder: (_, _) => const Scaffold(body: Text('HOME'))),
+      GoRoute(path: '/create', builder: (_, _) => const CreateScreen()),
+    ],
+  );
+  return MultiProvider(
+    providers: [
+      Provider<PollCreator>.value(value: creator),
+      ChangeNotifierProvider<WalletService>(
+        create: (_) =>
+            WalletService(registryAbiJson: '[]', anonAbiJson: '[]'),
+      ),
+    ],
+    child: MaterialApp.router(routerConfig: router),
+  );
+}
+
+/// Tap a module tile by its title. The whole form is onstage (tall surface), so
+/// no scrolling is needed — tap directly.
+Future<void> _selectTile(WidgetTester tester, String title) async {
+  await tester.tap(find.text(title));
+  await tester.pumpAndSettle();
+}
+
+/// Add option rows until there are [target] of them. Each ADD OPTION tap appends
+/// one empty controller; we fill the new rows so the non-empty-options filter
+/// keeps them. Starts from the 2 default rows (Yes/No).
+Future<void> _growOptionsTo(WidgetTester tester, int target) async {
+  for (var i = 2; i < target; i++) {
+    await tester.tap(find.text('ADD OPTION'));
+    await tester.pumpAndSettle();
+  }
+  // Fill every option field so trimmed-empty filtering doesn't drop rows.
+  final fields = find.byType(TextField);
+  // Fields: TITLE, DESCRIPTION, then one per option row.
+  for (var i = 0; i < target; i++) {
+    await tester.enterText(fields.at(2 + i), 'Opt${i + 1}');
+  }
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  testWidgets(
+      'picker offers Ranked + Quadratic tiles, ENABLED with the dev-signer',
+      (tester) async {
+    await _pumpCreate(tester, _FakePollCreator(signs: true));
+
+    expect(find.textContaining('Ranked choice'), findsOneWidget);
+    expect(find.textContaining('Quadratic'), findsOneWidget);
+    // Canonical module strings surfaced in the enabled subtitles.
+    expect(find.textContaining('(ranked-vote)'), findsOneWidget);
+    expect(find.textContaining('(quadratic-vote)'), findsOneWidget);
+    // Enabled tiles do NOT show the "needs the dev-signer" hint.
+    expect(find.textContaining('Needs the dev-signer'), findsNothing);
+  });
+
+  testWidgets(
+      'without the dev-signer, Ranked + Quadratic are DISABLED and hinted',
+      (tester) async {
+    await _pumpCreate(tester, _FakePollCreator(signs: false));
+
+    // Both tiles still shown for discoverability…
+    expect(find.textContaining('Ranked choice'), findsOneWidget);
+    expect(find.textContaining('Quadratic'), findsOneWidget);
+    // …but with the dev-signer hint, and tagged with the canonical strings.
+    expect(
+        find.textContaining('Needs the dev-signer to deploy from mobile. '
+            '(ranked-vote)'),
+        findsOneWidget);
+    expect(
+        find.textContaining('Needs the dev-signer to deploy from mobile. '
+            '(quadratic-vote)'),
+        findsOneWidget);
+  });
+
+  testWidgets('selecting Ranked + deploy calls createRankedPoll', (
+    tester,
+  ) async {
+    final creator = _FakePollCreator(signs: true);
+    await _pumpCreate(tester, creator);
+
+    await tester.enterText(find.byType(TextField).first, 'My ranked poll');
+    await _selectTile(tester, 'Ranked choice — rank your favorites');
+
+    final deploy = find.text('DEPLOY POLL (DEV SIGNER)');
+    await tester.tap(deploy);
+    await tester.pumpAndSettle();
+
+    expect(creator.calledModule, 'ranked-vote');
+    expect(creator.calledOptions, ['Yes', 'No']);
+  });
+
+  testWidgets('selecting Quadratic + deploy calls createQuadraticPoll', (
+    tester,
+  ) async {
+    final creator = _FakePollCreator(signs: true);
+    await _pumpCreate(tester, creator);
+
+    await tester.enterText(find.byType(TextField).first, 'My QV poll');
+    await _selectTile(tester, 'Quadratic — spend 100 credits, cost = votes²');
+
+    final deploy = find.text('DEPLOY POLL (DEV SIGNER)');
+    await tester.tap(deploy);
+    await tester.pumpAndSettle();
+
+    expect(creator.calledModule, 'quadratic-vote');
+    expect(creator.calledOptions, ['Yes', 'No']);
+  });
+
+  testWidgets(
+      'ranked with 9 options DISABLES deploy + shows the ≤8 hint (no call)',
+      (tester) async {
+    final creator = _FakePollCreator(signs: true);
+    await _pumpCreate(tester, creator);
+
+    await tester.enterText(find.byType(TextField).first, 'Too many');
+    await _selectTile(tester, 'Ranked choice — rank your favorites');
+    await _growOptionsTo(tester, 9);
+
+    // The 8-option-cap hint is shown…
+    expect(find.textContaining('at most 8 options'), findsOneWidget);
+
+    // …and the deploy button is disabled (onPressed == null), so tapping is a
+    // no-op: no create* method runs.
+    final deploy = find.text('DEPLOY POLL (DEV SIGNER)');
+    final button = tester.widget<FilledButton>(
+        find.ancestor(of: deploy, matching: find.byType(FilledButton)));
+    expect(button.onPressed, isNull, reason: 'submit disabled at 9 options');
+
+    await tester.tap(deploy, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(creator.calledModule, isNull, reason: 'no deploy fired');
+  });
+
+  testWidgets('quadratic with 9 options also DISABLES deploy (≤8 guard)', (
+    tester,
+  ) async {
+    final creator = _FakePollCreator(signs: true);
+    await _pumpCreate(tester, creator);
+
+    await tester.enterText(find.byType(TextField).first, 'Too many QV');
+    await _selectTile(tester, 'Quadratic — spend 100 credits, cost = votes²');
+    await _growOptionsTo(tester, 9);
+
+    expect(find.textContaining('at most 8 options'), findsOneWidget);
+    final deploy = find.text('DEPLOY POLL (DEV SIGNER)');
+    final button = tester.widget<FilledButton>(
+        find.ancestor(of: deploy, matching: find.byType(FilledButton)));
+    expect(button.onPressed, isNull);
+    expect(creator.calledModule, isNull);
+  });
+
+  testWidgets('ranked with 8 options is allowed (boundary) → createRankedPoll',
+      (tester) async {
+    final creator = _FakePollCreator(signs: true);
+    await _pumpCreate(tester, creator);
+
+    await tester.enterText(find.byType(TextField).first, 'Eight is fine');
+    await _selectTile(tester, 'Ranked choice — rank your favorites');
+    await _growOptionsTo(tester, 8);
+
+    // No cap hint at the boundary.
+    expect(find.textContaining('at most 8 options'), findsNothing);
+
+    final deploy = find.text('DEPLOY POLL (DEV SIGNER)');
+    await tester.tap(deploy);
+    await tester.pumpAndSettle();
+
+    expect(creator.calledModule, 'ranked-vote');
+    expect(creator.calledOptions!.length, 8);
+  });
+}
