@@ -428,23 +428,36 @@ class _CreateScreenState extends State<CreateScreen> {
             left: BorderSide(
                 color: connected ? Db.success : Db.segnale, width: 3)),
       ),
-      child: Row(children: [
-        Icon(
-            connected
-                ? Icons.check_circle_outline
-                : Icons.account_balance_wallet_outlined,
-            size: 18,
-            color: connected ? Db.success : Db.segnale),
-        const SizedBox(width: 12),
-        Expanded(
-          child: connected
-              ? Text('Wallet connected\n${w.address ?? ''}',
-                  style: dbMono(11, Db.chalkDim, height: 1.5))
-              : Text('Connect a wallet to deploy',
-                  style: dbSans(13, 600, Db.chalk)),
-        ),
-        if (!connected) const WalletButton(),
-      ]),
+      // Not-connected shows a wide "SET WC_PROJECT_ID" hint button; stacking it
+      // BELOW the prompt (instead of in the same Row) avoids a right-overflow on
+      // narrow phones where the button + Expanded text can't share one line.
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(children: [
+            Icon(
+                connected
+                    ? Icons.check_circle_outline
+                    : Icons.account_balance_wallet_outlined,
+                size: 18,
+                color: connected ? Db.success : Db.segnale),
+            const SizedBox(width: 12),
+            Expanded(
+              child: connected
+                  ? Text('Wallet connected\n${w.address ?? ''}',
+                      style: dbMono(11, Db.chalkDim, height: 1.5))
+                  : Text('Connect a wallet to deploy',
+                      style: dbSans(13, 600, Db.chalk)),
+            ),
+          ]),
+          if (!connected) ...[
+            const SizedBox(height: 12),
+            const Align(
+                alignment: Alignment.centerLeft, child: WalletButton()),
+          ],
+        ],
+      ),
     );
   }
 
