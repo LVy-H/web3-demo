@@ -157,6 +157,11 @@ IrvResult runIrv(List<List<int>> ballots, int optionCount) {
       // Highest-ranked candidate on this ballot that is NOT eliminated.
       int? choice;
       for (final option in ballot) {
+        // Skip any out-of-range index (e.g. from a malformed decoded ballot).
+        // Valid on-chain ballots are always in [0, optionCount) — this guard
+        // only fires for malformed input; it does NOT change behaviour for
+        // valid input.
+        if (option < 0 || option >= optionCount) continue;
         if (!eliminated.contains(option)) {
           choice = option;
           break;
