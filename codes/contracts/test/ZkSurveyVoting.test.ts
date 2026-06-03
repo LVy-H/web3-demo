@@ -249,6 +249,76 @@ describe("ZkSurveyVoting", function () {
             expect((await poll.getQuestionOptions(0)).length).to.equal(32);
         });
 
+        it("exposes MAX_QUESTIONS = 16", async function () {
+            expect(await voting.MAX_QUESTIONS()).to.equal(16n);
+        });
+
+        it("Rejects a survey with >MAX_QUESTIONS questions (TooManyQuestions → InitFailed)", async function () {
+            // MAX_QUESTIONS + 1 well-formed questions (each ≥2 options, ≤MAX_OPTIONS),
+            // so the ONLY init violation is the question-count cap — not a stray
+            // per-question check (both would surface as InitFailed).
+            const max = Number(await voting.MAX_QUESTIONS());
+            const tooMany = Array.from({ length: max + 1 }, (_, i) => ({
+                qType: QType.SingleChoice,
+                options: [`Q${i}-A`, `Q${i}-B`],
+            }));
+            const { registry, impl } = await deployRegistryAndImpl();
+            const initData = impl.interface.encodeFunctionData("initialize", [
+                await semaphore.getAddress(),
+                owner.address,
+                encodeQuestions(tooMany),
+            ]);
+            await expect(
+                registry.createPoll(MODULE, "Overlong", "too many questions", initData)
+            ).to.be.revertedWithCustomError(registry, "InitFailed");
+        });
+
+        it("Allows exactly MAX_QUESTIONS questions & a basic cast tallies", async function () {
+            // Exactly MAX_QUESTIONS well-formed questions; kept cheap (2 options each)
+            // so the suite stays fast. Initializes, then a single SingleChoice cast
+            // across every question succeeds.
+            const max = Number(await voting.MAX_QUESTIONS());
+            const qs = Array.from({ length: max }, (_, i) => ({
+                qType: QType.SingleChoice,
+                options: [`Q${i}-A`, `Q${i}-B`],
+            }));
+            const poll = await deploySurveyClone(qs);
+            expect(await poll.getQuestionCount()).to.equal(BigInt(max));
+
+            // A basic cast over all MAX_QUESTIONS questions (every answer = index 0).
+            const pk = crypto.randomBytes(32).toString("hex");
+            const commitment = new Identity(pk).commitment;
+            await poll.registerVoter(commitment);
+            const group = new Group();
+            group.addMember(commitment);
+            await poll.startVoting();
+
+            const answers = Array.from({ length: max }, () => 0);
+            const scope = BigInt(await poll.getAddress());
+            await expect(
+                poll.castVote(answers, mockProof({ answers, nullifier: 7n, root: group.root, scope }))
+            ).to.emit(poll, "SurveyVoteCast");
+            // Q0's first option got the single vote.
+            expect((await poll.getSurveyResults())[0]).to.deep.equal([1n, 0n]);
+        });
+
+        it("Rejects an out-of-range enum qType (Panic 0x21 on decode → InitFailed)", async function () {
+            // Only QType 0 (SingleChoice) and 1 (MultiSelect) exist. A hand-crafted
+            // initData with qType = 2 makes Solidity 0.8's abi.decode revert
+            // Panic(0x21) (invalid enum value) inside initialize — which surfaces as
+            // PollRegistry.InitFailed through the clone path. encodeQuestions encodes
+            // qType as a raw uint8, so a `2` lands directly in the enum slot.
+            const { registry, impl } = await deployRegistryAndImpl();
+            const initData = impl.interface.encodeFunctionData("initialize", [
+                await semaphore.getAddress(),
+                owner.address,
+                encodeQuestions([{ qType: 2, options: ["A", "B"] }]),
+            ]);
+            await expect(
+                registry.createPoll(MODULE, "BadEnum", "qType=2", initData)
+            ).to.be.revertedWithCustomError(registry, "InitFailed");
+        });
+
         it("Prevents double initialization", async function () {
             await expect(
                 voting.initialize(await semaphore.getAddress(), owner.address, encodeQuestions(SURVEY))

@@ -27,6 +27,7 @@ error TamperedVoteSignal();
 error InvalidProof();
 // ── Survey-local ────────────────────────────────────────────────────────
 error NoQuestions();
+error TooManyQuestions();
 error WrongQuestionCount();
 error InvalidAnswer();
 
@@ -89,6 +90,22 @@ contract ZkSurveyVoting is IZkPoll, Initializable, Ownable {
     ///         initialize() for every question.
     uint256 public constant MAX_OPTIONS = 32;
 
+    /// @notice Max number of questions PER SURVEY. Bounds {castVote} gas so a
+    ///         creator can never initialize a survey too large to vote on.
+    /// @dev Gas reasoning. The worst case is the FIRST voter on a maximal survey
+    ///      of MAX_QUESTIONS MultiSelect questions, each with MAX_OPTIONS (32)
+    ///      options, voting the full-width mask: the tally does
+    ///      MAX_QUESTIONS × MAX_OPTIONS fresh SSTOREs (0→nonzero, ≈ 20k–22k gas
+    ///      each). At 16 questions that is 16 × 32 ≈ 512 fresh SSTOREs ≈ 11–12M
+    ///      gas; adding the nullifier SSTORE, keccak over the answer vector, the
+    ///      Semaphore Groth16 verify (~300k) and the SurveyVoteCast log keeps the
+    ///      worst-case castVote around ~12M — well under the ~30M block gas limit
+    ///      (≈40% of a block), with headroom for future per-question types. A cap
+    ///      of 32 would push the tally alone to 32 × 32 ≈ 1024 fresh SSTOREs
+    ///      ≈ 22–23M gas, dangerously close to the block limit, so 16 is chosen.
+    ///      Enforced at initialize() against the decoded question count.
+    uint256 public constant MAX_QUESTIONS = 16;
+
     ISemaphore public semaphore;
     uint256 public groupId;
 
@@ -122,7 +139,8 @@ contract ZkSurveyVoting is IZkPoll, Initializable, Ownable {
     /// @param initData           ABI-encoded `(QType qType, string[] options)[]`
     ///                           — i.e. `abi.encode(Question[])`. Decoded into the
     ///                           ordered question list. Validated: ≥1 question
-    ///                           (else NoQuestions); each question ≥2 options
+    ///                           (else NoQuestions) and ≤ MAX_QUESTIONS (else
+    ///                           TooManyQuestions); each question ≥2 options
     ///                           (else NeedAtLeastTwoOptions) and ≤ MAX_OPTIONS
     ///                           (else TooManyOptions).
     function initialize(
@@ -132,6 +150,7 @@ contract ZkSurveyVoting is IZkPoll, Initializable, Ownable {
     ) external initializer {
         Question[] memory qs = abi.decode(initData, (Question[]));
         if (qs.length == 0) revert NoQuestions();
+        if (qs.length > MAX_QUESTIONS) revert TooManyQuestions();
 
         for (uint256 q = 0; q < qs.length; q++) {
             uint256 n = qs[q].options.length;
