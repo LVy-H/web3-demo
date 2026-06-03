@@ -77,7 +77,12 @@ up() {
     echo "    WARN: could not parse Hardhat #0 key from $NODE_LOG; relayer not started." >&2
     echo "          (read-path e2e does not need the relayer — voting does.)" >&2
   else
+    # REGISTRY_ADDRESS lets the relayer offer the sponsored, wallet-free poll
+    # lifecycle (create/register/start). Without it /api/relay/info reports
+    # registry:null and sponsored create 503s — so the mobile Create screen
+    # can't deploy wallet-free. Read it from the freshly-deployed addresses.
     ( cd "$RELAYER" && RPC_URL=http://127.0.0.1:8545 RELAYER_PRIVATE_KEY="$key" PORT=3001 \
+        REGISTRY_ADDRESS="$(registry_address)" \
         setsid npm run start >"$RELAYER_LOG" 2>&1 </dev/null & echo $! >"$RELAYER_PID" )
     echo -n "    waiting for relayer"
     for _ in $(seq 1 20); do grep -q "running on port" "$RELAYER_LOG" 2>/dev/null && break; echo -n "."; sleep 1; done; echo

@@ -250,4 +250,80 @@ void main() {
       expect(await slow().fetchStatus(), isNull);
     });
   });
+
+  group('getRelayerInfo', () {
+    test('GETs /api/relay/info and parses relayer + registry', () async {
+      late http.Request req;
+      final c = RelayClient(
+        baseUrl: base,
+        client: MockClient((r) async {
+          req = r;
+          return http.Response(
+              jsonEncode({'relayer': '0xrelayer', 'registry': '0xreg'}), 200);
+        }),
+      );
+      final info = await c.getRelayerInfo();
+      expect(req.method, 'GET');
+      expect(req.url.toString(), '$base/api/relay/info');
+      expect(info?.relayer, '0xrelayer');
+      expect(info?.registry, '0xreg');
+    });
+
+    test('returns null on non-2xx', () async {
+      final c = RelayClient(
+        baseUrl: base,
+        client: MockClient((_) async => http.Response('nope', 500)),
+      );
+      expect(await c.getRelayerInfo(), isNull);
+    });
+  });
+
+  group('createPoll', () {
+    test('POSTs {moduleType,title,description,initData} → poll address',
+        () async {
+      late http.Request req;
+      final c = RelayClient(
+        baseUrl: base,
+        client: MockClient((r) async {
+          req = r;
+          return http.Response(
+              jsonEncode(
+                  {'success': true, 'pollAddress': '0xpoll', 'txHash': '0xtx'}),
+              200);
+        }),
+      );
+      final res = await c.createPoll(
+          moduleType: 'anon-vote',
+          title: 'T',
+          description: 'D',
+          initDataHex: '0xabcd');
+      expect(req.method, 'POST');
+      expect(req.url.path, '/api/relay/create-poll');
+      expect(jsonDecode(req.body), {
+        'moduleType': 'anon-vote',
+        'title': 'T',
+        'description': 'D',
+        'initData': '0xabcd',
+      });
+      expect(res.ok, isTrue);
+      expect(res.pollAddress, '0xpoll');
+      expect(res.txHash, '0xtx');
+    });
+
+    test('surfaces the relayer error on non-2xx (ok:false)', () async {
+      final c = RelayClient(
+        baseUrl: base,
+        client: MockClient((_) async => http.Response(
+            jsonEncode({'error': 'Daily sponsored-poll creation limit reached.'}),
+            429)),
+      );
+      final res = await c.createPoll(
+          moduleType: 'anon-vote',
+          title: 'T',
+          description: '',
+          initDataHex: '0x');
+      expect(res.ok, isFalse);
+      expect(res.error, contains('Daily'));
+    });
+  });
 }

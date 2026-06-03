@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/services/poll_creator.dart';
+import '../../../data/services/relay_client.dart' show CreatePollResult;
+import '../../../data/services/sponsored_poll_creator.dart';
 import '../../../data/services/wallet_service.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
@@ -54,6 +56,37 @@ class _CreateScreenState extends State<CreateScreen> {
   final _survey = SurveyDraft();
   _ModuleType _module = _ModuleType.anonVote;
   bool _busy = false;
+  // Whether wallet-free sponsored creation is reachable (the relayer answered
+  // /info). Probed once on open; gates the module picker + the signing banner.
+  bool _sponsoredReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final info = await context.read<SponsoredPollCreator>().probe();
+      // Sponsored create needs the relayer to know the registry; if `/info`
+      // reports `registry: null` the create endpoint 503s, so don't offer it.
+      if (mounted) {
+        setState(() => _sponsoredReady = info != null && info.registry != null);
+      }
+    });
+  }
+
+  /// Any wallet-free create path available: the local dev-signer OR the
+  /// sponsored relayer. The richer module types (approval/ranked/quadratic/
+  /// survey) are enabled whenever EITHER is — no wallet required.
+  bool _walletFree(bool devSigner) => devSigner || _sponsoredReady;
+
+  /// Canonical module-type string for the sponsored `createPoll` call.
+  String _moduleString(_ModuleType m) => switch (m) {
+        _ModuleType.anonVote => 'anon-vote',
+        _ModuleType.approvalVote => 'approval-vote',
+        _ModuleType.rankedVote => 'ranked-vote',
+        _ModuleType.quadraticVote => 'quadratic-vote',
+        _ModuleType.surveyVote => 'survey-vote',
+        _ModuleType.blindVote => 'blind-vote', // never deployed here
+      };
 
   @override
   void dispose() {
@@ -115,50 +148,70 @@ class _CreateScreenState extends State<CreateScreen> {
       return;
     }
     setState(() => _busy = true);
+    final desc0 = _desc.text.trim();
     try {
-      // Dev-signer (DEV_PRIVATE_KEY) bypasses wallet connection for local dev.
-      // Module dispatch is an explicit switch so an unhandled type can NEVER
-      // silently fall through to an anon deploy — each enabled module maps to its
-      // own creator call, and only anonVote reaches createAnonPoll. (Blind is
-      // disabled in the picker so it can't reach here.)
-      final String tx;
+      // Signing priority: local dev-signer → wallet-free sponsored relayer →
+      // (fenced) connected wallet → guidance. The explicit switch means an
+      // unhandled type can NEVER silently fall through to an anon deploy.
       if (creator.canSign) {
-        final title0 = title;
-        final desc0 = _desc.text.trim();
+        final String tx;
         switch (_module) {
           case _ModuleType.approvalVote:
             tx = await creator.createApprovalPoll(
-                title: title0, description: desc0, options: opts);
+                title: title, description: desc0, options: opts);
           case _ModuleType.rankedVote:
             tx = await creator.createRankedPoll(
-                title: title0, description: desc0, options: opts);
+                title: title, description: desc0, options: opts);
           case _ModuleType.quadraticVote:
             tx = await creator.createQuadraticPoll(
-                title: title0, description: desc0, options: opts);
+                title: title, description: desc0, options: opts);
           case _ModuleType.surveyVote:
-            // Unreachable: `_isSurvey` returns early into `_deploySurvey` above.
-            // Listed only for switch exhaustiveness; never deploys via `opts`.
-            return;
+            return; // unreachable: survey branched into _deploySurvey above
           case _ModuleType.anonVote:
           case _ModuleType.blindVote:
             tx = await creator.createAnonPoll(
-                title: title0, description: desc0, options: opts);
+                title: title, description: desc0, options: opts);
         }
+        if (!mounted) return;
+        _snack('Deploy sent · ${shortAddr(tx)}');
+        context.canPop() ? context.pop() : context.go('/');
+      } else if (_sponsoredReady) {
+        // Wallet-free: the relayer pays gas + owns the poll. Works for every
+        // sponsored module (anon/approval/ranked/quadratic), not just anon.
+        final res = await context.read<SponsoredPollCreator>().createFlatPoll(
+              moduleType: _moduleString(_module),
+              title: title,
+              description: desc0,
+              options: opts,
+            );
+        _afterSponsored(res);
+      } else if (w.isConnected) {
+        // Advanced/fenced wallet path (anon-only, public-testnet — pending P10).
+        final tx = await w.createPoll(
+            title: title, description: desc0, options: opts);
+        if (!mounted) return;
+        _snack('Deploy sent · ${shortAddr(tx)}');
+        context.canPop() ? context.pop() : context.go('/');
       } else {
-        // The wallet path only deploys anon-vote today; approval/ranked/quadratic
-        // over the wallet path are a follow-up (the dev-signer is the supported
-        // path for those). Their tiles are disabled without the dev-signer, so a
-        // wallet user can only ever select anon here — no anon mis-deploy.
-        tx = await w.createPoll(
-            title: title, description: _desc.text.trim(), options: opts);
+        _snack('No signer available — start the relayer (./dev-stack.sh up) for '
+            'sponsored creation, or set DEV_PRIVATE_KEY for local dev.');
       }
-      if (!mounted) return;
-      _snack('Deploy sent · ${shortAddr(tx)}');
-      context.canPop() ? context.pop() : context.go('/');
     } catch (e) {
       if (mounted) _snack('Deploy failed: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Handle a sponsored-create result: navigate straight to the new poll on
+  /// success, or surface the relayer's message.
+  void _afterSponsored(CreatePollResult res) {
+    if (!mounted) return;
+    if (res.ok) {
+      _snack('Poll created · ${shortAddr(res.pollAddress!)}');
+      context.go('/poll/${res.pollAddress}?module=${_moduleString(_module)}');
+    } else {
+      _snack(res.error ?? 'Could not create the poll.');
     }
   }
 
@@ -177,15 +230,25 @@ class _CreateScreenState extends State<CreateScreen> {
       return;
     }
     setState(() => _busy = true);
+    final desc0 = _desc.text.trim();
     try {
-      final tx = await creator.createSurveyPoll(
-        title: title,
-        description: _desc.text.trim(),
-        questions: _survey.toQuestions(),
-      );
-      if (!mounted) return;
-      _snack('Deploy sent · ${shortAddr(tx)}');
-      context.canPop() ? context.pop() : context.go('/');
+      if (creator.canSign) {
+        final tx = await creator.createSurveyPoll(
+            title: title, description: desc0, questions: _survey.toQuestions());
+        if (!mounted) return;
+        _snack('Deploy sent · ${shortAddr(tx)}');
+        context.canPop() ? context.pop() : context.go('/');
+      } else if (_sponsoredReady) {
+        final res = await context.read<SponsoredPollCreator>().createSurveyPoll(
+              title: title,
+              description: desc0,
+              questions: _survey.toQuestions(),
+            );
+        _afterSponsored(res);
+      } else {
+        _snack('No signer available — start the relayer (./dev-stack.sh up) for '
+            'sponsored creation, or set DEV_PRIVATE_KEY for local dev.');
+      }
     } catch (e) {
       if (mounted) _snack('Deploy failed: $e');
     } finally {
@@ -222,7 +285,7 @@ class _CreateScreenState extends State<CreateScreen> {
                   const SizedBox(height: 22),
                   Text('VOTING TYPE', style: dbLabel(size: 10, tracking: 0.16)),
                   const SizedBox(height: 10),
-                  _modulePicker(devSigner),
+                  _modulePicker(_walletFree(devSigner)),
                   const SizedBox(height: 22),
                   _field('TITLE', _title, 'Adopt the new logo?'),
                   const SizedBox(height: 16),
@@ -256,12 +319,15 @@ class _CreateScreenState extends State<CreateScreen> {
                   const SizedBox(height: 14),
                   Text(
                     devSigner
-                        ? 'Dev signer active (DEV_PRIVATE_KEY) — deploys are '
-                            'signed locally and broadcast straight to the '
-                            'configured RPC. No wallet needed.'
-                        : 'Creating a poll signs an on-chain transaction. A phone '
-                            'wallet can only broadcast to a chain it can reach — '
-                            'use a public testnet, not the host-local Hardhat node.',
+                        ? 'Signing locally with the dev key — no wallet needed.'
+                        : _sponsoredReady
+                            ? 'Wallet-free: the relayer sponsors creation (pays '
+                                'the gas and runs the poll). No wallet needed.'
+                            : 'No signer yet — start the relayer (./dev-stack.sh '
+                                'up) for sponsored, wallet-free creation, or set '
+                                'DEV_PRIVATE_KEY for local dev. Connecting a '
+                                'wallet is an optional advanced path (public '
+                                'testnet — pending Phase 10).',
                     style: dbMono(10, Db.muteDim, height: 1.6),
                   ),
                 ],
@@ -297,7 +363,7 @@ class _CreateScreenState extends State<CreateScreen> {
         subtitle: devSigner
             ? 'Approve any number of options; the tally counts every approval. '
                 '(approval-vote)'
-            : 'Needs the dev-signer to deploy from mobile. (approval-vote)',
+            : 'Needs a signer — start the relayer or set DEV_PRIVATE_KEY. (approval-vote)',
         icon: Icons.check_box,
         accent: Db.oltremare,
         enabled: devSigner,
@@ -308,7 +374,7 @@ class _CreateScreenState extends State<CreateScreen> {
         subtitle: devSigner
             ? 'Rank options; an instant-runoff finds the winner. Up to 8 options. '
                 '(ranked-vote)'
-            : 'Needs the dev-signer to deploy from mobile. (ranked-vote)',
+            : 'Needs a signer — start the relayer or set DEV_PRIVATE_KEY. (ranked-vote)',
         icon: Icons.format_list_numbered,
         accent: Db.success,
         enabled: devSigner,
@@ -319,7 +385,7 @@ class _CreateScreenState extends State<CreateScreen> {
         subtitle: devSigner
             ? 'Allocate a credit budget across options; cost grows as votes². '
                 'Up to 8 options. (quadratic-vote)'
-            : 'Needs the dev-signer to deploy from mobile. (quadratic-vote)',
+            : 'Needs a signer — start the relayer or set DEV_PRIVATE_KEY. (quadratic-vote)',
         icon: Icons.calculate_outlined,
         accent: Db.catSocial,
         enabled: devSigner,
@@ -330,7 +396,7 @@ class _CreateScreenState extends State<CreateScreen> {
         subtitle: devSigner
             ? 'Compose several questions (single-choice or multi-select); voters '
                 'answer them all in one ballot. (survey-vote)'
-            : 'Needs the dev-signer to deploy from mobile. (survey-vote)',
+            : 'Needs a signer — start the relayer or set DEV_PRIVATE_KEY. (survey-vote)',
         icon: Icons.list_alt,
         accent: Db.oltremare,
         enabled: devSigner,
@@ -400,59 +466,56 @@ class _CreateScreenState extends State<CreateScreen> {
     );
   }
 
+  /// The signing banner — leads with the active **wallet-free** path. Tessera is
+  /// wallet-free by design: local dev signs with the dev key, production signs
+  /// via the sponsored relayer. The wallet is an optional, fenced advanced path.
   Widget _walletBanner(WalletService w, bool devSigner) {
+    // Path 1 — local dev-signer (wallet-free).
     if (devSigner) {
       final addr = context.read<PollCreator>().signer ?? '';
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
-          color: Db.slate,
-          border: Border(left: BorderSide(color: Db.success, width: 3)),
-        ),
-        child: Row(children: [
-          const Icon(Icons.vpn_key_outlined, size: 18, color: Db.success),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text('Dev signer active\n$addr',
-                style: dbMono(11, Db.chalkDim, height: 1.5)),
-          ),
-        ]),
+      return _bannerBox(
+        accent: Db.success,
+        icon: Icons.vpn_key_outlined,
+        child: Text('Signing locally (dev signer) — no wallet needed\n$addr',
+            style: dbMono(11, Db.chalkDim, height: 1.5)),
       );
     }
+    // Path 2 — sponsored relayer (wallet-free, the production default).
+    if (_sponsoredReady) {
+      return _bannerBox(
+        accent: Db.success,
+        icon: Icons.bolt_outlined,
+        child: Text(
+            'Wallet-free — Tessera sponsors creation: the relayer pays the gas '
+            'and runs the poll. No wallet needed.',
+            style: dbMono(11, Db.chalkDim, height: 1.5)),
+      );
+    }
+    // Path 3 — nothing wallet-free reachable: honest guidance + the optional,
+    // fenced "advanced" wallet (public testnet, pending Phase 10).
     final connected = w.isConnected;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Db.slate,
-        border: Border(
-            left: BorderSide(
-                color: connected ? Db.success : Db.segnale, width: 3)),
-      ),
-      // Not-connected shows a wide "SET WC_PROJECT_ID" hint button; stacking it
-      // BELOW the prompt (instead of in the same Row) avoids a right-overflow on
-      // narrow phones where the button + Expanded text can't share one line.
+    return _bannerBox(
+      accent: connected ? Db.success : Db.segnale,
+      icon: connected
+          ? Icons.check_circle_outline
+          : Icons.account_balance_wallet_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(children: [
-            Icon(
-                connected
-                    ? Icons.check_circle_outline
-                    : Icons.account_balance_wallet_outlined,
-                size: 18,
-                color: connected ? Db.success : Db.segnale),
-            const SizedBox(width: 12),
-            Expanded(
-              child: connected
-                  ? Text('Wallet connected\n${w.address ?? ''}',
-                      style: dbMono(11, Db.chalkDim, height: 1.5))
-                  : Text('Connect a wallet to deploy',
-                      style: dbSans(13, 600, Db.chalk)),
-            ),
-          ]),
-          if (!connected) ...[
+          connected
+              ? Text('Wallet connected (advanced)\n${w.address ?? ''}',
+                  style: dbMono(11, Db.chalkDim, height: 1.5))
+              : Text(
+                  'No wallet-free signer reachable. Start the relayer '
+                  '(./dev-stack.sh up) for sponsored creation, or set '
+                  'DEV_PRIVATE_KEY for local dev.',
+                  style: dbSans(12, 500, Db.chalk, height: 1.4)),
+          if (w.supported && !connected) ...[
             const SizedBox(height: 12),
+            Text('Advanced — public testnet (pending Phase 10)',
+                style: dbLabel(size: 9, color: Db.mute)),
+            const SizedBox(height: 6),
             const Align(
                 alignment: Alignment.centerLeft, child: WalletButton()),
           ],
@@ -460,6 +523,25 @@ class _CreateScreenState extends State<CreateScreen> {
       ),
     );
   }
+
+  /// Shared left-accent banner box for the three signing states.
+  Widget _bannerBox({
+    required Color accent,
+    required IconData icon,
+    required Widget child,
+  }) =>
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Db.slate,
+          border: Border(left: BorderSide(color: accent, width: 3)),
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, size: 18, color: accent),
+          const SizedBox(width: 12),
+          Expanded(child: child),
+        ]),
+      );
 
   Widget _field(String label, TextEditingController c, String hint,
           {int maxLines = 1}) =>
@@ -561,11 +643,22 @@ class _CreateScreenState extends State<CreateScreen> {
       ]);
 
   Widget _deployButton(WalletService w, bool devSigner) {
-    final canDeploy = devSigner || w.isConnected;
+    // Wallet-free first: any of dev-signer / sponsored relayer / connected wallet
+    // can deploy. (No more "connect a wallet" dead-end when the relayer is up.)
+    final canDeploy = devSigner || _sponsoredReady || w.isConnected;
     // Survey gates on its OWN validity (1..16 questions / 2..32 options each);
     // every other module gates on the flat option-row count.
     final formOk = _isSurvey ? _survey.isValid : _optionCountOk;
     final enabled = canDeploy && !_busy && formOk;
+    final label = _busy
+        ? 'DEPLOYING…'
+        : devSigner
+            ? 'DEPLOY POLL (DEV SIGNER)'
+            : _sponsoredReady
+                ? 'CREATE POLL — WALLET-FREE'
+                : w.isConnected
+                    ? 'DEPLOY POLL (WALLET)'
+                    : 'NO SIGNER — START THE RELAYER';
     return SizedBox(
       width: double.infinity,
       child: FilledButton(
@@ -578,11 +671,7 @@ class _CreateScreenState extends State<CreateScreen> {
           padding: const EdgeInsets.symmetric(vertical: 16),
         ),
         child: Text(
-          _busy
-              ? 'DEPLOYING…'
-              : (devSigner
-                  ? 'DEPLOY POLL (DEV SIGNER)'
-                  : (w.isConnected ? 'DEPLOY POLL' : 'CONNECT WALLET FIRST')),
+          label,
           style: dbSans(13, 800, canDeploy ? Db.chalk : Db.mute,
               letterSpacing: 1.4),
         ),
