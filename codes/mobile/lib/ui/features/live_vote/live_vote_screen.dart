@@ -167,7 +167,12 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
       );
 
   Future<void> _openScanner(BuildContext context, LiveVoteViewModel vm) async {
-    final raw = await showQrScanSheet(context);
+    final raw = await showQrScanSheet(
+      context,
+      title: 'SCAN QR TICKET',
+      hint: "Point the camera at the organizer's QR. Can't scan? Close this and "
+          "paste the link/ticket below instead.",
+    );
     if (raw == null) return; // dismissed / camera unavailable → paste still works
     onScanned(vm, raw);
   }

@@ -1,9 +1,15 @@
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/theme.dart';
+
+/// Sentinel returned by [showQrScanSheet] when the user taps "paste a link"
+/// instead of scanning (a value no real QR payload collides with). The caller
+/// reacts by opening its paste fallback.
+const kQrScanPaste = ' __tessera_paste__';
 
 /// Whether the in-app camera QR scanner can be offered on this platform.
 ///
@@ -28,21 +34,37 @@ bool get cameraScanSupported =>
         defaultTargetPlatform == TargetPlatform.iOS);
 
 /// Opens the camera QR scanner in a modal sheet and resolves with the first
-/// successfully decoded raw barcode value (or `null` if the user dismisses it
-/// or the camera is unavailable / permission denied). The caller feeds the raw
-/// value to `LiveVoteViewModel.extractTicket` → `setTicket` → `join` — this
-/// sheet does NO ticket parsing of its own.
-Future<String?> showQrScanSheet(BuildContext context) {
+/// successfully decoded raw barcode value, [kQrScanPaste] if the user chose to
+/// paste instead (only when [showPasteAction] is set), or `null` if the user
+/// dismisses it / the camera is unavailable / permission denied. The caller does
+/// any payload parsing itself — this sheet hands back the raw value.
+Future<String?> showQrScanSheet(
+  BuildContext context, {
+  String title = 'SCAN QR',
+  String hint = "Point the camera at the QR. Can't scan? Paste the link instead.",
+  bool showPasteAction = false,
+}) {
   return showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Db.void_,
-    builder: (_) => const _QrScanSheet(),
+    builder: (_) => _QrScanSheet(
+      title: title,
+      hint: hint,
+      showPasteAction: showPasteAction,
+    ),
   );
 }
 
 class _QrScanSheet extends StatefulWidget {
-  const _QrScanSheet();
+  final String title;
+  final String hint;
+  final bool showPasteAction;
+  const _QrScanSheet({
+    required this.title,
+    required this.hint,
+    required this.showPasteAction,
+  });
   @override
   State<_QrScanSheet> createState() => _QrScanSheetState();
 }
@@ -68,6 +90,7 @@ class _QrScanSheetState extends State<_QrScanSheet> {
       final raw = barcode.rawValue;
       if (raw != null && raw.trim().isNotEmpty) {
         _handled = true;
+        HapticFeedback.mediumImpact(); // success cue
         Navigator.of(context).pop(raw);
         return;
       }
@@ -87,7 +110,7 @@ class _QrScanSheetState extends State<_QrScanSheet> {
               padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
               child: Row(children: [
                 Expanded(
-                  child: Text('SCAN QR TICKET',
+                  child: Text(widget.title,
                       style: dbLabel(size: 11, tracking: 0.16)),
                 ),
                 IconButton(
@@ -105,12 +128,21 @@ class _QrScanSheetState extends State<_QrScanSheet> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                  'Point the camera at the organizer\'s QR. Can\'t scan? Close '
-                  'this and paste the link/ticket instead.',
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(widget.hint,
                   style: dbMono(11, Db.muteDim, height: 1.5)),
             ),
+            if (widget.showPasteAction)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                child: TextButton.icon(
+                  onPressed: () => Navigator.of(context).pop(kQrScanPaste),
+                  icon: const Icon(Icons.keyboard_outlined,
+                      size: 16, color: Db.chalkDim),
+                  label: Text('PASTE A LINK INSTEAD',
+                      style: dbLabel(size: 11, color: Db.chalkDim)),
+                ),
+              ),
           ],
         ),
       ),
