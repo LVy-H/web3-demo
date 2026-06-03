@@ -385,6 +385,35 @@ class RelayClient {
       return CreatePollResult(error: e.toString());
     }
   }
+
+  /// Wallet-free self-registration: the relayer (owner of a sponsored poll) adds
+  /// the voter's [identityCommitment] to the poll's Semaphore group, paying gas.
+  /// Idempotent (already-a-member returns ok). On failure [RegisterResult.ok] is
+  /// false and `error` carries the relayer's message (e.g. "joining is closed").
+  Future<RegisterResult> registerVoter(
+    String pollAddress,
+    String identityCommitment,
+  ) async {
+    try {
+      final r = await _postJson(
+        '/api/relay/register-voter',
+        {'pollAddress': pollAddress, 'identityCommitment': identityCommitment},
+        timeout: voteTimeout, // includes an on-chain tx
+      );
+      if (r.ok && r.data['success'] == true) {
+        return RegisterResult(
+          ok: true,
+          txHash: r.data['txHash'] is String ? r.data['txHash'] as String : null,
+          alreadyRegistered: r.data['alreadyRegistered'] == true,
+        );
+      }
+      return RegisterResult(error: _err(r.data, 'Could not join this poll.'));
+    } on TimeoutException {
+      return const RegisterResult(error: 'The relayer timed out. Try again.');
+    } catch (e) {
+      return RegisterResult(error: e.toString());
+    }
+  }
 }
 
 /// Thrown for relayer calls whose failure is exceptional (issue/redeem/queue).
@@ -416,6 +445,20 @@ class CreatePollResult {
   final String? error;
   const CreatePollResult({this.pollAddress, this.txHash, this.error});
   bool get ok => pollAddress != null;
+}
+
+/// `POST /api/relay/register-voter` result.
+class RegisterResult {
+  final bool ok;
+  final String? txHash;
+  final bool alreadyRegistered;
+  final String? error;
+  const RegisterResult({
+    this.ok = false,
+    this.txHash,
+    this.alreadyRegistered = false,
+    this.error,
+  });
 }
 
 class PostPendingResult {

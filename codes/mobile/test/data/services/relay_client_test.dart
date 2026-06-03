@@ -326,4 +326,40 @@ void main() {
       expect(res.error, contains('Daily'));
     });
   });
+
+  group('registerVoter', () {
+    test('POSTs {pollAddress, identityCommitment} + parses ok/alreadyRegistered',
+        () async {
+      late http.Request req;
+      final c = RelayClient(
+        baseUrl: base,
+        client: MockClient((r) async {
+          req = r;
+          return http.Response(
+              jsonEncode(
+                  {'success': true, 'txHash': '0xtx', 'alreadyRegistered': true}),
+              200);
+        }),
+      );
+      final res = await c.registerVoter(pollId, '12345');
+      expect(req.method, 'POST');
+      expect(req.url.path, '/api/relay/register-voter');
+      expect(jsonDecode(req.body),
+          {'pollAddress': pollId, 'identityCommitment': '12345'});
+      expect(res.ok, isTrue);
+      expect(res.txHash, '0xtx');
+      expect(res.alreadyRegistered, isTrue);
+    });
+
+    test('surfaces the relayer error on non-2xx (e.g. joining closed)', () async {
+      final c = RelayClient(
+        baseUrl: base,
+        client: MockClient((_) async => http.Response(
+            jsonEncode({'error': 'Joining is closed for this poll.'}), 400)),
+      );
+      final res = await c.registerVoter(pollId, '12345');
+      expect(res.ok, isFalse);
+      expect(res.error, contains('Joining is closed'));
+    });
+  });
 }

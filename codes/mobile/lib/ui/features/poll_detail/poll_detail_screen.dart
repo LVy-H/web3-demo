@@ -516,13 +516,37 @@ class _RegistrationStatus extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Not registered in this poll. Share your identity commitment '
-                  'with the organizer to be added:',
+                  'Not registered in this poll yet.',
                   style: dbMono(11, Db.chalkDim, height: 1.4),
                 ),
               ),
             ]),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
+            // Primary path: join WITHOUT a wallet — the relayer (owner of a
+            // sponsored poll) registers your commitment, paying the gas.
+            InkWell(
+              onTap: vm.joining ? null : vm.join,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                color: vm.joining ? Db.slate : Db.segnale,
+                child: Center(
+                  child: Text(
+                    vm.joining ? 'JOINING…' : 'JOIN THIS POLL — WALLET-FREE',
+                    style: dbSans(12, 800, vm.joining ? Db.mute : Db.chalk,
+                        letterSpacing: 1.2),
+                  ),
+                ),
+              ),
+            ),
+            if (vm.joinError != null) ...[
+              const SizedBox(height: 8),
+              Text(vm.joinError!, style: dbMono(10, Db.segnale, height: 1.4)),
+            ],
+            const SizedBox(height: 14),
+            Text('Or hand your commitment to the organizer to be added:',
+                style: dbMono(10, Db.muteDim, height: 1.4)),
+            const SizedBox(height: 8),
             SelectableText(commitment, style: dbMono(11, Db.chalk, height: 1.4)),
             const SizedBox(height: 10),
             InkWell(

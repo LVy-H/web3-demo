@@ -93,6 +93,44 @@ class VoteViewModel extends ChangeNotifier {
     _notify();
   }
 
+  // Wallet-free self-registration state.
+  bool joining = false;
+  String? joinError;
+
+  /// Join this poll WITHOUT a wallet: the relayer (owner of a sponsored poll)
+  /// registers [myCommitment] in the Semaphore group, paying gas. Then re-checks
+  /// membership on-chain so the panel flips to "registered". Requires the seed to
+  /// have been entered (so [myCommitment] is derived).
+  Future<void> join() async {
+    final commitment = myCommitment;
+    if (commitment == null) {
+      joinError = 'Enter your identity first.';
+      _notify();
+      return;
+    }
+    joining = true;
+    joinError = null;
+    _notify();
+    try {
+      final res = await _relay.registerVoter(pollAddress, commitment);
+      if (!res.ok) {
+        joinError = res.error ?? 'Could not join this poll.';
+      } else {
+        // Confirm on-chain — the relayer added the commitment to the group.
+        final group = await _repo.fetchGroup(pollAddress);
+        isRegistered = group.contains(commitment);
+        if (isRegistered != true) {
+          joinError = 'Registered, but not visible yet — try again in a moment.';
+        }
+      }
+    } catch (e) {
+      joinError = e.toString();
+    } finally {
+      joining = false;
+      _notify();
+    }
+  }
+
   Future<void> castVote({
     required String identitySeed,
     required int optionIndex,
