@@ -3,18 +3,33 @@ import 'package:go_router/go_router.dart';
 
 import '../../config.dart';
 import '../features/wallet/wallet_button.dart';
+import 'scan_router.dart';
 import 'theme.dart';
 
 /// App chrome for the mobile shell: a persistent bottom NavigationBar
-/// (Polls / Verify / Create) plus a Drawer (wallet, network, about) wrapping the
-/// three branch navigators. Poll detail pushes inside the Polls branch, so the
-/// nav bar stays visible. Replaces the old web-port header buttons.
+/// (Polls / Verify / Create / Identity / Scan) plus a Drawer (wallet, network,
+/// about) wrapping the branch navigators. Poll detail pushes inside the Polls
+/// branch, so the nav bar stays visible. Replaces the old web-port header
+/// buttons.
 class AppShell extends StatelessWidget {
   final StatefulNavigationShell shell;
   const AppShell({super.key, required this.shell});
 
+  /// SCAN is the 5th nav item but an *action*, not a branch: tapping it opens
+  /// the QR scanner / paste fallback and routes the result, rather than
+  /// switching tabs. It sits past the 4 shell branches (0..3).
+  static const _scanIndex = 4;
+
   void _goBranch(int i) =>
       shell.goBranch(i, initialLocation: i == shell.currentIndex);
+
+  void _onTap(BuildContext context, int i) {
+    if (i == _scanIndex) {
+      scanAndRoute(context);
+    } else {
+      _goBranch(i);
+    }
+  }
 
   static String get _network {
     final host = Uri.tryParse(AppConfig.rpcUrl)?.host ?? '';
@@ -56,7 +71,8 @@ class AppShell extends StatelessWidget {
       ),
       drawer: const _AppDrawer(),
       body: shell,
-      bottomNavigationBar: _NavBar(index: shell.currentIndex, onTap: _goBranch),
+      bottomNavigationBar:
+          _NavBar(index: shell.currentIndex, onTap: (i) => _onTap(context, i)),
     );
   }
 }
@@ -109,6 +125,12 @@ class _NavBar extends StatelessWidget {
                   icon: Icon(Icons.fingerprint_outlined),
                   selectedIcon: Icon(Icons.fingerprint),
                   label: 'IDENTITY'),
+              // Action, not a branch — opens the scanner / paste fallback and
+              // routes the result (handled in AppShell._onTap), so it never
+              // shows as a selected tab.
+              NavigationDestination(
+                  icon: Icon(Icons.qr_code_scanner),
+                  label: 'SCAN'),
             ],
           ),
         ),

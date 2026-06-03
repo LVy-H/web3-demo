@@ -5,6 +5,16 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **QR scan in the navbar** — a 5th bottom-nav entry **SCAN** (`qr_code_scanner`)
+  that opens the camera scanner (mobile) or an always-reachable paste dialog and
+  **routes** the decoded Tessera deep-link: `tessera://live/<a>/vote?t=…` →
+  live-vote, `tessera://verify?…` → verify, `tessera://poll/<a>?module=…` → poll
+  detail (also tolerates `https` mirrors). SCAN is an *action*, not a tab (it
+  doesn't switch branches). The pure `routeForScannedValue` parser is unit-tested
+  (13 cases); the camera decode stays the device-fenced path, paste is the
+  verified fallback. The existing live-vote scanner was generalized (title/hint
+  params, a success haptic, a "paste a link instead" affordance). Design:
+  `docs/superpowers/specs/2026-06-03-navbar-qr-scan-design.md`.
 - **Phase 12d — Multi-question survey voting (`survey-vote`)**, shipped
   full-stack and closing the Phase 12 voting-types epic (12a/12b/12c/12d all
   shipped):
