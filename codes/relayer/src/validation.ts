@@ -47,6 +47,29 @@ export interface ClaimAirdropRequest {
     proof: SemaphoreProof;
 }
 
+// ── Sponsored poll lifecycle (M1: create / register / start) ────────────────
+//
+// These three requests have NO Semaphore proof — they drive the OWNER side of a
+// poll (the relayer is the owner under Decision 1A), not a voter's anonymous
+// cast. They mirror the {ok, data | error} shape and the field-element / address
+// helpers of the vote validators above.
+
+export interface CreatePollRequest {
+    moduleType: string;
+    title: string;
+    description: string;
+    initData: string; // 0x hex: the ABI-encoded initialize(...) call
+}
+
+export interface RegisterVoterRequest {
+    pollAddress: string;
+    identityCommitment: string; // decimal field element (< BN254 r), non-zero
+}
+
+export interface StartVotingRequest {
+    pollAddress: string;
+}
+
 function isValidAddress(addr: unknown): addr is string {
     return typeof addr === "string" && ethers.isAddress(addr);
 }
@@ -468,6 +491,213 @@ export function validateSurveyVoteRequest(
             answers,
             proof,
         },
+    };
+}
+
+// The canonical module strings the registry knows (the routing key, never shown
+// to users — see the plain-language spec §2). create-poll validates moduleType
+// against this allow-list and rejects unknown modules BEFORE spending any gas.
+// `blind-vote` is deliberately excluded: it is not offered in the sponsored
+// create flow (mirrors the mobile create form, spec §2 "voting-type picker").
+export const SPONSORED_MODULE_TYPES = [
+    "anon-vote",
+    "approval-vote",
+    "ranked-vote",
+    "quadratic-vote",
+    "survey-vote",
+] as const;
+
+// Anti-bloat caps on the human-readable strings the relayer stores on-chain
+// (PollRegistry.PollInfo.title/description). Generous enough for real polls,
+// tight enough that a script can't mint multi-kilobyte junk at the relayer's gas.
+const MAX_TITLE_LEN = 200;
+const MAX_DESCRIPTION_LEN = 2000;
+
+// An initialize(...) call is a 4-byte selector + ABI head, so the minimum valid
+// initData is at least the selector + the two leading static address words
+// (semaphore, owner) = 4 + 32 + 32 = 68 bytes ⇒ 2 + 136 hex chars. We don't cap
+// the upper bound here (options/questions vary); the chain owns InitFailed.
+const MIN_INITDATA_HEX_LEN = 2 + (4 + 32 + 32) * 2; // "0x" + 68 bytes
+
+/** Decode the `owner` argument (the 2nd word) out of an ABI-encoded
+ *  initialize(...) call. Every sponsored module's initialize has the shape
+ *  `(address semaphore, address owner, <tail>)` — the owner is ALWAYS the second
+ *  static word, at byte offset 4(selector)+32(semaphore). Reading the two leading
+ *  words with the AbiCoder also validates them: it throws if the high 12 bytes of
+ *  either address word are non-zero (i.e. not a clean left-padded address), which
+ *  rejects a malformed/garbage initData. Returns the checksummed owner, or null
+ *  if initData is not parseable as `(address,address,...)`. */
+function decodeInitDataOwner(initData: string): string | null {
+    try {
+        // Strip "0x" + the 4-byte (8 hex char) selector, leaving the ABI args.
+        const argsHex = "0x" + initData.slice(2 + 8);
+        // Decode only the two leading static words; the tail (options/bytes) is
+        // ignored. AbiCoder throws on a dirty address word or a short buffer.
+        const decoded = ethers.AbiCoder.defaultAbiCoder().decode(
+            ["address", "address"],
+            argsHex
+        );
+        // decoded[0] = semaphore, decoded[1] = owner.
+        return ethers.getAddress(decoded[1] as string);
+    } catch {
+        return null;
+    }
+}
+
+/** Validate a sponsored CREATE-POLL request. The relayer pays gas to clone +
+ *  initialize a poll, so this guards three things before any tx:
+ *   1. moduleType is a known sponsored module (allow-list).
+ *   2. title/description are present and within anti-bloat caps.
+ *   3. initData is valid hex AND its embedded `owner` word equals the relayer's
+ *      own signer address — LOAD-BEARING (Decision 1A / "Owner-from-initData"):
+ *      if the owner were anyone else, the relayer would pay create-gas for a poll
+ *      it can't register/start (a cheap grief). We REJECT (400) on mismatch — the
+ *      validate-and-reject variant from the spec (not server-side override).
+ *  `relayerAddress` is passed in (derived locally from the signer, no network) so
+ *  this validator stays pure and unit-testable with no chain. */
+export function validateCreatePollRequest(
+    body: unknown,
+    relayerAddress: string
+): { ok: true; data: CreatePollRequest } | { ok: false; error: string } {
+    if (!body || typeof body !== "object") {
+        return { ok: false, error: "Request body must be a JSON object" };
+    }
+
+    const b = body as Record<string, unknown>;
+
+    if (typeof b.moduleType !== "string" || b.moduleType.length === 0) {
+        return { ok: false, error: "Invalid moduleType: must be a non-empty string" };
+    }
+    if (!(SPONSORED_MODULE_TYPES as readonly string[]).includes(b.moduleType)) {
+        return {
+            ok: false,
+            error: `Unknown moduleType "${b.moduleType}": must be one of ${SPONSORED_MODULE_TYPES.join(", ")}`,
+        };
+    }
+
+    if (typeof b.title !== "string" || b.title.trim().length === 0) {
+        return { ok: false, error: "Invalid title: must be a non-empty string" };
+    }
+    if (b.title.length > MAX_TITLE_LEN) {
+        return { ok: false, error: `Invalid title: must be at most ${MAX_TITLE_LEN} characters` };
+    }
+
+    if (typeof b.description !== "string") {
+        return { ok: false, error: "Invalid description: must be a string" };
+    }
+    if (b.description.length > MAX_DESCRIPTION_LEN) {
+        return {
+            ok: false,
+            error: `Invalid description: must be at most ${MAX_DESCRIPTION_LEN} characters`,
+        };
+    }
+
+    if (
+        typeof b.initData !== "string" ||
+        !/^0x[0-9a-fA-F]*$/.test(b.initData) ||
+        b.initData.length % 2 !== 0 ||
+        b.initData.length < MIN_INITDATA_HEX_LEN
+    ) {
+        return {
+            ok: false,
+            error: "Invalid initData: must be 0x-prefixed hex encoding an initialize(...) call",
+        };
+    }
+
+    const owner = decodeInitDataOwner(b.initData);
+    if (owner === null) {
+        return {
+            ok: false,
+            error: "Invalid initData: could not decode the (address semaphore, address owner, ...) header",
+        };
+    }
+    // The load-bearing check: the poll MUST be owned by the relayer so the
+    // relayer can register voters + start voting. Reject anything else.
+    if (ethers.getAddress(owner) !== ethers.getAddress(relayerAddress)) {
+        return {
+            ok: false,
+            error: `Invalid initData owner: sponsored polls must be owned by the relayer (${ethers.getAddress(relayerAddress)}), got ${owner}`,
+        };
+    }
+
+    return {
+        ok: true,
+        data: {
+            moduleType: b.moduleType,
+            title: b.title,
+            description: b.description,
+            initData: b.initData,
+        },
+    };
+}
+
+/** Validate a sponsored REGISTER-VOTER request. The relayer (owner) adds a
+ *  voter's Semaphore identity commitment to the poll's group. Validates the
+ *  pollAddress and that identityCommitment is a non-zero in-field decimal
+ *  (< BN254 r) — the same field bound the survey message check uses. State /
+ *  already-registered checks are done on-chain in the relay step (they need a
+ *  provider), not here. */
+export function validateRegisterVoterRequest(
+    body: unknown
+): { ok: true; data: RegisterVoterRequest } | { ok: false; error: string } {
+    if (!body || typeof body !== "object") {
+        return { ok: false, error: "Request body must be a JSON object" };
+    }
+
+    const b = body as Record<string, unknown>;
+
+    if (!isValidAddress(b.pollAddress)) {
+        return { ok: false, error: "Invalid pollAddress: must be a valid Ethereum address" };
+    }
+
+    if (typeof b.identityCommitment !== "string" || !/^\d+$/.test(b.identityCommitment)) {
+        return {
+            ok: false,
+            error: "Invalid identityCommitment: must be a decimal field element string",
+        };
+    }
+    let commitment: bigint;
+    try {
+        commitment = BigInt(b.identityCommitment);
+    } catch {
+        return { ok: false, error: "Invalid identityCommitment: must be a decimal field element string" };
+    }
+    if (commitment <= 0n || commitment >= BN254_FIELD_ORDER) {
+        return {
+            ok: false,
+            error: "Invalid identityCommitment: must be a non-zero field element (< BN254 r)",
+        };
+    }
+
+    return {
+        ok: true,
+        data: {
+            pollAddress: b.pollAddress as string,
+            identityCommitment: commitment.toString(),
+        },
+    };
+}
+
+/** Validate a sponsored START-VOTING request. The relayer (owner) flips the poll
+ *  Registration → Voting. Only the pollAddress is needed; the revertable
+ *  pre-conditions (needs ≥1 voter / ≥2 options / must be in Registration) are
+ *  enforced on-chain and surfaced with clear messages in the relay step. */
+export function validateStartVotingRequest(
+    body: unknown
+): { ok: true; data: StartVotingRequest } | { ok: false; error: string } {
+    if (!body || typeof body !== "object") {
+        return { ok: false, error: "Request body must be a JSON object" };
+    }
+
+    const b = body as Record<string, unknown>;
+
+    if (!isValidAddress(b.pollAddress)) {
+        return { ok: false, error: "Invalid pollAddress: must be a valid Ethereum address" };
+    }
+
+    return {
+        ok: true,
+        data: { pollAddress: b.pollAddress as string },
     };
 }
 

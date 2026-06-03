@@ -1,10 +1,10 @@
 import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import { config } from "./config";
-import { relayCastVote, relayApprovalVote, relayRankedVote, relayQuadraticVote, relaySurveyVote, relayClaimAirdrop, checkRelayerBalance } from "./relay";
-import { getRelayerInfo } from "./wallet";
-import { validateVoteRequest, validateApprovalVoteRequest, validateRankedVoteRequest, validateQuadraticVoteRequest, validateSurveyVoteRequest, validateClaimRequest } from "./validation";
+import { config, getCreateSecret, getRegistryAddress, getCreateDailyMax, getRegisterPerPollMax } from "./config";
+import { relayCastVote, relayApprovalVote, relayRankedVote, relayQuadraticVote, relaySurveyVote, relayClaimAirdrop, relayCreatePoll, relayRegisterVoter, relayStartVoting, checkRelayerBalance, ClientFacingError } from "./relay";
+import { getRelayerInfo, getRelayerWallet } from "./wallet";
+import { validateVoteRequest, validateApprovalVoteRequest, validateRankedVoteRequest, validateQuadraticVoteRequest, validateSurveyVoteRequest, validateClaimRequest, validateCreatePollRequest, validateRegisterVoterRequest, validateStartVotingRequest } from "./validation";
 import { createTicketRouter } from "./tickets";
 
 /** Build the Express app WITHOUT listening, so tests (supertest) can import it
@@ -27,6 +27,45 @@ export function createApp(): express.Express {
         message: { error: "Too many requests. Please wait before trying again." },
     });
     app.use("/api/relay", limiter);
+
+    // ── Abuse guards for the sponsored lifecycle (Decision 3) ───────────────
+    // Constructed INSIDE createApp() so each app instance (and each test) starts
+    // with clean in-memory counters. These are additive to the global limiter
+    // above; the relayer pays gas for create/register, so they get tighter,
+    // purpose-specific caps. NOTE: in-memory ⇒ they reset on process restart and
+    // are per-instance (not shared across replicas). This is a LIGHT guard that
+    // keeps a casual abuser from draining the relayer — it is NOT Sybil-resistant
+    // (see the spec's "Honesty / trade-offs"). A production deployment needs more.
+
+    // create-poll: a tight per-IP DAILY cap on top of the global 20/min window,
+    // so one IP can't mint hundreds of sponsored polls (each costs the relayer
+    // gas). Default 5/day/IP (config.createDailyMax).
+    const createLimiter = rateLimit({
+        windowMs: 24 * 60 * 60 * 1000, // 1 day
+        max: getCreateDailyMax(),
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: "Daily sponsored-poll creation limit reached. Try again tomorrow." },
+    });
+
+    // register-voter: a per-(IP, pollAddress) cap so one IP can't flood a single
+    // poll's group with thousands of junk commitments. Keyed on ip + the poll the
+    // body targets (express.json() has already parsed the body at this point).
+    const registerLimiter = rateLimit({
+        windowMs: 24 * 60 * 60 * 1000, // 1 day
+        max: getRegisterPerPollMax(),
+        standardHeaders: true,
+        legacyHeaders: false,
+        keyGenerator: (req) => {
+            const ip = req.ip ?? "unknown";
+            const poll =
+                req.body && typeof req.body === "object" && typeof (req.body as Record<string, unknown>).pollAddress === "string"
+                    ? ((req.body as Record<string, unknown>).pollAddress as string).toLowerCase()
+                    : "no-poll";
+            return `${ip}:${poll}`;
+        },
+        message: { error: "Too many join attempts for this poll from your network. Please wait." },
+    });
 
     // ── POST /api/relay/vote ────────────────────────────────────────────────
     app.post("/api/relay/vote", async (req, res) => {
@@ -237,6 +276,174 @@ export function createApp(): express.Express {
             const message = err instanceof Error ? err.message : String(err);
             console.error(`[RELAY] ✗ claimAirdrop error:`, message);
             res.status(500).json({ error: "Internal relayer error" });
+        }
+    });
+
+    // ── GET /api/relay/info ─────────────────────────────────────────────────
+    // Sponsored-lifecycle discovery: returns the relayer's SIGNER ADDRESS (the
+    // client bakes this as the `owner` word inside initData so the relayer owns —
+    // and can register/start — the poll) and the PollRegistry address. A separate
+    // endpoint from /status (which stays byte-for-byte unchanged); this one does
+    // not hit the chain (no balance read) so it's a cheap, cacheable lookup.
+    app.get("/api/relay/info", (_req, res) => {
+        try {
+            const address = getRelayerWallet().address;
+            res.json({
+                relayer: address,
+                registry: getRegistryAddress() ?? null,
+            });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[RELAY] ✗ info error:`, message);
+            res.status(500).json({ error: "Internal relayer error" });
+        }
+    });
+
+    // ── POST /api/relay/create-poll ─────────────────────────────────────────
+    // Sponsored, wallet-free poll creation (Decision 1A custodial / 0B windowed).
+    // The relayer clones + initializes a poll via PollRegistry.createPoll, paying
+    // gas. The poll's owner (inside initData) MUST be the relayer — enforced in
+    // validateCreatePollRequest and REJECTED (400) otherwise, so nobody can make
+    // the relayer deploy a poll it can't run. Guard order: global limiter (above)
+    // → daily create cap → optional X-Create-Secret → validation → balance → tx.
+    app.post("/api/relay/create-poll", createLimiter, async (req, res) => {
+        try {
+            // Optional operator gate (Decision 3): when CREATE_SECRET is set, the
+            // client must send a matching X-Create-Secret header. Read at request
+            // time so a deployment can rotate it without an import. When unset
+            // (local/dev), create is open. This is NOT Sybil-resistant.
+            const secret = getCreateSecret();
+            if (secret !== undefined) {
+                const provided = req.header("X-Create-Secret");
+                if (provided !== secret) {
+                    res.status(401).json({ error: "Missing or invalid create secret" });
+                    return;
+                }
+            }
+
+            if (!getRegistryAddress()) {
+                res.status(503).json({
+                    error: "Sponsored poll creation isn't configured on this relayer.",
+                });
+                return;
+            }
+
+            const validation = validateCreatePollRequest(req.body, getRelayerWallet().address);
+            if (!validation.ok) {
+                res.status(400).json({ error: validation.error });
+                return;
+            }
+
+            const balanceCheck = await checkRelayerBalance();
+            if (!balanceCheck.sufficient) {
+                res.status(503).json({
+                    error: "Sponsored creation is temporarily paused (relayer is low on funds).",
+                    balance: balanceCheck.balance,
+                });
+                return;
+            }
+
+            const { moduleType, title, description, initData } = validation.data;
+            console.log(`[RELAY] createPoll → module=${moduleType} title=${JSON.stringify(title)}`);
+
+            const result = await relayCreatePoll(moduleType, title, description, initData);
+            console.log(`[RELAY] ✓ poll=${result.pollAddress} txHash=${result.txHash}`);
+
+            res.json({ success: true, pollAddress: result.pollAddress, txHash: result.txHash });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[RELAY] ✗ createPoll error:`, message);
+            res.status(500).json({ error: "Could not create the poll. Please try again." });
+        }
+    });
+
+    // ── POST /api/relay/register-voter ──────────────────────────────────────
+    // Sponsored, wallet-free join (Decision 2A). The relayer (owner) registers a
+    // voter's identity commitment, paying gas. Under 0B this only works while the
+    // poll is in Registration — a clear "joining is closed" error otherwise.
+    // Idempotent if the commitment is already a member. Guard: global limiter →
+    // per-(IP, pollAddress) cap → validation → balance → tx.
+    app.post("/api/relay/register-voter", registerLimiter, async (req, res) => {
+        try {
+            const validation = validateRegisterVoterRequest(req.body);
+            if (!validation.ok) {
+                res.status(400).json({ error: validation.error });
+                return;
+            }
+
+            const balanceCheck = await checkRelayerBalance();
+            if (!balanceCheck.sufficient) {
+                res.status(503).json({
+                    error: "Relayer has insufficient funds to pay gas",
+                    balance: balanceCheck.balance,
+                });
+                return;
+            }
+
+            const { pollAddress, identityCommitment } = validation.data;
+            console.log(`[RELAY] registerVoter → poll=${pollAddress}`);
+
+            const result = await relayRegisterVoter(pollAddress, identityCommitment);
+            console.log(`[RELAY] ✓ registered (already=${result.alreadyRegistered}) txHash=${result.txHash}`);
+
+            res.json({
+                success: true,
+                txHash: result.txHash,
+                alreadyRegistered: result.alreadyRegistered,
+            });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[RELAY] ✗ registerVoter error:`, message);
+            // A ClientFacingError carries vetted copy ("joining is closed" /
+            // "already registered" / a mapped revert) → 400. Anything else (infra
+            // / node failure) → generic 500, mirroring the vote routes.
+            if (err instanceof ClientFacingError) {
+                res.status(400).json({ error: err.message });
+            } else {
+                res.status(500).json({ error: "Internal relayer error" });
+            }
+        }
+    });
+
+    // ── POST /api/relay/start-voting ────────────────────────────────────────
+    // Sponsored "Open voting" action (0B). The relayer (owner) flips the poll
+    // Registration → Voting, paying gas. The needs-≥1-voter / wrong-state reverts
+    // are surfaced as clear messages. Guard: global limiter → validation →
+    // balance → tx.
+    app.post("/api/relay/start-voting", async (req, res) => {
+        try {
+            const validation = validateStartVotingRequest(req.body);
+            if (!validation.ok) {
+                res.status(400).json({ error: validation.error });
+                return;
+            }
+
+            const balanceCheck = await checkRelayerBalance();
+            if (!balanceCheck.sufficient) {
+                res.status(503).json({
+                    error: "Relayer has insufficient funds to pay gas",
+                    balance: balanceCheck.balance,
+                });
+                return;
+            }
+
+            const { pollAddress } = validation.data;
+            console.log(`[RELAY] startVoting → poll=${pollAddress}`);
+
+            const result = await relayStartVoting(pollAddress);
+            console.log(`[RELAY] ✓ txHash=${result.txHash}`);
+
+            res.json({ success: true, txHash: result.txHash });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[RELAY] ✗ startVoting error:`, message);
+            // ClientFacingError (mapped revert / pre-check) → 400; else generic
+            // 500, mirroring the vote routes.
+            if (err instanceof ClientFacingError) {
+                res.status(400).json({ error: err.message });
+            } else {
+                res.status(500).json({ error: "Internal relayer error" });
+            }
         }
     });
 
