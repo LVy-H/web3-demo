@@ -52,6 +52,13 @@ class GatedProofService implements ProofService {
     required String scope,
   }) async => proof;
   @override
+  Future<RelayProof> generateVoteProofWide({
+    required String identitySeed,
+    required List<String> memberCommitments,
+    required String message,
+    required String scope,
+  }) async => proof;
+  @override
   void dispose() {}
 }
 

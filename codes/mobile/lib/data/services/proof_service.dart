@@ -24,6 +24,25 @@ abstract class ProofService {
     required String scope,
   });
 
+  /// Like [generateVoteProof] but for a WIDE [message]: a decimal-string BN254
+  /// field element, not an `int`. Used by the survey (`survey-vote`) module,
+  /// whose `message` is a 248-bit keccak commitment
+  /// (`keccak256(abi.encode(answers)) >> 8`, see
+  /// `core/crypto/survey_commit.dart`) that CANNOT fit Dart's 64-bit `int`.
+  ///
+  /// This is a SIBLING — deliberately NOT a widening of [generateVoteProof] — so
+  /// the four shipped modules' (anon / approval / ranked / quadratic / live-vote)
+  /// VERIFIED int cast path never moves. Every other parameter mirrors
+  /// [generateVoteProof] exactly; only [message]'s type changes (`int` → wide
+  /// decimal `String`). The JS prover already does `BigInt(message)`, so a
+  /// decimal string round-trips losslessly.
+  Future<RelayProof> generateVoteProofWide({
+    required String identitySeed,
+    required List<String> memberCommitments,
+    required String message,
+    required String scope,
+  });
+
   /// Derive the Semaphore identity commitment (decimal string) for
   /// [identitySeed]. Pure identity math (not the SNARK) — the public id the
   /// organizer registers and the input to the live-meeting confirmation code.
@@ -48,6 +67,26 @@ class FakeProofService implements ProofService {
     required String scope,
   }) async =>
       proof;
+
+  @override
+  Future<RelayProof> generateVoteProofWide({
+    required String identitySeed,
+    required List<String> memberCommitments,
+    required String message,
+    required String scope,
+  }) async =>
+      // Echo the passed wide [message] back (the fixed proof's other fields are
+      // preserved) so M4b survey widget tests can assert the commitment the UI
+      // computed was the one handed to the prover. No `copyWith` exists, so we
+      // rebuild the RelayProof with `message` overridden.
+      RelayProof(
+        merkleTreeDepth: proof.merkleTreeDepth,
+        merkleTreeRoot: proof.merkleTreeRoot,
+        nullifier: proof.nullifier,
+        message: message,
+        scope: proof.scope,
+        points: proof.points,
+      );
 
   @override
   Future<String> deriveCommitment(String identitySeed) async =>
