@@ -38,7 +38,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
               constraints: const BoxConstraints(maxWidth: 1040),
               child: Consumer<LiveHostViewModel>(
                 builder: (context, vm, _) => switch (vm.state) {
-                  ViewState.idle || ViewState.loading => const Center(
+                  ViewState.idle || ViewState.loading => Center(
                       child: CircularProgressIndicator(color: Db.segnale)),
                   ViewState.error => _Error(message: vm.error ?? 'Unknown error'),
                   ViewState.loaded => _Body(vm: vm),
@@ -97,7 +97,7 @@ class _Body extends StatelessWidget {
             child: InkWell(
               onTap: () => context.canPop() ? context.pop() : context.go('/'),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.arrow_back, size: 14, color: Db.mute),
+                Icon(Icons.arrow_back, size: 14, color: Db.mute),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text('BACK',
@@ -118,7 +118,7 @@ class _Body extends StatelessWidget {
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: Db.slate,
               border: Border.fromBorderSide(BorderSide(color: Db.rule)),
             ),
@@ -131,7 +131,7 @@ class _Body extends StatelessWidget {
   Widget _banner(IconData icon, String text) => Container(
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Db.slate,
           border: Border(left: BorderSide(color: Db.segnale, width: 3)),
         ),
@@ -159,13 +159,13 @@ class _QrPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Db.slate,
         border: Border.fromBorderSide(BorderSide(color: Db.rule)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Icon(Icons.qr_code_2, size: 16, color: Db.mute),
+          Icon(Icons.qr_code_2, size: 16, color: Db.mute),
           const SizedBox(width: 8),
           Text('SCAN TO JOIN', style: dbSectionTitle),
           const Spacer(),
@@ -212,13 +212,13 @@ class _QueuePanel extends StatelessWidget {
     final pending = vm.queue.where((v) => v.status == 'pending').toList();
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Db.slate,
         border: Border.fromBorderSide(BorderSide(color: Db.rule)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Icon(Icons.groups_outlined, size: 16, color: Db.mute),
+          Icon(Icons.groups_outlined, size: 16, color: Db.mute),
           const SizedBox(width: 8),
           Text('PENDING QUEUE', style: dbSectionTitle),
           const Spacer(),
@@ -252,7 +252,7 @@ class _VoterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(14),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Db.void_,
           border: Border.fromBorderSide(BorderSide(color: Db.rule)),
         ),
@@ -328,7 +328,7 @@ class _Error extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.cloud_off, color: Db.segnale, size: 40),
+            Icon(Icons.cloud_off, color: Db.segnale, size: 40),
             const SizedBox(height: 12),
             Text("COULDN'T START THE SESSION",
                 style: dbLabel(size: 12, color: Db.chalk)),

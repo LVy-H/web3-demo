@@ -386,7 +386,7 @@ class _CreateScreenState extends State<CreateScreen> {
               ),
             ),
             if (!enabled)
-              const Icon(Icons.lock_outline, size: 14, color: Db.muteDim)
+              Icon(Icons.lock_outline, size: 14, color: Db.muteDim)
             else
               Icon(
                   selected
@@ -405,12 +405,12 @@ class _CreateScreenState extends State<CreateScreen> {
       final addr = context.read<PollCreator>().signer ?? '';
       return Container(
         padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Db.slate,
           border: Border(left: BorderSide(color: Db.success, width: 3)),
         ),
         child: Row(children: [
-          const Icon(Icons.vpn_key_outlined, size: 18, color: Db.success),
+          Icon(Icons.vpn_key_outlined, size: 18, color: Db.success),
           const SizedBox(width: 12),
           Expanded(
             child: Text('Dev signer active\n$addr',
@@ -466,10 +466,10 @@ class _CreateScreenState extends State<CreateScreen> {
             hintStyle: dbSans(14, 400, Db.muteDim),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            enabledBorder: const OutlineInputBorder(
+            enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.zero,
                 borderSide: BorderSide(color: Db.rule)),
-            focusedBorder: const OutlineInputBorder(
+            focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.zero,
                 borderSide: BorderSide(color: Db.segnale)),
           ),
@@ -494,10 +494,10 @@ class _CreateScreenState extends State<CreateScreen> {
                 hintStyle: dbSans(13, 400, Db.muteDim),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                enabledBorder: const OutlineInputBorder(
+                enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.zero,
                     borderSide: BorderSide(color: Db.rule)),
-                focusedBorder: const OutlineInputBorder(
+                focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.zero,
                     borderSide: BorderSide(color: Db.segnale)),
               ),
@@ -505,7 +505,7 @@ class _CreateScreenState extends State<CreateScreen> {
           ),
           if (_options.length > 2)
             IconButton(
-              icon: const Icon(Icons.close, size: 16, color: Db.mute),
+              icon: Icon(Icons.close, size: 16, color: Db.mute),
               onPressed: () => setState(() => _options.removeAt(i).dispose()),
             ),
         ]),
@@ -516,7 +516,7 @@ class _CreateScreenState extends State<CreateScreen> {
         child: TextButton.icon(
           onPressed: () =>
               setState(() => _options.add(TextEditingController())),
-          icon: const Icon(Icons.add, size: 15, color: Db.chalkDim),
+          icon: Icon(Icons.add, size: 15, color: Db.chalkDim),
           label:
               Text('ADD OPTION', style: dbLabel(size: 11, color: Db.chalkDim)),
         ),
@@ -532,7 +532,7 @@ class _CreateScreenState extends State<CreateScreen> {
             '$_rankedQuadraticMaxOptions options — remove ${n - _rankedQuadraticMaxOptions}.'
         : 'Add at least 2 options.';
     return Row(children: [
-      const Icon(Icons.info_outline, size: 13, color: Db.amber),
+      Icon(Icons.info_outline, size: 13, color: Db.amber),
       const SizedBox(width: 8),
       Expanded(child: Text(msg, style: dbMono(10, Db.amber, height: 1.5))),
     ]);
@@ -542,7 +542,7 @@ class _CreateScreenState extends State<CreateScreen> {
   // surfaced so the user sees WHY deploy is disabled before an `initialize`
   // revert. Distinct from the flat-options `_optionLimitHint`.
   Widget _surveyHint(String msg) => Row(children: [
-        const Icon(Icons.info_outline, size: 13, color: Db.amber),
+        Icon(Icons.info_outline, size: 13, color: Db.amber),
         const SizedBox(width: 8),
         Expanded(child: Text(msg, style: dbMono(10, Db.amber, height: 1.5))),
       ]);

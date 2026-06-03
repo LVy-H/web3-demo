@@ -38,7 +38,7 @@ class _BlindPollScreenState extends State<BlindPollScreen> {
               constraints: const BoxConstraints(maxWidth: 1040),
               child: Consumer<BlindPollViewModel>(
                 builder: (context, vm, _) => switch (vm.state) {
-                  ViewState.idle || ViewState.loading => const Center(
+                  ViewState.idle || ViewState.loading => Center(
                       child: CircularProgressIndicator(color: Db.segnale)),
                   ViewState.error => _Error(
                       message: vm.error ?? 'Unknown error', onRetry: vm.load),
@@ -111,7 +111,7 @@ class _Body extends StatelessWidget {
             child: InkWell(
               onTap: () => context.canPop() ? context.pop() : context.go('/'),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.arrow_back, size: 14, color: Db.mute),
+                Icon(Icons.arrow_back, size: 14, color: Db.mute),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text('BACK TO POLLS',
@@ -132,7 +132,7 @@ class _Body extends StatelessWidget {
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: Db.slate,
               border: Border.fromBorderSide(BorderSide(color: Db.rule)),
             ),
@@ -150,7 +150,7 @@ class _PhaseStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
             border: Border.fromBorderSide(BorderSide(color: Db.rule))),
         child: Row(children: [
           for (var i = 0; i < 3; i++)
@@ -163,7 +163,7 @@ class _PhaseStrip extends StatelessWidget {
                       ? Db.amber
                       : (i < state ? Db.slate : Db.void_),
                   border: i < 2
-                      ? const Border(right: BorderSide(color: Db.rule))
+                      ? Border(right: BorderSide(color: Db.rule))
                       : null,
                 ),
                 child: FittedBox(
@@ -188,7 +188,7 @@ class _ResultsBars extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Db.slate,
         border: Border.fromBorderSide(BorderSide(color: Db.rule)),
       ),
@@ -196,7 +196,7 @@ class _ResultsBars extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.bar_chart, size: 16, color: Db.mute),
+            Icon(Icons.bar_chart, size: 16, color: Db.mute),
             const SizedBox(width: 8),
             Text('REVEALED TALLY', style: dbSectionTitle),
             const Spacer(),
@@ -243,7 +243,7 @@ class _ActionPanelState extends State<_ActionPanel> {
     final isOwner = s.isOwner(vm.signer);
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Db.slate,
         border: Border.fromBorderSide(BorderSide(color: Db.rule)),
       ),
@@ -417,7 +417,7 @@ class _Error extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.cloud_off, color: Db.amber, size: 40),
+            Icon(Icons.cloud_off, color: Db.amber, size: 40),
             const SizedBox(height: 12),
             Text("COULDN'T LOAD THIS POLL",
                 style: dbLabel(size: 12, color: Db.chalk)),
@@ -428,7 +428,7 @@ class _Error extends StatelessWidget {
               onPressed: onRetry,
               style: OutlinedButton.styleFrom(
                 shape: const RoundedRectangleBorder(),
-                side: const BorderSide(color: Db.rule),
+                side: BorderSide(color: Db.rule),
               ),
               child: Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),
             ),

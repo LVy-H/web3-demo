@@ -138,7 +138,7 @@ class SurveyQuestionBuilder extends StatelessWidget {
                 key: ValueKey('remove-question-$qi'),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
-                icon: const Icon(Icons.delete_outline, size: 18, color: Db.mute),
+                icon: Icon(Icons.delete_outline, size: 18, color: Db.mute),
                 onPressed: () {
                   draft.questions.removeAt(qi).dispose();
                   onChanged();
@@ -230,10 +230,10 @@ class SurveyQuestionBuilder extends StatelessWidget {
                 hintStyle: dbSans(12, 400, Db.muteDim),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-                enabledBorder: const OutlineInputBorder(
+                enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.zero,
                     borderSide: BorderSide(color: Db.rule)),
-                focusedBorder: const OutlineInputBorder(
+                focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.zero,
                     borderSide: BorderSide(color: Db.segnale)),
               ),
@@ -244,7 +244,7 @@ class SurveyQuestionBuilder extends StatelessWidget {
               key: ValueKey('remove-q$qi-opt$oi'),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-              icon: const Icon(Icons.close, size: 15, color: Db.mute),
+              icon: Icon(Icons.close, size: 15, color: Db.mute),
               onPressed: () {
                 q.options.removeAt(oi).dispose();
                 onChanged();
@@ -263,7 +263,7 @@ class SurveyQuestionBuilder extends StatelessWidget {
                   q.options.add(TextEditingController());
                   onChanged();
                 },
-          icon: const Icon(Icons.add, size: 14, color: Db.chalkDim),
+          icon: Icon(Icons.add, size: 14, color: Db.chalkDim),
           label: Text('ADD OPTION',
               style: dbLabel(size: 10, color: Db.chalkDim)),
         ),
@@ -279,7 +279,7 @@ class SurveyQuestionBuilder extends StatelessWidget {
                   draft.questions.add(SurveyQuestionDraft());
                   onChanged();
                 },
-          icon: const Icon(Icons.add_circle_outline,
+          icon: Icon(Icons.add_circle_outline,
               size: 16, color: Db.segnale),
           label: Text('ADD QUESTION',
               style: dbLabel(size: 11, color: Db.segnale)),

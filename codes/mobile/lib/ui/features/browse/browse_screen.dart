@@ -253,7 +253,7 @@ class _FilterStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Db.slate3,
         border: Border.fromBorderSide(BorderSide(color: Db.rule)),
       ),
@@ -269,7 +269,7 @@ class _FilterStrip extends StatelessWidget {
               cursorColor: Db.segnale,
               decoration: InputDecoration(
                 isDense: true,
-                prefixIcon: const Icon(Icons.search, size: 16, color: Db.mute),
+                prefixIcon: Icon(Icons.search, size: 16, color: Db.mute),
                 prefixIconConstraints:
                     const BoxConstraints(minWidth: 30, minHeight: 30),
                 hintText: 'SEARCH POLLS',
@@ -278,7 +278,7 @@ class _FilterStrip extends StatelessWidget {
               ),
             ),
           ),
-          const Divider(height: 1, color: Db.rule),
+          Divider(height: 1, color: Db.rule),
           // Filters as ONE horizontally-scrollable row — never wraps into a
           // tall, overwhelming block on a phone.
           SingleChildScrollView(
@@ -306,7 +306,7 @@ class _FilterStrip extends StatelessWidget {
 
   Widget _stripLabel(String t) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(right: BorderSide(color: Db.rule)),
         ),
         child: Text(t, style: dbLabel(size: 10)),
@@ -318,12 +318,13 @@ class _Pill extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
   final Color? swatch;
-  final Color activeColor;
+  final Color? activeColor;
   const _Pill(this.label, this.active, this.onTap,
-      {this.swatch, this.activeColor = Db.slate});
+      {this.swatch, this.activeColor});
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = this.activeColor ?? Db.slate;
     final bg = active
         ? (activeColor == Db.segnale ? Db.segnale : Db.slate)
         : Colors.transparent;
@@ -336,7 +337,7 @@ class _Pill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: bg,
-          border: const Border(right: BorderSide(color: Db.rule)),
+          border: Border(right: BorderSide(color: Db.rule)),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           if (swatch != null) ...[
@@ -501,7 +502,7 @@ class _HeroStat extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.only(top: 14),
         decoration:
-            const BoxDecoration(border: Border(top: BorderSide(color: Db.ruleSoft))),
+            BoxDecoration(border: Border(top: BorderSide(color: Db.ruleSoft))),
         child: Row(crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic, children: [
           Text(votes?.toString() ?? '—',
@@ -521,12 +522,12 @@ class _EmptyView extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 56, horizontal: 24),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Db.slate3,
           border: Border.fromBorderSide(BorderSide(color: Db.rule)),
         ),
         child: Column(children: [
-          const Icon(Icons.description_outlined, size: 44, color: Db.muteDim),
+          Icon(Icons.description_outlined, size: 44, color: Db.muteDim),
           const SizedBox(height: 14),
           Text('No polls match this filter',
               style: dbSans(18, 700, Db.chalk, letterSpacing: -0.2)),
@@ -584,7 +585,7 @@ class _SkeletonCard extends StatelessWidget {
         height: 232,
         decoration: BoxDecoration(color: Db.slate, border: Border.all(color: Db.rule)),
         child: Stack(children: [
-          const Positioned(
+          Positioned(
               left: 0, right: 0, top: 0, height: 4, child: ColoredBox(color: Db.rule)),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
@@ -611,7 +612,7 @@ class _ErrorView extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.cloud_off, color: Db.segnale, size: 40),
+            Icon(Icons.cloud_off, color: Db.segnale, size: 40),
             const SizedBox(height: 12),
             Text("COULDN'T LOAD POLLS", style: dbLabel(size: 12, color: Db.chalk)),
             const SizedBox(height: 8),
@@ -622,7 +623,7 @@ class _ErrorView extends StatelessWidget {
               onPressed: onRetry,
               style: OutlinedButton.styleFrom(
                 shape: const RoundedRectangleBorder(),
-                side: const BorderSide(color: Db.rule),
+                side: BorderSide(color: Db.rule),
               ),
               child: Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),
             ),

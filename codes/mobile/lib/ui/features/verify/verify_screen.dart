@@ -60,7 +60,7 @@ class _VerifyScreenState extends State<VerifyScreen> {
                       onTap: () =>
                           context.canPop() ? context.pop() : context.go('/'),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.arrow_back, size: 14, color: Db.mute),
+                        Icon(Icons.arrow_back, size: 14, color: Db.mute),
                         const SizedBox(width: 6),
                         Text('BACK', style: dbLabel(size: 11, tracking: 0.16)),
                       ]),
@@ -110,10 +110,10 @@ class _VerifyScreenState extends State<VerifyScreen> {
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               hintText: hint,
               hintStyle: dbMono(12, Db.mute),
-              enabledBorder: const OutlineInputBorder(
+              enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.zero,
                   borderSide: BorderSide(color: Db.rule)),
-              focusedBorder: const OutlineInputBorder(
+              focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.zero,
                   borderSide: BorderSide(color: Db.segnale)),
             ),
@@ -150,7 +150,7 @@ class _Verdict extends StatelessWidget {
       case VerifyVerdict.idle:
         return const SizedBox.shrink();
       case VerifyVerdict.checking:
-        return const Padding(
+        return Padding(
           padding: EdgeInsets.only(top: 8),
           child: CircularProgressIndicator(color: Db.segnale),
         );

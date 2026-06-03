@@ -44,7 +44,7 @@ class _PollDetailScreenState extends State<PollDetailScreen> {
               constraints: const BoxConstraints(maxWidth: 1040),
               child: Consumer<PollDetailViewModel>(
                 builder: (context, vm, _) => switch (vm.state) {
-                  ViewState.idle || ViewState.loading => const Center(
+                  ViewState.idle || ViewState.loading => Center(
                       child: CircularProgressIndicator(color: Db.segnale)),
                   ViewState.error => _ErrorView(
                       message: vm.error ?? 'Unknown error', onRetry: vm.load),
@@ -94,7 +94,7 @@ class _Body extends StatelessWidget {
                     border: Border.all(color: Db.segnale),
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.qr_code_2, size: 16, color: Db.segnale),
+                    Icon(Icons.qr_code_2, size: 16, color: Db.segnale),
                     const SizedBox(width: 10),
                     Text('ORGANIZE LIVE SESSION  →',
                         style: dbSans(12, 800, Db.segnale, letterSpacing: 1.0)),
@@ -148,7 +148,7 @@ class _Header extends StatelessWidget {
             child: InkWell(
               onTap: () => context.canPop() ? context.pop() : context.go('/'),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.arrow_back, size: 14, color: Db.mute),
+                Icon(Icons.arrow_back, size: 14, color: Db.mute),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text('BACK TO POLLS',
@@ -169,7 +169,7 @@ class _Header extends StatelessWidget {
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: Db.slate,
               border: Border.fromBorderSide(BorderSide(color: Db.rule)),
             ),
@@ -187,7 +187,7 @@ class _PhaseStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
           border: Border.fromBorderSide(BorderSide(color: Db.rule))),
       child: Row(
         children: [
@@ -201,7 +201,7 @@ class _PhaseStrip extends StatelessWidget {
                       ? Db.segnale
                       : (i < state ? Db.slate : Db.void_),
                   border: i < 2
-                      ? const Border(right: BorderSide(color: Db.rule))
+                      ? Border(right: BorderSide(color: Db.rule))
                       : null,
                 ),
                 // scaleDown so the longest label ('REGISTRATION' + its index)
@@ -212,7 +212,7 @@ class _PhaseStrip extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (i < state) ...[
-                        const Icon(Icons.check, size: 13, color: Db.mute),
+                        Icon(Icons.check, size: 13, color: Db.mute),
                         const SizedBox(width: 6),
                       ] else if (i > state) ...[
                         Text('0${i + 1}',
@@ -250,7 +250,7 @@ class _ResultsBars extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Db.slate,
         border: Border.fromBorderSide(BorderSide(color: Db.rule)),
       ),
@@ -258,7 +258,7 @@ class _ResultsBars extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.bar_chart, size: 16, color: Db.mute),
+            Icon(Icons.bar_chart, size: 16, color: Db.mute),
             const SizedBox(width: 8),
             Text('LIVE RESULTS', style: dbSectionTitle),
             const Spacer(),
@@ -293,12 +293,12 @@ class _VoteArea extends StatelessWidget {
     if (!proofServiceAvailable) {
       return Container(
         padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Db.slate,
           border: Border.fromBorderSide(BorderSide(color: Db.rule)),
         ),
         child: Row(children: [
-          const Icon(Icons.lock_outline, color: Db.mute, size: 18),
+          Icon(Icons.lock_outline, color: Db.mute, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -380,7 +380,7 @@ class _VoteFormState extends State<_VoteForm> {
         _selected != null && _seed.text.trim().isNotEmpty && !vm.isBusy;
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Db.slate,
         border: Border.fromBorderSide(BorderSide(color: Db.rule)),
       ),
@@ -401,7 +401,7 @@ class _VoteFormState extends State<_VoteForm> {
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
             child: Row(children: [
-              const Icon(Icons.fingerprint, size: 13, color: Db.success),
+              Icon(Icons.fingerprint, size: 13, color: Db.success),
               const SizedBox(width: 6),
               Text('using your saved identity',
                   style: dbLabel(size: 10, color: Db.success)),
@@ -420,10 +420,10 @@ class _VoteFormState extends State<_VoteForm> {
             fillColor: Db.void_,
             hintText: 'paste your invite token / identity seed',
             hintStyle: dbMono(12, Db.mute),
-            enabledBorder: const OutlineInputBorder(
+            enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.zero,
                 borderSide: BorderSide(color: Db.rule)),
-            focusedBorder: const OutlineInputBorder(
+            focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.zero,
                 borderSide: BorderSide(color: Db.segnale)),
           ),
@@ -477,7 +477,7 @@ class _RegistrationStatus extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.only(top: 12),
         child: Row(children: [
-          const SizedBox(
+          SizedBox(
             width: 12,
             height: 12,
             child: CircularProgressIndicator(strokeWidth: 2, color: Db.mute),
@@ -497,7 +497,7 @@ class _RegistrationStatus extends StatelessWidget {
             border: Border.all(color: Db.success),
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.check, size: 14, color: Db.success),
+            Icon(Icons.check, size: 14, color: Db.success),
             const SizedBox(width: 8),
             Flexible(
               child: Text('Registered — ready to vote',
@@ -513,13 +513,13 @@ class _RegistrationStatus extends StatelessWidget {
         padding: const EdgeInsets.only(top: 12),
         child: Container(
           padding: const EdgeInsets.all(14),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Db.slate,
             border: Border(left: BorderSide(color: Db.amber, width: 3)),
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              const Icon(Icons.error_outline, size: 16, color: Db.amber),
+              Icon(Icons.error_outline, size: 16, color: Db.amber),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -540,12 +540,12 @@ class _RegistrationStatus extends StatelessWidget {
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: Db.void_,
                   border: Border.fromBorderSide(BorderSide(color: Db.rule)),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.copy_outlined, size: 14, color: Db.chalkDim),
+                  Icon(Icons.copy_outlined, size: 14, color: Db.chalkDim),
                   const SizedBox(width: 7),
                   Text('COPY', style: dbLabel(size: 10, color: Db.chalkDim)),
                 ]),
@@ -629,7 +629,7 @@ class _ErrorView extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.cloud_off, color: Db.segnale, size: 40),
+            Icon(Icons.cloud_off, color: Db.segnale, size: 40),
             const SizedBox(height: 12),
             Text("COULDN'T LOAD THIS POLL",
                 style: dbLabel(size: 12, color: Db.chalk)),
@@ -640,7 +640,7 @@ class _ErrorView extends StatelessWidget {
               onPressed: onRetry,
               style: OutlinedButton.styleFrom(
                 shape: const RoundedRectangleBorder(),
-                side: const BorderSide(color: Db.rule),
+                side: BorderSide(color: Db.rule),
               ),
               child: Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),
             ),

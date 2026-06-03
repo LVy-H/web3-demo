@@ -41,12 +41,12 @@ class _Hint extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Db.slate3,
           border: Border.fromBorderSide(BorderSide(color: Db.rule)),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.account_balance_wallet_outlined,
+          Icon(Icons.account_balance_wallet_outlined,
               size: 13, color: Db.mute),
           const SizedBox(width: 8),
           Text(label, style: dbLabel(size: 11, tracking: 0.1)),

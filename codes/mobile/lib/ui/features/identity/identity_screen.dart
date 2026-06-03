@@ -87,7 +87,7 @@ class _IdentityScreenState extends State<IdentityScreen> {
                   ),
                   const SizedBox(height: 22),
                   if (vm.loading)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
                       child: Center(
                         child: SizedBox(
@@ -158,7 +158,7 @@ class _IdentityScreenState extends State<IdentityScreen> {
 
   Widget _seedPanel(String seed) => Container(
         padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Db.slate3,
           border: Border.fromBorderSide(BorderSide(color: Db.rule)),
         ),
@@ -187,7 +187,7 @@ class _IdentityScreenState extends State<IdentityScreen> {
 
   Widget _commitmentPanel(String commitment) => Container(
         padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Db.slate3,
           border: Border.fromBorderSide(BorderSide(color: Db.rule)),
         ),
@@ -210,7 +210,7 @@ class _IdentityScreenState extends State<IdentityScreen> {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Db.void_,
             border: Border.fromBorderSide(BorderSide(color: Db.rule)),
           ),
@@ -248,7 +248,7 @@ class _IdentityScreenState extends State<IdentityScreen> {
           onPressed: onTap,
           style: OutlinedButton.styleFrom(
             foregroundColor: Db.amber,
-            side: const BorderSide(color: Db.rule),
+            side: BorderSide(color: Db.rule),
             shape: const RoundedRectangleBorder(),
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
@@ -274,10 +274,10 @@ class _IdentityScreenState extends State<IdentityScreen> {
             hintStyle: dbMono(12, Db.muteDim),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            enabledBorder: const OutlineInputBorder(
+            enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.zero,
                 borderSide: BorderSide(color: Db.rule)),
-            focusedBorder: const OutlineInputBorder(
+            focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.zero,
                 borderSide: BorderSide(color: Db.segnale)),
           ),
@@ -298,7 +298,7 @@ class _IdentityScreenState extends State<IdentityScreen> {
             },
             style: OutlinedButton.styleFrom(
               foregroundColor: Db.chalk,
-              side: const BorderSide(color: Db.rule),
+              side: BorderSide(color: Db.rule),
               shape: const RoundedRectangleBorder(),
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),

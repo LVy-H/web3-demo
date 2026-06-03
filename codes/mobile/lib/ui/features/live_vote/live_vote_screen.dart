@@ -113,7 +113,7 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
               style: dbMono(12, Db.mute, height: 1.5)),
           const SizedBox(height: 14),
           Row(children: [
-            const SizedBox(
+            SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
@@ -155,11 +155,11 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
         width: double.infinity,
         child: OutlinedButton.icon(
           onPressed: () => _openScanner(context, vm),
-          icon: const Icon(Icons.qr_code_scanner, size: 18, color: Db.segnale),
+          icon: Icon(Icons.qr_code_scanner, size: 18, color: Db.segnale),
           label: Text('SCAN QR',
               style: dbSans(13, 800, Db.segnale, letterSpacing: 1.2)),
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Db.segnale),
+            side: BorderSide(color: Db.segnale),
             shape: const RoundedRectangleBorder(),
             padding: const EdgeInsets.symmetric(vertical: 16),
           ),
@@ -189,7 +189,7 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
           child: InkWell(
             onTap: () => context.canPop() ? context.pop() : context.go('/'),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.arrow_back, size: 14, color: Db.mute),
+              Icon(Icons.arrow_back, size: 14, color: Db.mute),
               const SizedBox(width: 6),
               Text('BACK', style: dbLabel(size: 11, tracking: 0.16)),
             ]),
@@ -206,25 +206,27 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
   Widget _busy(String label) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 40),
         child: Column(children: [
-          const CircularProgressIndicator(color: Db.segnale),
+          CircularProgressIndicator(color: Db.segnale),
           const SizedBox(height: 16),
           Text(label, style: dbMono(12, Db.chalkDim)),
         ]),
       );
 
-  Widget _banner(IconData icon, String text, {Color color = Db.segnale}) =>
-      Container(
+  Widget _banner(IconData icon, String text, {Color? color}) {
+    final c = color ?? Db.segnale;
+    return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Db.slate,
-          border: Border(left: BorderSide(color: color, width: 3)),
+          border: Border(left: BorderSide(color: c, width: 3)),
         ),
         child: Row(children: [
-          Icon(icon, size: 18, color: color),
+          Icon(icon, size: 18, color: c),
           const SizedBox(width: 12),
           Expanded(child: Text(text, style: dbMono(12, Db.chalkDim, height: 1.4))),
         ]),
       );
+  }
 
   Widget _field(String label, TextEditingController c, String hint) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -243,10 +245,10 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
             hintStyle: dbMono(11, Db.muteDim),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            enabledBorder: const OutlineInputBorder(
+            enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.zero,
                 borderSide: BorderSide(color: Db.rule)),
-            focusedBorder: const OutlineInputBorder(
+            focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.zero,
                 borderSide: BorderSide(color: Db.segnale)),
           ),

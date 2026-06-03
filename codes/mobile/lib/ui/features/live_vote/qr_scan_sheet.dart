@@ -92,7 +92,7 @@ class _QrScanSheetState extends State<_QrScanSheet> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, color: Db.mute, size: 20),
+                  icon: Icon(Icons.close, color: Db.mute, size: 20),
                   tooltip: 'Close',
                 ),
               ]),
@@ -140,7 +140,7 @@ class _CameraError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.no_photography_outlined,
+            Icon(Icons.no_photography_outlined,
                 color: Db.amber, size: 32),
             const SizedBox(height: 14),
             Text(msg,

@@ -95,7 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Text(title, style: dbLabel(size: 10, tracking: 0.16)),
           const SizedBox(height: 8),
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: Db.slate,
               border: Border.fromBorderSide(BorderSide(color: Db.rule)),
             ),
@@ -125,7 +125,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Row(children: [
             Text(label, style: dbSans(13, 600, Db.chalk)),
             const Spacer(),
-            const Icon(Icons.arrow_forward, size: 14, color: Db.segnale),
+            Icon(Icons.arrow_forward, size: 14, color: Db.segnale),
           ]),
         ),
       );

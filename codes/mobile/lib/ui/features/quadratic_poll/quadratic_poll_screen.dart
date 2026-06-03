@@ -58,7 +58,7 @@ class _QuadraticPollScreenState extends State<QuadraticPollScreen> {
               constraints: const BoxConstraints(maxWidth: 1040),
               child: Consumer<QuadraticVoteViewModel>(
                 builder: (context, vm, _) => switch (vm.state) {
-                  ViewState.idle || ViewState.loading => const Center(
+                  ViewState.idle || ViewState.loading => Center(
                       child: CircularProgressIndicator(color: Db.segnale),
                     ),
                   ViewState.error => _ErrorView(
@@ -149,7 +149,7 @@ class _Header extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.arrow_back, size: 14, color: Db.mute),
+                    Icon(Icons.arrow_back, size: 14, color: Db.mute),
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
@@ -175,7 +175,7 @@ class _Header extends StatelessWidget {
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: Db.slate,
                 border: Border.fromBorderSide(BorderSide(color: Db.rule)),
               ),
@@ -197,7 +197,7 @@ class _PhaseStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border.fromBorderSide(BorderSide(color: Db.rule)),
       ),
       child: Row(
@@ -212,7 +212,7 @@ class _PhaseStrip extends StatelessWidget {
                       ? Db.segnale
                       : (i < state ? Db.slate : Db.void_),
                   border: i < 2
-                      ? const Border(right: BorderSide(color: Db.rule))
+                      ? Border(right: BorderSide(color: Db.rule))
                       : null,
                 ),
                 child: FittedBox(
@@ -221,7 +221,7 @@ class _PhaseStrip extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (i < state) ...[
-                        const Icon(Icons.check, size: 13, color: Db.mute),
+                        Icon(Icons.check, size: 13, color: Db.mute),
                         const SizedBox(width: 6),
                       ] else if (i > state) ...[
                         Text(
@@ -276,7 +276,7 @@ class _ResultsBars extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Db.slate,
         border: Border.fromBorderSide(BorderSide(color: Db.rule)),
       ),
@@ -285,7 +285,7 @@ class _ResultsBars extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.bar_chart, size: 16, color: Db.mute),
+              Icon(Icons.bar_chart, size: 16, color: Db.mute),
               const SizedBox(width: 8),
               Text('VOTE TOTALS', style: dbSectionTitle),
               const Spacer(),
@@ -299,7 +299,7 @@ class _ResultsBars extends StatelessWidget {
           // State-aware caption: provisional during voting, final when ended.
           Row(
             children: [
-              const Icon(Icons.verified_outlined, size: 13, color: Db.success),
+              Icon(Icons.verified_outlined, size: 13, color: Db.success),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -341,13 +341,13 @@ class _QuadraticArea extends StatelessWidget {
     if (!proofServiceAvailable) {
       return Container(
         padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Db.slate,
           border: Border.fromBorderSide(BorderSide(color: Db.rule)),
         ),
         child: Row(
           children: [
-            const Icon(Icons.lock_outline, color: Db.mute, size: 18),
+            Icon(Icons.lock_outline, color: Db.mute, size: 18),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -431,7 +431,7 @@ class _QuadraticFormState extends State<_QuadraticForm> {
     final canCast = vm.canCast && _seed.text.trim().isNotEmpty;
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Db.slate,
         border: Border.fromBorderSide(BorderSide(color: Db.rule)),
       ),
@@ -468,7 +468,7 @@ class _QuadraticFormState extends State<_QuadraticForm> {
               padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 children: [
-                  const Icon(Icons.fingerprint, size: 13, color: Db.success),
+                  Icon(Icons.fingerprint, size: 13, color: Db.success),
                   const SizedBox(width: 6),
                   Text(
                     'using your saved identity',
@@ -492,11 +492,11 @@ class _QuadraticFormState extends State<_QuadraticForm> {
               fillColor: Db.void_,
               hintText: 'paste your invite token / identity seed',
               hintStyle: dbMono(12, Db.mute),
-              enabledBorder: const OutlineInputBorder(
+              enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.zero,
                 borderSide: BorderSide(color: Db.rule),
               ),
-              focusedBorder: const OutlineInputBorder(
+              focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.zero,
                 borderSide: BorderSide(color: Db.segnale),
               ),
@@ -564,7 +564,7 @@ class _BudgetMeter extends StatelessWidget {
     final barColor = full ? Db.amber : Db.success;
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Db.void_,
         border: Border.fromBorderSide(BorderSide(color: Db.rule)),
       ),
@@ -588,7 +588,7 @@ class _BudgetMeter extends StatelessWidget {
           SizedBox(
             height: 8,
             child: Stack(children: [
-              const Positioned.fill(child: ColoredBox(color: Db.rule)),
+              Positioned.fill(child: ColoredBox(color: Db.rule)),
               FractionallySizedBox(
                 alignment: Alignment.centerLeft,
                 widthFactor: frac,
@@ -723,7 +723,7 @@ class _RegistrationStatus extends StatelessWidget {
         padding: const EdgeInsets.only(top: 12),
         child: Row(
           children: [
-            const SizedBox(
+            SizedBox(
               width: 12,
               height: 12,
               child: CircularProgressIndicator(strokeWidth: 2, color: Db.mute),
@@ -746,7 +746,7 @@ class _RegistrationStatus extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.check, size: 14, color: Db.success),
+              Icon(Icons.check, size: 14, color: Db.success),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
@@ -765,7 +765,7 @@ class _RegistrationStatus extends StatelessWidget {
         padding: const EdgeInsets.only(top: 12),
         child: Container(
           padding: const EdgeInsets.all(14),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Db.slate,
             border: Border(left: BorderSide(color: Db.amber, width: 3)),
           ),
@@ -774,7 +774,7 @@ class _RegistrationStatus extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.error_outline, size: 16, color: Db.amber),
+                  Icon(Icons.error_outline, size: 16, color: Db.amber),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -801,14 +801,14 @@ class _RegistrationStatus extends StatelessWidget {
                     horizontal: 12,
                     vertical: 8,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: Db.void_,
                     border: Border.fromBorderSide(BorderSide(color: Db.rule)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.copy_outlined,
                         size: 14,
                         color: Db.chalkDim,
@@ -883,7 +883,7 @@ class _ErrorView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off, color: Db.segnale, size: 40),
+              Icon(Icons.cloud_off, color: Db.segnale, size: 40),
               const SizedBox(height: 12),
               Text(
                 "COULDN'T LOAD THIS POLL",
@@ -900,7 +900,7 @@ class _ErrorView extends StatelessWidget {
                 onPressed: onRetry,
                 style: OutlinedButton.styleFrom(
                   shape: const RoundedRectangleBorder(),
-                  side: const BorderSide(color: Db.rule),
+                  side: BorderSide(color: Db.rule),
                 ),
                 child:
                     Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),

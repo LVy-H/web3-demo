@@ -29,7 +29,7 @@ class AppShell extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Db.void_,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Db.chalkDim),
+        iconTheme: IconThemeData(color: Db.chalkDim),
         titleSpacing: 0,
         title: Row(mainAxisSize: MainAxisSize.min, children: [
           Container(width: 13, height: 13, color: Db.segnale),
@@ -41,7 +41,7 @@ class AppShell extends StatelessWidget {
             child: Container(
               margin: const EdgeInsets.only(right: 14),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: Db.slate,
                 border: Border.fromBorderSide(BorderSide(color: Db.rule)),
               ),
@@ -68,7 +68,7 @@ class _NavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Db.slate3,
           border: Border(top: BorderSide(color: Db.rule)),
         ),
@@ -121,7 +121,7 @@ class _AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Drawer(
         backgroundColor: Db.slate3,
-        shape: const RoundedRectangleBorder(
+        shape: RoundedRectangleBorder(
           side: BorderSide(color: Db.rule),
         ),
         child: SafeArea(
@@ -141,7 +141,7 @@ class _AppDrawer extends StatelessWidget {
                 child: Text('Anonymous on-chain voting',
                     style: dbSans(12, 400, Db.chalkDim)),
               ),
-              const Divider(color: Db.rule, height: 1),
+              Divider(color: Db.rule, height: 1),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
                 child: Text('WALLET', style: dbLabel(size: 10, tracking: 0.16)),
@@ -151,7 +151,7 @@ class _AppDrawer extends StatelessWidget {
                 child: WalletButton(),
               ),
               const SizedBox(height: 16),
-              const Divider(color: Db.rule, height: 1),
+              Divider(color: Db.rule, height: 1),
               _DrawerRow(
                   icon: Icons.lan_outlined,
                   label: 'NETWORK',
@@ -171,7 +171,7 @@ class _AppDrawer extends StatelessWidget {
                     value: '›'),
               ),
               const Spacer(),
-              const Divider(color: Db.rule, height: 1),
+              Divider(color: Db.rule, height: 1),
               _DrawerRow(
                   icon: Icons.info_outline,
                   label: 'ABOUT',

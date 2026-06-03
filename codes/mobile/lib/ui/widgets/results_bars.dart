@@ -56,7 +56,7 @@ class ResultsBars extends StatelessWidget {
 
     if (denom <= BigInt.zero) {
       return Row(children: [
-        const Icon(Icons.inbox_outlined, size: 16, color: Db.mute),
+        Icon(Icons.inbox_outlined, size: 16, color: Db.mute),
         const SizedBox(width: 10),
         Expanded(
           child: Text(emptyLabel, style: dbMono(12, Db.mute, height: 1.5)),
@@ -163,7 +163,7 @@ class _Bar extends StatelessWidget {
         SizedBox(
           height: 8,
           child: Stack(children: [
-            const Positioned.fill(child: ColoredBox(color: Db.rule)),
+            Positioned.fill(child: ColoredBox(color: Db.rule)),
             FractionallySizedBox(
               alignment: Alignment.centerLeft,
               widthFactor: frac,
