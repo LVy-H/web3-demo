@@ -355,6 +355,12 @@ class _VoteFormState extends State<_VoteForm> {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('CAST YOUR VOTE', style: dbSectionTitle),
+        const SizedBox(height: 6),
+        Text(
+          "Anonymous — a zero-knowledge proof confirms you're eligible without "
+          "revealing who you are or what you pick.",
+          style: dbMono(11, Db.mute, height: 1.4),
+        ),
         const SizedBox(height: 14),
         for (var i = 0; i < widget.options.length; i++) ...[
           if (i > 0) const SizedBox(height: 8),
@@ -398,6 +404,24 @@ class _VoteFormState extends State<_VoteForm> {
           ),
         ),
         _RegistrationStatus(vm: vm, onCopy: _snack),
+        if (_seed.text.trim().isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: InkWell(
+              onTap: () => context.go('/identity'),
+              child: Row(children: [
+                const Icon(Icons.badge_outlined,
+                    size: 13, color: Db.oltremare),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'No identity yet? Create or import one in the IDENTITY tab →',
+                    style: dbMono(11, Db.oltremare, height: 1.3),
+                  ),
+                ),
+              ]),
+            ),
+          ),
         const SizedBox(height: 14),
         _CastButton(
           busyLabel: switch (vm.status) {

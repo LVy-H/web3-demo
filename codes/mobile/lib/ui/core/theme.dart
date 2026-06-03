@@ -13,7 +13,7 @@ abstract class Db {
   static const chalk = Color(0xFFF5F7FA); // primary text
   static const chalkDim = Color(0xFFC9D0DB); // secondary text
   static const mute = Color(0xFF7A8599); // mono labels / meta
-  static const muteDim = Color(0xFF4D5566); // tertiary
+  static const muteDim = Color(0xFF727C90); // tertiary (>= WCAG AA 4.5:1 on void_)
   static const rule = Color(0xFF2A3140); // hairline border
   static const ruleSoft = Color(0xFF1F2433); // inner divider
   static const segnale = Color(0xFFFF3B5C); // primary signal (active/CTA)
