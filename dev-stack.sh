@@ -76,7 +76,13 @@ up() {
   fi
 
   echo "==> Seeding demo poll"
-  ( cd "$CONTRACTS" && npx hardhat run scripts/demo-poll.ts --network localhost )
+  # Forward USE_REAL_VERIFIER so the seed skips its mock-proof cast under the real
+  # Groth16 verifier (that cast would revert and abort `up` via `set -e`).
+  if [ "${ZK_REAL_VERIFIER:-0}" = "1" ]; then
+    ( cd "$CONTRACTS" && USE_REAL_VERIFIER=true npx hardhat run scripts/demo-poll.ts --network localhost )
+  else
+    ( cd "$CONTRACTS" && npx hardhat run scripts/demo-poll.ts --network localhost )
+  fi
 
   echo "==> Starting relayer (log: $RELAYER_LOG)"
   local key

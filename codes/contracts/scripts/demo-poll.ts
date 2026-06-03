@@ -182,47 +182,64 @@ async function main() {
   //    commitment (the proven idiom from ZkSurveyVoting.test.ts). And `message`
   //    MUST equal the on-chain recompute or the cast reverts TamperedVoteSignal,
   //    so a landed cast proves the cross-impl serialization on a real chain.
-  const group = new Group();
-  group.addMember(BigInt(surveyCommitment));
-  const surveyScope = BigInt(surveyAddress);
-  const surveyProof = {
-    merkleTreeDepth: 1,
-    merkleTreeRoot: group.root,
-    nullifier: 1n,
-    message: surveyMsg(SURVEY_ANSWERS),
-    scope: surveyScope,
-    points: [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n],
-  };
-  const castTx = await survey.castVote(SURVEY_ANSWERS, surveyProof);
-  await castTx.wait();
-  console.log(
-    `  cast survey ballot answers=[${SURVEY_ANSWERS.join(", ")}] (tx ${castTx.hash})`,
+  // The cast below uses a mock Groth16 proof (points = all-zero), which only the
+  // MockSemaphoreVerifier accepts. Under USE_REAL_VERIFIER the real verifier
+  // rejects it and the cast reverts, so skip the cast + tally-assert — the survey
+  // is still created, registered, and opened, ready for a REAL on-device vote.
+  // Per-question survey tallies for the fixture below. Stays all-zero under the
+  // real verifier (the survey is created but not voted); the mock path fills it
+  // from the on-chain results after its cast.
+  let surveyResultsNum: number[][] = SURVEY_QUESTIONS.map((q) =>
+    q.options.map(() => 0),
   );
-
-  // 4. Read per-question tallies and assert they are non-empty (the stack proof).
-  //    answers = [2, 5]: Q0 → option 2 (Blue); Q1 bitmask 5 = 0b0101 → {A, C}.
-  const surveyResults: bigint[][] = await survey.getSurveyResults();
-  const surveyResultsNum = surveyResults.map((q) => q.map((c) => Number(c)));
-  const totalTallied = surveyResultsNum
-    .flat()
-    .reduce((a: number, b: number) => a + b, 0);
-  if (totalTallied === 0)
-    throw new Error(
-      "Survey stack e2e FAILED: getSurveyResults() is all-zero after a cast",
-    );
-  console.log("  getSurveyResults():");
-  surveyResultsNum.forEach((q, i) => {
-    const labels = SURVEY_QUESTIONS[i].options;
-    const kind = SURVEY_QUESTIONS[i].qType === QType.SingleChoice
-      ? "single-choice"
-      : "multi-select";
+  const useRealVerifier = process.env.USE_REAL_VERIFIER === "true";
+  if (useRealVerifier) {
     console.log(
-      `    Q${i} (${kind}): ${q
-        .map((c, j) => `${labels[j]}=${c}`)
-        .join("  ")}`,
+      "  (USE_REAL_VERIFIER: skipping the mock-proof survey cast — survey created, registered, and opened for a real proof)",
     );
-  });
-  console.log(`  per-question tallies non-empty (total approvals/votes = ${totalTallied}) ✓`);
+  } else {
+    const group = new Group();
+    group.addMember(BigInt(surveyCommitment));
+    const surveyScope = BigInt(surveyAddress);
+    const surveyProof = {
+      merkleTreeDepth: 1,
+      merkleTreeRoot: group.root,
+      nullifier: 1n,
+      message: surveyMsg(SURVEY_ANSWERS),
+      scope: surveyScope,
+      points: [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n],
+    };
+    const castTx = await survey.castVote(SURVEY_ANSWERS, surveyProof);
+    await castTx.wait();
+    console.log(
+      `  cast survey ballot answers=[${SURVEY_ANSWERS.join(", ")}] (tx ${castTx.hash})`,
+    );
+
+    // 4. Read per-question tallies and assert they are non-empty (the stack proof).
+    //    answers = [2, 5]: Q0 → option 2 (Blue); Q1 bitmask 5 = 0b0101 → {A, C}.
+    const surveyResults: bigint[][] = await survey.getSurveyResults();
+    surveyResultsNum = surveyResults.map((q) => q.map((c) => Number(c)));
+    const totalTallied = surveyResultsNum
+      .flat()
+      .reduce((a: number, b: number) => a + b, 0);
+    if (totalTallied === 0)
+      throw new Error(
+        "Survey stack e2e FAILED: getSurveyResults() is all-zero after a cast",
+      );
+    console.log("  getSurveyResults():");
+    surveyResultsNum.forEach((q, i) => {
+      const labels = SURVEY_QUESTIONS[i].options;
+      const kind = SURVEY_QUESTIONS[i].qType === QType.SingleChoice
+        ? "single-choice"
+        : "multi-select";
+      console.log(
+        `    Q${i} (${kind}): ${q
+          .map((c, j) => `${labels[j]}=${c}`)
+          .join("  ")}`,
+      );
+    });
+    console.log(`  per-question tallies non-empty (total approvals/votes = ${totalTallied}) ✓`);
+  }
 
   const fixture = {
     _comment:
