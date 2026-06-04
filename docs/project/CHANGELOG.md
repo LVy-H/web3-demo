@@ -5,6 +5,18 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Wallet-free voting proven against the real Groth16 verifier on the live
+  chain** — `ZK_REAL_VERIFIER=1 ./dev-stack.sh up` now brings up a real-verifier
+  stack end to end (the demo seed skips its mock-proof cast under
+  `USE_REAL_VERIFIER` instead of reverting and aborting `up` via `set -e`). Two
+  scripts assert the result on the *running* chain (the same `:8545` the app
+  hits): `scripts/check-live-verifier.ts` — a bad proof must REVERT, the only
+  behaviour that tells the real verifier from the accept-anything mock; and
+  `scripts/e2e-relayer-real-vote.ts` — the full mobile submission path (real
+  Groth16 proof → `POST /api/relay/vote` → relayer `castVote` → on-chain
+  verifier), which rejects a tampered proof and lands a valid one (on-chain
+  tally `[1,0]`). Closes the last real-vs-mock workaround: the local Hardhat
+  chain is a genuine ZK-verifying chain the app votes against wallet-free.
 - **Real Groth16 verifier wired (P4-23)** — `deploy.ts` deploys the real
   `SemaphoreVerifier` when `USE_REAL_VERIFIER=true` (`npm run deploy:real-verifier`,
   `ZK_REAL_VERIFIER=1 ./dev-stack.sh up`), pulled into the compile graph by
