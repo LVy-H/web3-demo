@@ -5,6 +5,15 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **"How signing works" explainer + truthful Settings signer status** — directly
+  on the wallet-UX pain point. Settings → SIGNING & PROVING no longer claims
+  `"wallet (connect to sign)"` when there's no dev-signer; it probes the relayer
+  and shows the *active* path — `wallet-free (sponsored relayer)` when sponsorship
+  is reachable (resolved by the pure, unit-tested `signerStatusLabel`). A new
+  **How signing works** link opens a reusable sheet (`signing_explainer.dart`)
+  that leads with **"You don't need a wallet."** and explains the three paths
+  (wallet-free default · local dev-signer · optional wallet). Design:
+  `docs/superpowers/specs/2026-06-04-signing-explainer-design.md`.
 - **Share a poll** — closes the scan loop opened by the navbar SCAN action (#76):
   the poll-detail header now has a **SHARE** button that opens a themed sheet with
   a scannable QR + copyable `tessera://poll/<addr>?module=<m>` deep-link. The link
