@@ -73,7 +73,7 @@ Source of truth lives in `findings.md` — this table is a snapshot. If they dis
 | P3-16 | Add GitHub Actions CI (test + lint, all packages) | — | Done |
 | P3-17 | Untrack `accounts.txt`, `hardhat-node.log` | — | Done |
 | P3-18 | Remove committed binaries (`web3-demo.zip`, `system-description.pdf/.txt`) | — | Done |
-| P3-19 | Loud banner when deploying with `MockSemaphoreVerifier` + a real-verifier deploy variant | — | Open |
+| P3-19 | Loud banner when deploying with `MockSemaphoreVerifier` + a real-verifier deploy variant | — | Done |
 | P3-20 | Parallel agents need git worktree isolation | — | Open |
 | P3-21 | Dangling `codes/frontend/src/lib/*` provenance comments in the Flutter client | — | Open |
 
@@ -97,4 +97,5 @@ When you find a new issue mid-task, append a one-liner here with date + ID, then
 | 2026-04-27 | P3-20 | Sprint 1 dispatch retrospective | Parallel agents sharing one working tree caused branch-checkout races; A2's commit briefly landed on A1's branch (recovered via `git rebase --onto`). Future sprints must use `isolation: "worktree"` per agent. |
 | 2026-04-27 | P1-13 | A7 empirical gas measurement during P1-12 implementation | 100-element registerVoters costs ~50M gas — exceeds mainnet's 30M block limit and Hardhat's 16.7M tx cap. Cap value chosen in P1-12 was wrong; recommend lowering to 50 (mainnet-fits) or 25 (Hardhat-fits) or making it a configurable initializer arg. |
 | 2026-06-03 | P3-21 | Docs-truth-up sweep | Repo-wide grep for stale React-frontend references surfaced ~12 dangling `codes/frontend/src/lib/*` provenance comments in the Flutter client (and a broken golden-vectors regenerate pointer). Deferred from the docs-only truth-up PR. |
+| 2026-06-04 | P3-19 / P4-23 | Phase 2.5 close-out | `deploy.ts` already had the loud mock-verifier banner + public-network refusal (P3-19 → Done). Wired `RealVerifier.test.ts` into a nightly + manual-dispatch CI job (`real-verifier.yml`) and proved the full wallet-free vote path against the real verifier on the live chain (`scripts/check-live-verifier.ts`, `scripts/e2e-relayer-real-vote.ts`). Phase 2.5 → Done. |
 | 2026-06-03 | P1-5..P1-12 | P1 premise re-check | All P1 hardening items were already implemented on `main` (OZ Initializable/Ownable, custom errors, airdrop ReentrancyGuard + escape hatch, unified pragma, anon invariants) but `findings.md` + the board still showed them Open. Verified against the contracts and flipped to Done; closed the lone real-open item P1-13 (cap → 50). |

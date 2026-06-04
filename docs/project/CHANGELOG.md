@@ -63,6 +63,11 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
     architecture: `docs/architecture/module-survey.md`.
 
 ### Changed
+- **Nightly real-verifier CI** — `.github/workflows/real-verifier.yml` runs the
+  `RealVerifier.test.ts` Groth16 integration test (a real snarkjs proof, accept +
+  tamper-reject) on a nightly schedule and on manual dispatch. Kept off the
+  per-PR `CI` gate because the proof generation is too slow for every push.
+  Closes Phase 2.5 (the real-verifier path is now exercised automatically).
 - **CI hardening** — the `contracts` job's `npm test` is now a real gate (the
   stale `continue-on-error` was removed; the cited blocker — untracked hardhat
   config — no longer holds, and all 268 tests pass). The `relayer` job now runs

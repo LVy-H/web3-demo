@@ -30,17 +30,17 @@
 - Frontend page with countdown + reveal UI — DONE
 - **Original spec split this into M2a (live tally) and M2b (sealed); we shipped a single hybrid called `blind-vote`.** Decide: do we keep one module, or split into two for stronger guarantees?
 
-## Phase 2.5: Stabilization — **IN PROGRESS**
+## Phase 2.5: Stabilization — **DONE**
 
 > *Inserted between original Phase 2 and 3 to address P0/P1 debt before adding more modules.*
 
 - Fix all P0 bugs (`improvements/findings.md`) — **DONE**
 - Set up CI (`.github/workflows/ci.yml`: contracts / relayer / mobile jobs) — **DONE**
 - Land P1 contract hardening (OZ Initializable / Ownable / custom errors / pragma unify / airdrop ReentrancyGuard + escape hatch / anon-vote invariants) — **DONE** (verified 2026-06-03; P1-13 closed by lowering the `registerVoters` cap to 50)
-- Real-Groth16 deploy variant + nightly integration test (P3-19 / P4-23) — PLANNED (the **only** remaining 2.5 item; rolls into Phase 10)
+- Real-Groth16 deploy variant + nightly integration test (P3-19 / P4-23) — **DONE**. `deploy.ts` deploys the real `SemaphoreVerifier` under `USE_REAL_VERIFIER=true` (loud warning + refusal-on-public-network for the mock); `RealVerifier.test.ts` proves the real verifier accepts a valid proof and rejects a tampered one, now wired to a nightly + manual-dispatch CI job (`.github/workflows/real-verifier.yml`). The full wallet-free vote path (proof → relayer → on-chain real verifier) was additionally proven on the live chain via `scripts/e2e-relayer-real-vote.ts` + `scripts/check-live-verifier.ts`.
 - ~~Refactor `Poll.tsx` and `BlindPoll.tsx` (P2)~~ — **MOOT** (React frontend deleted; the Flutter client `codes/mobile/` supersedes it)
 
-**Exit criteria:** zero open P0 (met), zero open P1 (met), CI green (met), real-verifier path exercised (→ Phase 10).
+**Exit criteria:** zero open P0 (met), zero open P1 (met), CI green (met), real-verifier path exercised (met — nightly CI + live-chain e2e).
 
 ## Phase 3: M3 — Participation Receipts — **PLANNED**
 - `verifyParticipation(nullifierHash)` already exists on `IZkPoll` — UI surface missing
