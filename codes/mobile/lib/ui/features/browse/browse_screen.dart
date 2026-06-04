@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../data/models/poll_info.dart';
 import '../../../data/models/poll_summary.dart';
 import '../../../data/services/chain_writer.dart';
+import '../../../data/services/created_polls_store.dart';
 import '../../../data/services/relay_client.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
@@ -21,7 +22,7 @@ class BrowseScreen extends StatefulWidget {
   State<BrowseScreen> createState() => _BrowseScreenState();
 }
 
-enum _Status { active, upcoming, ended, all }
+enum _Status { active, upcoming, ended, mine, all }
 
 enum _Sort { newest, oldest, titleAsc, titleDesc }
 
@@ -40,6 +41,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   String _search = '';
   String?
   _relayerAddress; // labels relayer-owned (sponsored) polls on the cards
+  Set<String> _createdPolls = {}; // addresses this device created (MINE filter)
 
   @override
   void initState() {
@@ -52,6 +54,12 @@ class _BrowseScreenState extends State<BrowseScreen> {
     context.read<RelayClient>().getRelayerInfo().then((info) {
       if (mounted) setState(() => _relayerAddress = info?.relayer);
     });
+    _loadCreated();
+  }
+
+  Future<void> _loadCreated() async {
+    final mine = await context.read<CreatedPollsStore>().all();
+    if (mounted) setState(() => _createdPolls = mine);
   }
 
   // Lifecycle phase from the on-chain state (0 Registration→upcoming,
@@ -65,6 +73,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
     _Status.active => phase == PollPhase.active,
     _Status.upcoming => phase == PollPhase.upcoming,
     _Status.ended => phase == PollPhase.ended,
+    _Status.mine => true, // handled by the created-set check in _filterSort
   };
 
   List<PollInfo> _filterSort(
@@ -74,7 +83,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
     final q = _search.trim().toLowerCase();
     final out = polls.where((p) {
       final catOk = _cat == -1 || Db.categoryFor(p.pollAddress) == _cat;
-      final statusOk = _matchesStatus(_phaseOf(p, sums));
+      final statusOk = _status == _Status.mine
+          ? _createdPolls.contains(p.pollAddress.toLowerCase())
+          : _matchesStatus(_phaseOf(p, sums));
       final searchOk =
           q.isEmpty ||
           p.title.toLowerCase().contains(q) ||
@@ -169,7 +180,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
                     sort: _sort,
                     search: _search,
                     onCat: (c) => setState(() => _cat = c),
-                    onStatus: (s) => setState(() => _status = s),
+                    onStatus: (s) {
+                      setState(() => _status = s);
+                      if (s == _Status.mine) _loadCreated(); // refresh "mine"
+                    },
                     onSort: (s) => setState(() => _sort = s),
                     onSearch: (q) => setState(() => _search = q),
                   ),
@@ -337,6 +351,12 @@ class _FilterStrip extends StatelessWidget {
                   'ENDED',
                   status == _Status.ended,
                   () => onStatus(_Status.ended),
+                ),
+                _Pill(
+                  'MINE',
+                  status == _Status.mine,
+                  () => onStatus(_Status.mine),
+                  activeColor: Db.success,
                 ),
                 _Pill(
                   'ALL',

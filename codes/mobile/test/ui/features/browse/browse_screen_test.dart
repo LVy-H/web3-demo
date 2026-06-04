@@ -8,6 +8,7 @@ import 'package:tessera/data/models/poll_snapshot.dart';
 import 'package:tessera/data/models/poll_summary.dart';
 import 'package:tessera/data/repositories/poll_repository.dart';
 import 'package:tessera/data/services/chain_writer.dart';
+import 'package:tessera/data/services/created_polls_store.dart';
 import 'package:tessera/data/services/relay_client.dart';
 import 'package:tessera/ui/core/format.dart';
 import 'package:tessera/ui/features/browse/browse_screen.dart';
@@ -57,7 +58,11 @@ const _a = '0x1111111111111111111111111111111111111111'; // Voting
 const _b = '0x2222222222222222222222222222222222222222'; // Registration
 const _c = '0x3333333333333333333333333333333333333333'; // Ended
 
-Widget _wrap(PollRepository repo, {RelayClient? relay}) => MaterialApp(
+Widget _wrap(
+  PollRepository repo, {
+  RelayClient? relay,
+  List<String>? created,
+}) => MaterialApp(
   home: MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => BrowseViewModel(repo)),
@@ -74,6 +79,9 @@ Widget _wrap(PollRepository repo, {RelayClient? relay}) => MaterialApp(
       Provider<ChainWriter>(
         create: (_) =>
             ChainWriter(rpcUrl: 'http://127.0.0.1:1', chainId: 31337),
+      ),
+      Provider<CreatedPollsStore>(
+        create: (_) => InMemoryCreatedPollsStore(created),
       ),
     ],
     child: const BrowseScreen(),
@@ -158,6 +166,19 @@ void main() {
     expect(find.text('Registration Poll'), findsOneWidget);
     expect(find.text('Voting Poll'), findsNothing);
     expect(find.text('Ended Poll'), findsNothing);
+  });
+
+  testWidgets('MINE filter shows only polls this device created', (
+    tester,
+  ) async {
+    // This device created only the (Registration-phase) Ended-address poll _b.
+    await tester.pumpWidget(_wrap(_threePhaseRepo(), created: [_b]));
+    await tester.pumpAndSettle();
+    await _tapPill(tester, 'MINE');
+
+    expect(find.text('Registration Poll'), findsOneWidget); // _b — created here
+    expect(find.text('Voting Poll'), findsNothing); // _a — not mine
+    expect(find.text('Ended Poll'), findsNothing); // _c — not mine
   });
 
   testWidgets('falls back to an active look when summaries fail to load', (

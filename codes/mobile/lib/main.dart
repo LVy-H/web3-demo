@@ -16,6 +16,7 @@ import 'data/repositories/verify_repository.dart';
 import 'data/services/blind_commit_store.dart';
 import 'data/services/chain_reader.dart';
 import 'data/services/chain_writer.dart';
+import 'data/services/created_polls_store.dart';
 import 'data/services/identity_store.dart';
 import 'data/services/nfc_service.dart';
 import 'data/services/nfc_service_factory.dart';
@@ -135,6 +136,9 @@ class ZkVoteApp extends StatelessWidget {
         // fenced); no-op elsewhere, so the face-to-face code stays the baseline.
         Provider<ProximityService>(create: (_) => createProximityService()),
         Provider<IdentityStore>(create: (_) => SecureIdentityStore()),
+        // Local record of polls this device created (the relayer is the on-chain
+        // creator for wallet-free polls, so "mine" can't come from the chain).
+        Provider<CreatedPollsStore>(create: (_) => SecureCreatedPollsStore()),
         Provider<ChainWriter>(
           create: (_) => writer,
           dispose: (_, w) => w.dispose(),

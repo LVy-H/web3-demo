@@ -5,6 +5,14 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **"MINE" filter — the polls you created** — answers the natural next question
+  after the ownership work: *which of these are mine?* Under wallet-free the
+  relayer is the on-chain `creator` of every sponsored poll, so "mine" can't come
+  from the chain — `CreatedPollsStore` (mirrors `IdentityStore`, secure-storage
+  backed) records each poll this device creates, and a new **MINE** pill in the
+  browse status strip filters to them. Unit-tested store contract + a browse
+  widget test (a device that created one poll sees only it under MINE). Design:
+  `docs/superpowers/specs/2026-06-04-mine-filter-design.md`.
 - **Ownership labels on the browse cards** — completes the ownership-clarity
   feedback at the surface where it was actually felt (the list). Each card showed
   `PollInfo.creator` as a raw hex — and under wallet-free the relayer creates every
