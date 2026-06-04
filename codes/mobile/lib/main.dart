@@ -19,6 +19,8 @@ import 'data/services/chain_writer.dart';
 import 'data/services/identity_store.dart';
 import 'data/services/nfc_service.dart';
 import 'data/services/nfc_service_factory.dart';
+import 'data/services/proximity_service.dart';
+import 'data/services/proximity_service_factory.dart';
 import 'data/services/poll_creator.dart';
 import 'data/services/sponsored_poll_creator.dart';
 import 'data/services/proof_service.dart';
@@ -129,6 +131,9 @@ class ZkVoteApp extends StatelessWidget {
         // fenced); a no-op everywhere else, so the share sheet hides the NFC
         // affordance and the QR stays the baseline.
         Provider<NfcService>(create: (_) => createNfcService()),
+        // BLE proximity attestation for live meetings (Android radio device-
+        // fenced); no-op elsewhere, so the face-to-face code stays the baseline.
+        Provider<ProximityService>(create: (_) => createProximityService()),
         Provider<IdentityStore>(create: (_) => SecureIdentityStore()),
         Provider<ChainWriter>(
           create: (_) => writer,

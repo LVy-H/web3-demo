@@ -13,6 +13,7 @@ import 'data/repositories/verify_repository.dart';
 import 'data/services/chain_reader.dart';
 import 'data/services/identity_store.dart';
 import 'data/services/proof_service.dart';
+import 'data/services/proximity_service.dart';
 import 'data/services/relay_client.dart';
 import 'ui/core/app_shell.dart';
 import 'ui/features/approval_poll/approval_poll_screen.dart';
@@ -121,7 +122,8 @@ Widget buildPollDetail(BuildContext context, GoRouterState state) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider(
-        create: (ctx) => PollDetailViewModel(ctx.read<PollRepository>(), address),
+        create: (ctx) =>
+            PollDetailViewModel(ctx.read<PollRepository>(), address),
       ),
       ChangeNotifierProvider(
         create: (ctx) => VoteViewModel(
@@ -141,102 +143,99 @@ Widget buildPollDetail(BuildContext context, GoRouterState state) {
 /// [AppShell]; each tab keeps its own navigation stack. Poll detail is nested
 /// under the Polls branch so the nav bar stays visible while drilling in.
 GoRouter buildRouter() => GoRouter(
-      initialLocation: '/',
-      routes: [
-        StatefulShellRoute.indexedStack(
-          builder: (context, state, navigationShell) =>
-              AppShell(shell: navigationShell),
-          branches: [
-            // ── Branch 0: Polls (+ poll detail) ──
-            StatefulShellBranch(
+  initialLocation: '/',
+  routes: [
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) =>
+          AppShell(shell: navigationShell),
+      branches: [
+        // ── Branch 0: Polls (+ poll detail) ──
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) => ChangeNotifierProvider(
+                create: (ctx) => BrowseViewModel(ctx.read<PollRepository>()),
+                child: const BrowseScreen(),
+              ),
               routes: [
-                GoRoute(
-                  path: '/',
-                  builder: (context, state) => ChangeNotifierProvider(
-                    create: (ctx) => BrowseViewModel(ctx.read<PollRepository>()),
-                    child: const BrowseScreen(),
-                  ),
-                  routes: [
-                    GoRoute(
-                      path: 'poll/:address',
-                      builder: buildPollDetail,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            // ── Branch 1: Verify ──
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: '/verify',
-                  builder: (context, state) => ChangeNotifierProvider(
-                    create: (ctx) =>
-                        VerifyViewModel(ctx.read<VerifyRepository>()),
-                    child: VerifyScreen(
-                      initialPoll: state.uri.queryParameters['poll'],
-                      initialNullifier: state.uri.queryParameters['nullifier'],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            // ── Branch 2: Create ──
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: '/create',
-                  builder: (context, state) => const CreateScreen(),
-                ),
-              ],
-            ),
-            // ── Branch 3: Identity ──
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: '/identity',
-                  builder: (context, state) => ChangeNotifierProvider(
-                    create: (ctx) =>
-                        IdentityViewModel(ctx.read<IdentityStore>())..load(),
-                    child: const IdentityScreen(),
-                  ),
-                ),
+                GoRoute(path: 'poll/:address', builder: buildPollDetail),
               ],
             ),
           ],
         ),
-        // Full-screen organizer dashboard (outside the bottom-nav shell).
-        GoRoute(
-          path: '/live/:address/host',
-          builder: (context, state) {
-            final address = state.pathParameters['address']!;
-            return ChangeNotifierProvider(
-              create: (ctx) =>
-                  LiveHostViewModel(ctx.read<LiveHostRepository>(), address),
-              child: LiveHostScreen(address: address),
-            );
-          },
-        ),
-        // Full-screen live VOTER (deep-link target of the host QR).
-        GoRoute(
-          path: '/live/:address/vote',
-          builder: (context, state) {
-            final address = state.pathParameters['address']!;
-            return ChangeNotifierProvider(
-              create: (ctx) => LiveVoteViewModel(
-                proof: ctx.read<ProofService>(),
-                relay: ctx.read<RelayClient>(),
-                reader: ctx.read<ChainReader>(),
-                pollAddress: address,
-                initialTicket: state.uri.queryParameters['t'],
+        // ── Branch 1: Verify ──
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/verify',
+              builder: (context, state) => ChangeNotifierProvider(
+                create: (ctx) => VerifyViewModel(ctx.read<VerifyRepository>()),
+                child: VerifyScreen(
+                  initialPoll: state.uri.queryParameters['poll'],
+                  initialNullifier: state.uri.queryParameters['nullifier'],
+                ),
               ),
-              child: LiveVoteScreen(address: address),
-            );
-          },
+            ),
+          ],
         ),
-        GoRoute(
-          path: '/settings',
-          builder: (context, state) => const SettingsScreen(),
+        // ── Branch 2: Create ──
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/create',
+              builder: (context, state) => const CreateScreen(),
+            ),
+          ],
+        ),
+        // ── Branch 3: Identity ──
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/identity',
+              builder: (context, state) => ChangeNotifierProvider(
+                create: (ctx) =>
+                    IdentityViewModel(ctx.read<IdentityStore>())..load(),
+                child: const IdentityScreen(),
+              ),
+            ),
+          ],
         ),
       ],
-    );
+    ),
+    // Full-screen organizer dashboard (outside the bottom-nav shell).
+    GoRoute(
+      path: '/live/:address/host',
+      builder: (context, state) {
+        final address = state.pathParameters['address']!;
+        return ChangeNotifierProvider(
+          create: (ctx) =>
+              LiveHostViewModel(ctx.read<LiveHostRepository>(), address),
+          child: LiveHostScreen(address: address),
+        );
+      },
+    ),
+    // Full-screen live VOTER (deep-link target of the host QR).
+    GoRoute(
+      path: '/live/:address/vote',
+      builder: (context, state) {
+        final address = state.pathParameters['address']!;
+        return ChangeNotifierProvider(
+          create: (ctx) => LiveVoteViewModel(
+            proof: ctx.read<ProofService>(),
+            relay: ctx.read<RelayClient>(),
+            reader: ctx.read<ChainReader>(),
+            pollAddress: address,
+            proximity: ctx.read<ProximityService>(),
+            initialTicket: state.uri.queryParameters['t'],
+          ),
+          child: LiveVoteScreen(address: address),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/settings',
+      builder: (context, state) => const SettingsScreen(),
+    ),
+  ],
+);

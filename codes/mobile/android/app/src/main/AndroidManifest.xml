@@ -10,6 +10,13 @@
          hide the affordance where there's no radio. -->
     <uses-permission android:name="android.permission.NFC" />
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
+    <!-- BLE proximity attestation for live meetings (live-vote). OPTIONAL:
+         required=false keeps BLE-less devices installable; the live-vote flow
+         falls back to the face-to-face code where there's no radio. SCAN-only
+         (neverForLocation) — used purely to detect the organizer's beacon. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <application
         android:label="Tessera"
         android:name="${applicationName}"
