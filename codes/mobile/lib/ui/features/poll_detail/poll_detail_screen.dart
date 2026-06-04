@@ -9,9 +9,12 @@ import '../../../data/models/poll_snapshot.dart';
 import '../../../data/services/chain_writer.dart';
 import '../../../data/services/identity_store.dart';
 import '../../../data/services/proof_service_factory.dart';
+import '../../../data/services/relay_client.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
+import '../../core/permissions_explainer.dart';
 import '../../core/poll_header.dart';
+import '../../core/poll_roles.dart';
 import '../../core/share_poll_sheet.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
@@ -29,12 +32,20 @@ class PollDetailScreen extends StatefulWidget {
 }
 
 class _PollDetailScreenState extends State<PollDetailScreen> {
+  String? _relayerAddress; // resolves a relayer-owned poll to "Sponsored"
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => context.read<PollDetailViewModel>().load(),
     );
+    // Resolve the relayer address so the owner row reads "Sponsored ·
+    // relayer-run" instead of a bare hex string. Relayer down → null → the
+    // label falls back to the short address.
+    context.read<RelayClient>().getRelayerInfo().then((info) {
+      if (mounted) setState(() => _relayerAddress = info?.relayer);
+    });
   }
 
   @override
@@ -54,7 +65,10 @@ class _PollDetailScreenState extends State<PollDetailScreen> {
                     message: vm.error ?? 'Unknown error',
                     onRetry: vm.load,
                   ),
-                  ViewState.loaded => _Body(snapshot: vm.snapshot!),
+                  ViewState.loaded => _Body(
+                    snapshot: vm.snapshot!,
+                    relayerAddress: _relayerAddress,
+                  ),
                 },
               ),
             ),
@@ -67,12 +81,18 @@ class _PollDetailScreenState extends State<PollDetailScreen> {
 
 class _Body extends StatelessWidget {
   final PollSnapshot snapshot;
-  const _Body({required this.snapshot});
+  final String? relayerAddress;
+  const _Body({required this.snapshot, this.relayerAddress});
 
   String get _shortAddr => shortAddr(snapshot.address);
 
   @override
   Widget build(BuildContext context) {
+    final owner = pollOwner(
+      owner: snapshot.owner,
+      relayerAddress: relayerAddress,
+      myAddress: context.read<ChainWriter>().signerAddress,
+    );
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
@@ -137,11 +157,23 @@ class _Body extends StatelessWidget {
               },
             ),
             const SizedBox(height: 24),
-            Text('OWNER', style: dbLabel(size: 10)),
+            Text('RUN BY', style: dbLabel(size: 10)),
             const SizedBox(height: 4),
-            Text(
-              snapshot.owner,
-              style: dbMono(11, Db.mute, letterSpacing: 0.4),
+            Text(owner.label, style: dbMono(11, Db.mute, letterSpacing: 0.4)),
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: () => showPermissionsExplainerSheet(
+                context,
+                ownerKind: owner.kind,
+                isRegistered: context.read<VoteViewModel>().isRegistered,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text(
+                  'Who can do what  ›',
+                  style: dbLabel(size: 10, color: Db.segnale),
+                ),
+              ),
             ),
           ],
         ),
