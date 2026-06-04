@@ -7,6 +7,7 @@ import '../../../config.dart';
 import '../../../data/services/chain_writer.dart';
 import '../../../data/services/proof_service_factory.dart';
 import '../../../data/services/relay_client.dart';
+import '../../../data/services/wallet_service.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
 import '../../core/signing_explainer.dart';
@@ -14,16 +15,18 @@ import '../../core/theme.dart';
 
 /// The Settings "Signer" value, resolved to the *active* signing path. Pure so
 /// it can be unit-tested. Priority: local dev-signer → wallet-free sponsored
-/// relayer → wallet fallback. `sponsoredReady == null` means the relayer probe
-/// is still in flight.
+/// relayer → an already-connected wallet → "connect a wallet" fallback.
+/// `sponsoredReady == null` means the relayer probe is still in flight.
 String signerStatusLabel({
   required bool canSign,
   required String? signerAddress,
   required bool? sponsoredReady,
+  required bool walletConnected,
 }) {
   if (canSign) return 'dev signer · ${shortAddr(signerAddress ?? '')}';
   if (sponsoredReady == null) return '…';
   if (sponsoredReady) return 'wallet-free (sponsored relayer)';
+  if (walletConnected) return 'wallet connected';
   return 'wallet (connect to sign)';
 }
 
@@ -52,20 +55,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           if (mounted) setState(() => _version = AppConfig.chainId.toString());
         });
     // Probe the relayer so the signer row can tell the truth about the
-    // wallet-free sponsored path instead of implying a wallet is required.
-    context
-        .read<RelayClient>()
-        .getRelayerInfo()
-        .then((info) {
-          if (mounted) {
-            setState(
-              () => _sponsoredReady = info != null && info.registry != null,
-            );
-          }
-        })
-        .catchError((_) {
-          if (mounted) setState(() => _sponsoredReady = false);
-        });
+    // wallet-free sponsored path instead of implying a wallet is required. Only
+    // the no-dev-signer config consults the result (signerStatusLabel ignores
+    // _sponsoredReady when canSign), so skip the up-to-8s round-trip otherwise.
+    // getRelayerInfo() catches internally and never rejects, so the null-info
+    // path already covers relayer-down/timeout — no .catchError needed.
+    if (!context.read<ChainWriter>().canSign) {
+      context.read<RelayClient>().getRelayerInfo().then((info) {
+        if (mounted) {
+          setState(
+            () => _sponsoredReady = info != null && info.registry != null,
+          );
+        }
+      });
+    }
   }
 
   static String _host(String url) => Uri.tryParse(url)?.host ?? url;
@@ -84,6 +87,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       canSign: writer.canSign,
       signerAddress: writer.signerAddress,
       sponsoredReady: _sponsoredReady,
+      walletConnected: context.read<WalletService>().isConnected,
     );
     return Scaffold(
       body: DotGridBackground(
