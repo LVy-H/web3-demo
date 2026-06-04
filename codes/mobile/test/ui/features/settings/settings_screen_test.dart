@@ -1,17 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:tessera/data/services/chain_writer.dart';
+import 'package:tessera/data/services/relay_client.dart';
 import 'package:tessera/ui/features/settings/settings_screen.dart';
 
 Widget _host() => MaterialApp(
-      home: Provider<ChainWriter>(
+  home: MultiProvider(
+    providers: [
+      Provider<ChainWriter>(
         create: (_) =>
             ChainWriter(rpcUrl: 'http://127.0.0.1:8545', chainId: 31337),
-        child: const SettingsScreen(),
       ),
-    );
+      // No registry in the relayer's /info response → the signer resolves to
+      // the honest 'wallet (connect to sign)' fallback (no dev key here).
+      Provider<RelayClient>(
+        create: (_) => RelayClient(
+          baseUrl: 'http://relayer.test',
+          client: MockClient((_) async => http.Response('{}', 503)),
+        ),
+      ),
+    ],
+    child: const SettingsScreen(),
+  ),
+);
 
 void main() {
   setUp(() {

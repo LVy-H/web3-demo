@@ -72,13 +72,13 @@ class _FakePollRepo implements PollRepository {
 }
 
 PollInfo _poll(String addr, String title, String creator) => PollInfo(
-      pollAddress: addr,
-      moduleType: 'anon-vote',
-      title: title,
-      description: 'desc',
-      creator: creator,
-      createdAt: BigInt.zero,
-    );
+  pollAddress: addr,
+  moduleType: 'anon-vote',
+  title: title,
+  description: 'desc',
+  creator: creator,
+  createdAt: BigInt.zero,
+);
 
 // ── Poll-detail / quadratic fakes (the shared _Header pattern lives in every
 // poll screen; quadratic carries the longest badge 'ZK · QUADRATIC'). ─────────
@@ -93,7 +93,8 @@ class _DetailRepo implements PollRepository {
   @override
   Future<List<String>> fetchGroup(String address) => throw UnimplementedError();
   @override
-  Future<PollSummary> fetchSummary(String address) => throw UnimplementedError();
+  Future<PollSummary> fetchSummary(String address) =>
+      throw UnimplementedError();
 }
 
 class _FakeQuadRepo implements QuadraticRepository {
@@ -108,18 +109,18 @@ class _FakeQuadRepo implements QuadraticRepository {
 class _FakeBlindRepo extends BlindRepository {
   final BlindSnapshot snap;
   _FakeBlindRepo(this.snap)
-      : super(
-          reader: ChainReader(
-            rpcUrl: 'http://127.0.0.1:1',
-            izkPollAbiJson: '[]',
-            registryAbiJson: '[]',
-            anonVotingAbiJson: '[]',
-            registryAddress: '0x0000000000000000000000000000000000000000',
-          ),
-          writer: ChainWriter(rpcUrl: 'http://127.0.0.1:1', chainId: 31337),
-          commits: InMemoryBlindCommitStore(),
-          blindAbiJson: '[]',
-        );
+    : super(
+        reader: ChainReader(
+          rpcUrl: 'http://127.0.0.1:1',
+          izkPollAbiJson: '[]',
+          registryAbiJson: '[]',
+          anonVotingAbiJson: '[]',
+          registryAddress: '0x0000000000000000000000000000000000000000',
+        ),
+        writer: ChainWriter(rpcUrl: 'http://127.0.0.1:1', chainId: 31337),
+        commits: InMemoryBlindCommitStore(),
+        blindAbiJson: '[]',
+      );
   @override
   bool get canWrite => true;
   @override
@@ -131,29 +132,29 @@ class _FakeBlindRepo extends BlindRepository {
 }
 
 BlindSnapshot _blindSnap() => BlindSnapshot(
-      address: _detailAddr,
-      state: 1,
-      options: const ['Yes', 'No', 'Abstain'],
-      results: [BigInt.zero, BigInt.one, BigInt.zero],
-      participantCount: BigInt.from(2),
-      owner: '0x1111111111111111111111111111111111111111',
-      revealDeadline: BigInt.zero,
-      finalized: false,
-      registered: false,
-      committed: false,
-      revealed: false,
-    );
+  address: _detailAddr,
+  state: 1,
+  options: const ['Yes', 'No', 'Abstain'],
+  results: [BigInt.zero, BigInt.one, BigInt.zero],
+  participantCount: BigInt.from(2),
+  owner: '0x1111111111111111111111111111111111111111',
+  revealDeadline: BigInt.zero,
+  finalized: false,
+  registered: false,
+  committed: false,
+  revealed: false,
+);
 
 const _detailAddr = '0xd8058efe0198ae9dD7D563e1b4938Dcbc86A1F81';
 
 PollSnapshot _snap() => PollSnapshot(
-      address: _detailAddr,
-      state: 1, // Voting
-      options: const ['Yes', 'No', 'Abstain'],
-      results: [BigInt.from(3), BigInt.from(1), BigInt.zero],
-      owner: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
-      participantCount: BigInt.from(4),
-    );
+  address: _detailAddr,
+  state: 1, // Voting
+  options: const ['Yes', 'No', 'Abstain'],
+  results: [BigInt.from(3), BigInt.from(1), BigInt.zero],
+  owner: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+  participantCount: BigInt.from(4),
+);
 
 void main() {
   setUp(() {
@@ -175,29 +176,32 @@ void main() {
     await useNarrowSurface(tester);
     // The worst case: the hint pill shares one Row with an Expanded sibling
     // that eats the rest of the width, leaving the pill nothing to grow into.
-    await tester.pumpWidget(_app(
-      ChangeNotifierProvider(
-        create: (_) =>
-            WalletService(registryAbiJson: '[]', anonAbiJson: '[]'),
-        child: const Scaffold(
-          body: Padding(
-            padding: EdgeInsets.all(8),
-            // A real tight Row: a long leading label takes most of the width and
-            // the pill gets a bounded `Flexible` slot (how the drawer/create
-            // banner place it). The pill must shrink to fit, not overflow.
-            child: Row(
-              children: [
-                Expanded(
+    await tester.pumpWidget(
+      _app(
+        ChangeNotifierProvider(
+          create: (_) =>
+              WalletService(registryAbiJson: '[]', anonAbiJson: '[]'),
+          child: const Scaffold(
+            body: Padding(
+              padding: EdgeInsets.all(8),
+              // A real tight Row: a long leading label takes most of the width and
+              // the pill gets a bounded `Flexible` slot (how the drawer/create
+              // banner place it). The pill must shrink to fit, not overflow.
+              child: Row(
+                children: [
+                  Expanded(
                     flex: 3,
-                    child: Text('A long leading label beside the pill')),
-                SizedBox(width: 8),
-                Flexible(flex: 2, child: WalletButton()),
-              ],
+                    child: Text('A long leading label beside the pill'),
+                  ),
+                  SizedBox(width: 8),
+                  Flexible(flex: 2, child: WalletButton()),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     await tester.pump(); // let the post-frame ensureInit run
     expect(tester.takeException(), isNull);
     // On a non-web test host (TargetPlatform.android default) the wallet is
@@ -214,27 +218,39 @@ void main() {
         StatefulShellRoute.indexedStack(
           builder: (context, state, shell) => AppShell(shell: shell),
           branches: [
-            StatefulShellBranch(routes: [
-              GoRoute(
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
                   path: '/',
                   builder: (_, _) =>
-                      const Scaffold(body: Center(child: Text('home')))),
-            ]),
-            StatefulShellBranch(routes: [
-              GoRoute(
+                      const Scaffold(body: Center(child: Text('home'))),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
                   path: '/verify',
-                  builder: (_, _) => const SizedBox.shrink()),
-            ]),
-            StatefulShellBranch(routes: [
-              GoRoute(
+                  builder: (_, _) => const SizedBox.shrink(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
                   path: '/create',
-                  builder: (_, _) => const SizedBox.shrink()),
-            ]),
-            StatefulShellBranch(routes: [
-              GoRoute(
+                  builder: (_, _) => const SizedBox.shrink(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
                   path: '/identity',
-                  builder: (_, _) => const SizedBox.shrink()),
-            ]),
+                  builder: (_, _) => const SizedBox.shrink(),
+                ),
+              ],
+            ),
           ],
         ),
         GoRoute(path: '/settings', builder: (_, _) => const SizedBox.shrink()),
@@ -257,51 +273,77 @@ void main() {
     expect(find.text('WALLET'), findsOneWidget);
   });
 
-  testWidgets('Settings screen fits at 340px with a long dev-signer string',
-      (tester) async {
+  testWidgets('Settings screen fits at 340px with a long dev-signer string', (
+    tester,
+  ) async {
     await useNarrowSurface(tester);
-    await tester.pumpWidget(_app(
-      Provider<ChainWriter>(
-        // A configured dev signer makes the "Signer" row carry the long
-        // 'dev signer · 0x…' value — the widest value in the screen.
-        create: (_) => ChainWriter(
-          rpcUrl: 'http://some-fairly-long-rpc-host.example.com:8545',
-          chainId: 31337,
-          privateKey:
-              '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
+    await tester.pumpWidget(
+      _app(
+        MultiProvider(
+          providers: [
+            Provider<ChainWriter>(
+              // A configured dev signer makes the "Signer" row carry the long
+              // 'dev signer · 0x…' value — the widest value in the screen.
+              create: (_) => ChainWriter(
+                rpcUrl: 'http://some-fairly-long-rpc-host.example.com:8545',
+                chainId: 31337,
+                privateKey:
+                    '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
+              ),
+            ),
+            Provider<RelayClient>(
+              create: (_) => RelayClient(
+                baseUrl: 'http://relayer.test',
+                client: MockClient((_) async => http.Response('{}', 503)),
+              ),
+            ),
+          ],
+          child: const SettingsScreen(),
         ),
-        child: const SettingsScreen(),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.text('SETTINGS'), findsOneWidget);
   });
 
-  testWidgets('Settings screen fits at 320px with an enlarged font scale (1.3)',
-      (tester) async {
+  testWidgets('Settings screen fits at 320px with an enlarged font scale (1.3)', (
+    tester,
+  ) async {
     // This is the condition the user actually hit: a narrow phone with the
     // system font scaled up. The fixed-width row LABELS used to push the row
     // past the edge here (33px at this width/scale on the pre-fix code).
     await tester.binding.setSurfaceSize(const Size(320, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(MaterialApp(
-      home: MediaQuery(
-        data: const MediaQueryData(
-          size: Size(320, 900),
-          textScaler: TextScaler.linear(1.3),
-        ),
-        child: Provider<ChainWriter>(
-          create: (_) => ChainWriter(
-            rpcUrl: 'http://eth-sepolia.g.alchemy.com:8545',
-            chainId: 11155111,
-            privateKey:
-                '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(320, 900),
+            textScaler: TextScaler.linear(1.3),
           ),
-          child: const SettingsScreen(),
+          child: MultiProvider(
+            providers: [
+              Provider<ChainWriter>(
+                create: (_) => ChainWriter(
+                  rpcUrl: 'http://eth-sepolia.g.alchemy.com:8545',
+                  chainId: 11155111,
+                  privateKey:
+                      '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
+                ),
+              ),
+              Provider<RelayClient>(
+                create: (_) => RelayClient(
+                  baseUrl: 'http://relayer.test',
+                  client: MockClient((_) async => http.Response('{}', 503)),
+                ),
+              ),
+            ],
+            child: const SettingsScreen(),
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.text('SETTINGS'), findsOneWidget);
@@ -311,20 +353,27 @@ void main() {
     await useNarrowSurface(tester);
     final repo = _FakePollRepo(
       [
-        _poll('0x1111111111111111111111111111111111111111', 'Voting Poll',
-            '0xabcdef0000000000000000000000000000000000'),
+        _poll(
+          '0x1111111111111111111111111111111111111111',
+          'Voting Poll',
+          '0xabcdef0000000000000000000000000000000000',
+        ),
       ],
       {
-        '0x1111111111111111111111111111111111111111':
-            PollSummary(state: 1, totalVotes: BigInt.from(123456)),
+        '0x1111111111111111111111111111111111111111': PollSummary(
+          state: 1,
+          totalVotes: BigInt.from(123456),
+        ),
       },
     );
-    await tester.pumpWidget(_app(
-      ChangeNotifierProvider(
-        create: (_) => BrowseViewModel(repo),
-        child: const BrowseScreen(),
+    await tester.pumpWidget(
+      _app(
+        ChangeNotifierProvider(
+          create: (_) => BrowseViewModel(repo),
+          child: const BrowseScreen(),
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     // The hero stat renders the real vote tally.
@@ -336,66 +385,85 @@ void main() {
     expect(find.text('VOTING'), findsOneWidget);
   });
 
-  testWidgets('Poll-detail header (back + ZK · ANON badge + addr) fits at 340px',
-      (tester) async {
-    await useNarrowSurface(tester);
-    await tester.pumpWidget(_app(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider(
-              create: (_) => PollDetailViewModel(_DetailRepo(_snap()), _detailAddr)),
-          Provider<ChainWriter>(
-              create: (_) =>
-                  ChainWriter(rpcUrl: 'http://127.0.0.1:1', chainId: 31337)),
-        ],
-        child: const PollDetailScreen(address: _detailAddr),
-      ),
-    ));
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-    expect(find.text('ZK · ANON'), findsOneWidget);
-  });
-
   testWidgets(
-      'Quadratic-poll header (longest badge ZK · QUADRATIC) fits at 340px',
-      (tester) async {
-    await useNarrowSurface(tester);
-    final relay = MockClient((req) async => http.Response('{}', 200));
-    await tester.pumpWidget(_app(
-      ChangeNotifierProvider(
-        create: (_) => QuadraticVoteViewModel(
-          repository: _FakeQuadRepo(_snap()),
-          proofService: const FakeProofService(RelayProof(
-            merkleTreeDepth: 1,
-            merkleTreeRoot: '1',
-            nullifier: '2',
-            message: '134',
-            scope: '3',
-            points: ['1', '2', '3', '4', '5', '6', '7', '8'],
-          )),
-          relayClient: RelayClient(baseUrl: 'http://relayer.test', client: relay),
-          pollAddress: _detailAddr,
+    'Poll-detail header (back + ZK · ANON badge + addr) fits at 340px',
+    (tester) async {
+      await useNarrowSurface(tester);
+      await tester.pumpWidget(
+        _app(
+          MultiProvider(
+            providers: [
+              ChangeNotifierProvider(
+                create: (_) =>
+                    PollDetailViewModel(_DetailRepo(_snap()), _detailAddr),
+              ),
+              Provider<ChainWriter>(
+                create: (_) =>
+                    ChainWriter(rpcUrl: 'http://127.0.0.1:1', chainId: 31337),
+              ),
+            ],
+            child: const PollDetailScreen(address: _detailAddr),
+          ),
         ),
-        child: const QuadraticPollScreen(address: _detailAddr),
-      ),
-    ));
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-    expect(find.text('ZK · QUADRATIC'), findsOneWidget);
-  });
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('ZK · ANON'), findsOneWidget);
+    },
+  );
 
   testWidgets(
-      'Blind-poll header (longest badge BLIND · COMMIT-REVEAL) fits at 340px',
-      (tester) async {
-    await useNarrowSurface(tester);
-    await tester.pumpWidget(_app(
-      ChangeNotifierProvider(
-        create: (_) => BlindPollViewModel(_FakeBlindRepo(_blindSnap()), _detailAddr),
-        child: const BlindPollScreen(address: _detailAddr),
-      ),
-    ));
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-    expect(find.text('BLIND · COMMIT-REVEAL'), findsOneWidget);
-  });
+    'Quadratic-poll header (longest badge ZK · QUADRATIC) fits at 340px',
+    (tester) async {
+      await useNarrowSurface(tester);
+      final relay = MockClient((req) async => http.Response('{}', 200));
+      await tester.pumpWidget(
+        _app(
+          ChangeNotifierProvider(
+            create: (_) => QuadraticVoteViewModel(
+              repository: _FakeQuadRepo(_snap()),
+              proofService: const FakeProofService(
+                RelayProof(
+                  merkleTreeDepth: 1,
+                  merkleTreeRoot: '1',
+                  nullifier: '2',
+                  message: '134',
+                  scope: '3',
+                  points: ['1', '2', '3', '4', '5', '6', '7', '8'],
+                ),
+              ),
+              relayClient: RelayClient(
+                baseUrl: 'http://relayer.test',
+                client: relay,
+              ),
+              pollAddress: _detailAddr,
+            ),
+            child: const QuadraticPollScreen(address: _detailAddr),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('ZK · QUADRATIC'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Blind-poll header (longest badge BLIND · COMMIT-REVEAL) fits at 340px',
+    (tester) async {
+      await useNarrowSurface(tester);
+      await tester.pumpWidget(
+        _app(
+          ChangeNotifierProvider(
+            create: (_) =>
+                BlindPollViewModel(_FakeBlindRepo(_blindSnap()), _detailAddr),
+            child: const BlindPollScreen(address: _detailAddr),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('BLIND · COMMIT-REVEAL'), findsOneWidget);
+    },
+  );
 }
