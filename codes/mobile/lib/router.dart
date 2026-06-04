@@ -24,6 +24,7 @@ import 'ui/features/live_host/live_host_screen.dart';
 import 'ui/features/live_host/live_host_view_model.dart';
 import 'ui/features/live_vote/live_vote_screen.dart';
 import 'ui/features/live_vote/live_vote_view_model.dart';
+import 'ui/features/settings/network_config_screen.dart';
 import 'ui/features/settings/settings_screen.dart';
 import 'ui/features/browse/browse_screen.dart';
 import 'ui/features/browse/browse_view_model.dart';
@@ -236,6 +237,10 @@ GoRouter buildRouter() => GoRouter(
     GoRoute(
       path: '/settings',
       builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/settings/network',
+      builder: (context, state) => const NetworkConfigScreen(),
     ),
   ],
 );

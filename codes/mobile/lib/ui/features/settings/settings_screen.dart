@@ -105,6 +105,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _row('RPC', _host(AppConfig.rpcUrl)),
                     _row('Relayer', _host(AppConfig.relayerUrl)),
                     _row('Registry', shortAddr(AppConfig.registryAddress)),
+                    _linkRow(
+                      AppConfig.isOverridden
+                          ? 'Edit backend (custom)'
+                          : 'Configure backend',
+                      () => context.push('/settings/network'),
+                    ),
                   ]),
                   const SizedBox(height: 18),
                   _section('SIGNING & PROVING', [
