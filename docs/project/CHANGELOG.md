@@ -5,6 +5,12 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **CI publishes downloadable build artifacts** — every CI run now uploads
+  `tessera-web` (the static `build/web` site, the thing you deploy to Cloudflare
+  Pages / any static host) from the `mobile` job, and a new `android` job builds
+  and uploads `tessera-apk` (release APK, debug-signed so it installs for
+  testing). The `android` job is separate so an Android/Gradle hiccup never
+  blocks the web gate. 14-day retention.
 - **"MINE" filter — the polls you created** — answers the natural next question
   after the ownership work: *which of these are mine?* Under wallet-free the
   relayer is the on-chain `creator` of every sponsored poll, so "mine" can't come
