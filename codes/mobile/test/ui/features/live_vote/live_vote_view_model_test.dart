@@ -63,4 +63,21 @@ void main() {
     vm.setTicket('https://x/live/0xabc/vote?t=tok42');
     expect(vm.ticket, 'tok42');
   });
+
+  // The ballot gate: a confirmed voter can only cast once the organizer opens
+  // voting (poll phase 1). Before that the relayer would reject the cast.
+  test('votingOpen / votingEnded reflect the on-chain poll phase', () {
+    final vm = _vm();
+    expect(vm.votingOpen, isFalse, reason: 'null until first read');
+    expect(vm.votingEnded, isFalse);
+    vm.pollState = 0; // Registration
+    expect(vm.votingOpen, isFalse);
+    expect(vm.votingEnded, isFalse);
+    vm.pollState = 1; // Voting
+    expect(vm.votingOpen, isTrue);
+    expect(vm.votingEnded, isFalse);
+    vm.pollState = 2; // Ended
+    expect(vm.votingOpen, isFalse);
+    expect(vm.votingEnded, isTrue);
+  });
 }

@@ -76,6 +76,14 @@ class LiveVoteViewModel extends ChangeNotifier {
 
   bool get canVote => _canVoteOverride ?? proofServiceAvailable;
 
+  /// On-chain poll phase (0 = Registration, 1 = Voting, 2 = Ended); null until
+  /// first read after registration. The ballot is GATED on [votingOpen]: a
+  /// confirmed voter still can't cast until the organizer opens voting — the
+  /// relayer would otherwise reject the cast with "Poll is not in voting phase".
+  int? pollState;
+  bool get votingOpen => pollState == 1;
+  bool get votingEnded => pollState == 2;
+
   bool _disposed = false;
   @override
   void dispose() {
@@ -143,12 +151,24 @@ class LiveVoteViewModel extends ChangeNotifier {
 
   Future<void> _checkRegistered() async {
     try {
-      final group = await _reader.getRegisteredCommitments(pollAddress);
-      if (commitment != null && group.contains(commitment)) {
-        _poll?.cancel();
+      // Phase 1: still waiting for the organizer to confirm us on-chain.
+      if (stage == LiveVoteStage.pending) {
+        final group = await _reader.getRegisteredCommitments(pollAddress);
+        if (commitment == null || !group.contains(commitment)) return;
         options = await _reader.getOptions(pollAddress);
         stage = LiveVoteStage.registered;
         _notify();
+      }
+      // Phase 2: confirmed — keep the poll phase fresh so the ballot unlocks the
+      // moment the organizer opens voting (state 1). Stop polling once voting is
+      // open or already ended (nothing left to wait for).
+      if (stage == LiveVoteStage.registered) {
+        final s = await _reader.getState(pollAddress);
+        if (s != pollState) {
+          pollState = s;
+          _notify();
+        }
+        if (votingOpen || votingEnded) _poll?.cancel();
       }
     } catch (_) {
       // transient; keep polling
@@ -173,6 +193,7 @@ class LiveVoteViewModel extends ChangeNotifier {
   Future<void> castVote(int option) async {
     final seed = _seed;
     if (seed == null) return;
+    if (!votingOpen) return; // gated: the ballot is only enabled while voting is open
     stage = LiveVoteStage.proving;
     error = null;
     _notify();
