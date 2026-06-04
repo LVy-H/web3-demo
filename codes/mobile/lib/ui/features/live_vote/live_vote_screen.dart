@@ -160,10 +160,32 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
           ),
         ];
       case LiveVoteStage.registered:
+        // Confirmed on-chain, but the ballot is gated on the poll phase: the
+        // organizer must open voting before a cast is accepted.
+        if (vm.votingEnded) {
+          return [
+            _banner(
+              Icons.lock_clock,
+              'Voting has ended for this poll.',
+              color: Db.mute,
+            ),
+          ];
+        }
+        if (!vm.votingOpen) {
+          return [
+            _banner(
+              Icons.verified,
+              "Confirmed — you're in. Waiting for the organizer to open voting…",
+              color: Db.success,
+            ),
+            const SizedBox(height: 16),
+            _busy('Voting not open yet'),
+          ];
+        }
         return [
           _banner(
             Icons.verified,
-            'Confirmed — cast your anonymous vote.',
+            'Voting is open — cast your anonymous vote.',
             color: Db.success,
           ),
           const SizedBox(height: 16),
