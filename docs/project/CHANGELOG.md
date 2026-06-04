@@ -87,6 +87,19 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
     architecture: `docs/architecture/module-survey.md`.
 
 ### Changed
+- **Web prover self-hosts its SNARK artifacts — cut the CDN (P4-24)** — voting is
+  web-primary, and the web prover fetched the Groth16 `wasm`/`zkey` from the PSE
+  CDN (`snark-artifacts.pse.dev`) at vote time: a hard third-party runtime
+  dependency (CDN down → can't vote) and a privacy leak (the CDN observes who's
+  about to vote). The web build now ships the depth-16 artifacts under `web/zk/`
+  and `ProofServiceWeb` passes their same-origin URLs to the prover — which
+  already supported the bundled path, so **no JS-bundle rebuild** — pinning depth
+  16 like mobile and the on-chain verifier. Verified in headless Chrome: a valid
+  proof generates + verifies from the local artifacts, with the static-server
+  access log showing the `/zk/` fetch and the CDN never contacted (`entry.js`
+  only defaults to the CDN when no artifact URLs are passed). The desktop
+  Node-sidecar prover still CDN-fetches, so P4-24 stays Partial until that
+  follows. Design: `docs/superpowers/specs/2026-06-04-web-prover-self-host-design.md`.
 - **Nightly real-verifier CI** — `.github/workflows/real-verifier.yml` runs the
   `RealVerifier.test.ts` Groth16 integration test (a real snarkjs proof, accept +
   tamper-reject) on a nightly schedule and on manual dispatch. Kept off the

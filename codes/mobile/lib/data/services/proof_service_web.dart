@@ -13,6 +13,7 @@ external JSPromise<JSString> _zkGenerateVoteProof(
   JSArray<JSString> memberCommitments,
   JSNumber message,
   JSString scope,
+  JSObject opts,
 );
 
 /// Second binding to the SAME `zkGenerateVoteProof` global, typed so [message]
@@ -26,13 +27,36 @@ external JSPromise<JSString> _zkGenerateVoteProofWide(
   JSArray<JSString> memberCommitments,
   JSString message,
   JSString scope,
+  JSObject opts,
 );
 
 @JS('zkCommitment')
 external JSString _zkCommitment(JSString seed);
 
+/// The prover bundle's `opts` object (see `web_prover/entry.js`). When `wasm` and
+/// `zkey` are both set, snarkjs loads the Groth16 artifacts from those URLs and
+/// NEVER the PSE CDN — so the web app has no third-party runtime dependency to
+/// vote. `depth` pins the bundled depth-16 circuit.
+extension type _ProverOpts._(JSObject _) implements JSObject {
+  external factory _ProverOpts({int depth, String wasm, String zkey});
+}
+
 class ProofServiceWeb implements ProofService {
-  const ProofServiceWeb();
+  /// Base URL the self-hosted SNARK artifacts are served from. Default `''`
+  /// resolves `zk/...` against the app's base href (same origin as the web
+  /// build, which ships them under `web/zk/`). The browser test overrides this
+  /// with the origin it serves `web/` from, since its page origin is the Flutter
+  /// test harness, not the served directory.
+  final String artifactBase;
+  const ProofServiceWeb({this.artifactBase = ''});
+
+  /// `{depth: 16, wasm, zkey}` aimed at the self-hosted depth-16 artifacts.
+  /// Passing these makes the prover bypass the PSE CDN entirely (no fallback).
+  _ProverOpts get _opts => _ProverOpts(
+        depth: 16,
+        wasm: '${artifactBase}zk/semaphore-16.wasm',
+        zkey: '${artifactBase}zk/semaphore-16.zkey',
+      );
 
   @override
   Future<RelayProof> generateVoteProof({
@@ -50,6 +74,7 @@ class ProofServiceWeb implements ProofService {
       jsMembers,
       message.toJS,
       scope.toJS,
+      _opts,
     ).toDart;
     return _parseProof(resultJs);
   }
@@ -69,6 +94,7 @@ class ProofServiceWeb implements ProofService {
       jsMembers,
       message.toJS,
       scope.toJS,
+      _opts,
     ).toDart;
     return _parseProof(resultJs);
   }
