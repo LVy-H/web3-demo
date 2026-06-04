@@ -108,6 +108,12 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
   and `web3-demo.zip` (P3-18) — live source stays; frozen blobs dropped.
 
 ### Fixed
+- **Settings signer status — review follow-ups** (adversarial review of the
+  signing-explainer PR): `signerStatusLabel` now reports **`wallet connected`**
+  when a wallet is actually connected (instead of always falling back to
+  `connect to sign`); the relayer probe is **skipped when a dev-signer is active**
+  (its result is never displayed then — no wasted up-to-8s round-trip); and the
+  dead `.catchError` on `getRelayerInfo()` (which never rejects) was removed.
 - **Documentation truth-up** — purged stale references to the deleted React/Vite
   frontend across `README.md`, `INSTRUCTIONS.md`, `codes/README.md`,
   `docs/architecture/system-overview.md`, `docs/project/STATUS.md`,

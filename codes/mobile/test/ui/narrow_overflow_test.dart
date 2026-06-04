@@ -297,6 +297,10 @@ void main() {
                 client: MockClient((_) async => http.Response('{}', 503)),
               ),
             ),
+            ChangeNotifierProvider<WalletService>(
+              create: (_) =>
+                  WalletService(registryAbiJson: '[]', anonAbiJson: '[]'),
+            ),
           ],
           child: const SettingsScreen(),
         ),
@@ -337,6 +341,10 @@ void main() {
                   baseUrl: 'http://relayer.test',
                   client: MockClient((_) async => http.Response('{}', 503)),
                 ),
+              ),
+              ChangeNotifierProvider<WalletService>(
+                create: (_) =>
+                    WalletService(registryAbiJson: '[]', anonAbiJson: '[]'),
               ),
             ],
             child: const SettingsScreen(),

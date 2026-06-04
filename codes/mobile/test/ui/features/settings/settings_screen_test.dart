@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:tessera/data/services/chain_writer.dart';
 import 'package:tessera/data/services/relay_client.dart';
+import 'package:tessera/data/services/wallet_service.dart';
 import 'package:tessera/ui/features/settings/settings_screen.dart';
 
 Widget _host() => MaterialApp(
@@ -16,12 +17,15 @@ Widget _host() => MaterialApp(
             ChainWriter(rpcUrl: 'http://127.0.0.1:8545', chainId: 31337),
       ),
       // No registry in the relayer's /info response → the signer resolves to
-      // the honest 'wallet (connect to sign)' fallback (no dev key here).
+      // the honest 'wallet (connect to sign)' fallback (no dev key, no wallet).
       Provider<RelayClient>(
         create: (_) => RelayClient(
           baseUrl: 'http://relayer.test',
           client: MockClient((_) async => http.Response('{}', 503)),
         ),
+      ),
+      ChangeNotifierProvider<WalletService>(
+        create: (_) => WalletService(registryAbiJson: '[]', anonAbiJson: '[]'),
       ),
     ],
     child: const SettingsScreen(),
