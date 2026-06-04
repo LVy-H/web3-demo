@@ -1,0 +1,30 @@
+name: real-verifier
+
+# The real Groth16 verifier integration test (P4-23) runs snarkjs to generate a
+# REAL Semaphore proof (~seconds) from the bundled depth-16 artifacts and asserts
+# the real SemaphoreVerifier ACCEPTS a valid vote and REJECTS a tampered one — the
+# behaviour the accept-anything MockSemaphoreVerifier cannot exercise. It uses an
+# in-process Hardhat chain (no external node/relayer), so it is fully
+# self-contained. Too slow for the per-PR `CI` gate, so it runs nightly and on
+# manual dispatch.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * *" # 05:00 UTC nightly
+
+jobs:
+  real-verifier:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codes/contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: codes/contracts/package-lock.json
+      - run: npm ci
+      - name: Real Groth16 verifier integration test (RUN_REAL_VERIFIER=1)
+        run: RUN_REAL_VERIFIER=1 npx hardhat test test/integration/RealVerifier.test.ts
