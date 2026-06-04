@@ -409,6 +409,12 @@ void main() {
                 create: (_) =>
                     ChainWriter(rpcUrl: 'http://127.0.0.1:1', chainId: 31337),
               ),
+              Provider<RelayClient>(
+                create: (_) => RelayClient(
+                  baseUrl: 'http://relayer.test',
+                  client: MockClient((_) async => http.Response('{}', 503)),
+                ),
+              ),
             ],
             child: const PollDetailScreen(address: _detailAddr),
           ),

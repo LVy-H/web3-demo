@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
 import 'package:tessera/data/models/poll_info.dart';
 import 'package:tessera/data/models/poll_snapshot.dart';
 import 'package:tessera/data/models/poll_summary.dart';
 import 'package:tessera/data/repositories/poll_repository.dart';
 import 'package:tessera/data/services/chain_writer.dart';
+import 'package:tessera/data/services/relay_client.dart';
 import 'package:tessera/ui/features/poll_detail/poll_detail_screen.dart';
 import 'package:tessera/ui/features/poll_detail/poll_detail_view_model.dart';
 
@@ -27,27 +30,38 @@ class FakeRepo implements PollRepository {
   Future<List<String>> fetchGroup(String address) => throw UnimplementedError();
 
   @override
-  Future<PollSummary> fetchSummary(String address) => throw UnimplementedError();
+  Future<PollSummary> fetchSummary(String address) =>
+      throw UnimplementedError();
 }
 
 const addr = '0xd8058efe0198ae9dD7D563e1b4938Dcbc86A1F81';
 
 Widget wrap(PollRepository repo) => MaterialApp(
-      home: MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => PollDetailViewModel(repo, addr)),
-          // No dev key → canSign false → the "organize live session" entry hides.
-          Provider<ChainWriter>(
-              create: (_) =>
-                  ChainWriter(rpcUrl: 'http://127.0.0.1:1', chainId: 31337)),
-        ],
-        child: const PollDetailScreen(address: addr),
+  home: MultiProvider(
+    providers: [
+      ChangeNotifierProvider(create: (_) => PollDetailViewModel(repo, addr)),
+      // No dev key → canSign false → the "organize live session" entry hides.
+      Provider<ChainWriter>(
+        create: (_) =>
+            ChainWriter(rpcUrl: 'http://127.0.0.1:1', chainId: 31337),
       ),
-    );
+      // Relayer 503 → no relayer address → RUN BY falls back to the short
+      // address (the detail screen probes /info on open).
+      Provider<RelayClient>(
+        create: (_) => RelayClient(
+          baseUrl: 'http://relayer.test',
+          client: MockClient((_) async => http.Response('{}', 503)),
+        ),
+      ),
+    ],
+    child: const PollDetailScreen(address: addr),
+  ),
+);
 
 void main() {
-  testWidgets('renders phase badge, options, and result percentages',
-      (tester) async {
+  testWidgets('renders phase badge, options, and result percentages', (
+    tester,
+  ) async {
     final snap = PollSnapshot(
       address: addr,
       state: 1, // Voting
@@ -67,8 +81,9 @@ void main() {
     expect(find.textContaining('4 REGISTERED'), findsOneWidget);
   });
 
-  testWidgets('all-zero results render the "No votes yet" empty state',
-      (tester) async {
+  testWidgets('all-zero results render the "No votes yet" empty state', (
+    tester,
+  ) async {
     // Carried results-charts case: a Voting poll with no votes yet shows the
     // ResultsBars empty state (no bars, no divide-by-zero), not a 0% chart.
     final snap = PollSnapshot(

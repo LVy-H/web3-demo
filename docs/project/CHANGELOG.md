@@ -5,6 +5,14 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Poll ownership + permissions clarity** — answers "I don't know who owns a
+  poll or what permission everyone has." The poll detail's bare `OWNER: 0x…` row
+  is now a meaningful **RUN BY** label: a relayer-owned (wallet-free) poll reads
+  **"Sponsored · relayer-run"**, your own poll reads **"You"**, otherwise a
+  specific creator's short address (pure `pollOwner`, unit-tested). A new **"Who
+  can do what"** sheet explains the model — leading with the ZK guarantee that
+  *nobody, not even the owner, can see who voted for what* — then owner / voters /
+  your access. Design: `docs/superpowers/specs/2026-06-04-poll-roles-permissions-design.md`.
 - **Share + the signing explainer reach every screen** — the **SHARE** button now
   appears on all six poll-detail surfaces (anon / blind / approval / ranked /
   quadratic / survey), each generating its own correct module deep-link; and the
