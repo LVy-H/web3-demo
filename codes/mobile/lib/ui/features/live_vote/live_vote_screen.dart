@@ -51,8 +51,10 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
                   _header(context),
                   const SizedBox(height: 18),
                   if (!vm.canVote)
-                    _banner(Icons.lock_outline,
-                        'Live voting needs the prover (web, or desktop with the Node sidecar). This build is read-only.')
+                    _banner(
+                      Icons.lock_outline,
+                      'Live voting needs the prover (web, or desktop with the Node sidecar). This build is read-only.',
+                    )
                   else
                     ..._stage(context, vm),
                   if (vm.error != null) ...[
@@ -75,9 +77,11 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
         return [
           Text('JOIN A LIVE VOTE', style: dbHero(34)),
           const SizedBox(height: 10),
-          Text('Scan the organizer\'s QR (or paste its link/ticket below), then '
-              'show them the code on the next screen.',
-              style: dbSans(13, 400, Db.chalkDim, height: 1.5)),
+          Text(
+            'Scan the organizer\'s QR (or paste its link/ticket below), then '
+            'show them the code on the next screen.',
+            style: dbSans(13, 400, Db.chalkDim, height: 1.5),
+          ),
           const SizedBox(height: 18),
           // Camera scan: only offered where a camera exists (mobile). On web /
           // desktop `cameraScanSupported` is false, so this is absent and the
@@ -104,37 +108,79 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
           Text('SHOW THIS CODE', style: dbLabel(size: 11, tracking: 0.16)),
           const SizedBox(height: 10),
           Center(
-            child: Text(vm.code ?? '----',
-                style: dbMono(64, Db.segnale, wght: 700, letterSpacing: 8)),
+            child: Text(
+              vm.code ?? '----',
+              style: dbMono(64, Db.segnale, wght: 700, letterSpacing: 8),
+            ),
           ),
           const SizedBox(height: 14),
-          Text('Show this 4-digit code to the organizer. Once they confirm you '
-              'face-to-face, voting unlocks automatically.',
-              style: dbMono(12, Db.mute, height: 1.5)),
+          Text(
+            'Show this 4-digit code to the organizer. Once they confirm you '
+            'face-to-face, voting unlocks automatically.',
+            style: dbMono(12, Db.mute, height: 1.5),
+          ),
+          // Optional BLE proximity signal — silent unless a radio is checking or
+          // confirmed it; it only ADDS trust, never gates the code path.
+          if (vm.proximityChecking || vm.proximityNearby) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  vm.proximityNearby
+                      ? Icons.check_circle_outline
+                      : Icons.bluetooth_searching,
+                  size: 14,
+                  color: vm.proximityNearby ? Db.success : Db.mute,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  vm.proximityNearby
+                      ? 'Verified in the room (BLE)'
+                      : "Checking you're in the room…",
+                  style: dbMono(11, vm.proximityNearby ? Db.success : Db.mute),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 14),
-          Row(children: [
-            const SizedBox(
+          Row(
+            children: [
+              const SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Db.segnale)),
-            const SizedBox(width: 10),
-            Text('waiting for confirmation…', style: dbMono(11, Db.muteDim)),
-          ]),
+                  strokeWidth: 2,
+                  color: Db.segnale,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text('waiting for confirmation…', style: dbMono(11, Db.muteDim)),
+            ],
+          ),
         ];
       case LiveVoteStage.registered:
         return [
-          _banner(Icons.verified, 'Confirmed — cast your anonymous vote.',
-              color: Db.success),
+          _banner(
+            Icons.verified,
+            'Confirmed — cast your anonymous vote.',
+            color: Db.success,
+          ),
           const SizedBox(height: 16),
           for (var i = 0; i < vm.options.length; i++) ...[
             if (i > 0) const SizedBox(height: 8),
-            _option(vm.options[i], Db.optionColor(i), _selected == i,
-                () => setState(() => _selected = i)),
+            _option(
+              vm.options[i],
+              Db.optionColor(i),
+              _selected == i,
+              () => setState(() => _selected = i),
+            ),
           ],
           const SizedBox(height: 16),
-          _button('CAST ANONYMOUS VOTE',
-              _selected == null ? null : () => vm.castVote(_selected!)),
+          _button(
+            'CAST ANONYMOUS VOTE',
+            _selected == null ? null : () => vm.castVote(_selected!),
+          ),
         ];
       case LiveVoteStage.proving:
         return [_busy('Generating zero-knowledge proof…')];
@@ -142,9 +188,11 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
         return [_busy('Submitting your vote…')];
       case LiveVoteStage.done:
         return [
-          _banner(Icons.check_circle,
-              'Vote counted${vm.txHash != null ? ' · ${shortAddr(vm.txHash!)}' : ''}.',
-              color: Db.success),
+          _banner(
+            Icons.check_circle,
+            'Vote counted${vm.txHash != null ? ' · ${shortAddr(vm.txHash!)}' : ''}.',
+            color: Db.success,
+          ),
         ];
     }
   }
@@ -152,28 +200,33 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
   /// "Scan QR" affordance shown next to the paste field on mobile. Opens the
   /// camera scanner sheet; on a decoded value, drives the same join path.
   Widget _scanButton(BuildContext context, LiveVoteViewModel vm) => SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: () => _openScanner(context, vm),
-          icon: const Icon(Icons.qr_code_scanner, size: 18, color: Db.segnale),
-          label: Text('SCAN QR',
-              style: dbSans(13, 800, Db.segnale, letterSpacing: 1.2)),
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Db.segnale),
-            shape: const RoundedRectangleBorder(),
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-        ),
-      );
+    width: double.infinity,
+    child: OutlinedButton.icon(
+      onPressed: () => _openScanner(context, vm),
+      icon: const Icon(Icons.qr_code_scanner, size: 18, color: Db.segnale),
+      label: Text(
+        'SCAN QR',
+        style: dbSans(13, 800, Db.segnale, letterSpacing: 1.2),
+      ),
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: Db.segnale),
+        shape: const RoundedRectangleBorder(),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+    ),
+  );
 
   Future<void> _openScanner(BuildContext context, LiveVoteViewModel vm) async {
     final raw = await showQrScanSheet(
       context,
       title: 'SCAN QR TICKET',
-      hint: "Point the camera at the organizer's QR. Can't scan? Close this and "
+      hint:
+          "Point the camera at the organizer's QR. Can't scan? Close this and "
           "paste the link/ticket below instead.",
     );
-    if (raw == null) return; // dismissed / camera unavailable → paste still works
+    if (raw == null) {
+      return; // dismissed / camera unavailable → paste still works
+    }
     onScanned(vm, raw);
   }
 
@@ -189,40 +242,51 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
     vm.join();
   }
 
-  Widget _header(BuildContext context) => Row(children: [
-        Expanded(
-          child: InkWell(
-            onTap: () => context.canPop() ? context.pop() : context.go('/'),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
+  Widget _header(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: InkWell(
+          onTap: () => context.canPop() ? context.pop() : context.go('/'),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
               const Icon(Icons.arrow_back, size: 14, color: Db.mute),
               const SizedBox(width: 6),
               Flexible(
-                child: Text('BACK',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: false,
-                    style: dbLabel(size: 11, tracking: 0.16)),
+                child: Text(
+                  'BACK',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: dbLabel(size: 11, tracking: 0.16),
+                ),
               ),
-            ]),
+            ],
           ),
         ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          color: Db.segnale,
-          child: Text('LIVE · VOTE',
-              style: dbSans(11, 800, Db.void_, letterSpacing: 1.6)),
+      ),
+      const SizedBox(width: 8),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        color: Db.segnale,
+        child: Text(
+          'LIVE · VOTE',
+          style: dbSans(11, 800, Db.void_, letterSpacing: 1.6),
         ),
-      ]);
+      ),
+    ],
+  );
 
   Widget _busy(String label) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40),
-        child: Column(children: [
-          const CircularProgressIndicator(color: Db.segnale),
-          const SizedBox(height: 16),
-          Text(label, style: dbMono(12, Db.chalkDim)),
-        ]),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 40),
+    child: Column(
+      children: [
+        const CircularProgressIndicator(color: Db.segnale),
+        const SizedBox(height: 16),
+        Text(label, style: dbMono(12, Db.chalkDim)),
+      ],
+    ),
+  );
 
   Widget _banner(IconData icon, String text, {Color color = Db.segnale}) =>
       Container(
@@ -231,77 +295,102 @@ class _LiveVoteScreenState extends State<LiveVoteScreen> {
           color: Db.slate,
           border: Border(left: BorderSide(color: color, width: 3)),
         ),
-        child: Row(children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(width: 12),
-          Expanded(child: Text(text, style: dbMono(12, Db.chalkDim, height: 1.4))),
-        ]),
-      );
-
-  Widget _field(String label, TextEditingController c, String hint) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: dbLabel(size: 10, tracking: 0.16)),
-        const SizedBox(height: 8),
-        TextField(
-          controller: c,
-          style: dbMono(12, Db.chalk),
-          cursorColor: Db.segnale,
-          maxLines: 2,
-          decoration: InputDecoration(
-            isDense: true,
-            filled: true,
-            fillColor: Db.slate3,
-            hintText: hint,
-            hintStyle: dbMono(11, Db.muteDim),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            enabledBorder: const OutlineInputBorder(
-                borderRadius: BorderRadius.zero,
-                borderSide: BorderSide(color: Db.rule)),
-            focusedBorder: const OutlineInputBorder(
-                borderRadius: BorderRadius.zero,
-                borderSide: BorderSide(color: Db.segnale)),
-          ),
-        ),
-      ]);
-
-  Widget _option(String label, Color color, bool selected, VoidCallback onTap) =>
-      InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            color: selected ? color.withValues(alpha: 0.12) : Db.void_,
-            border: Border.all(
-                color: selected ? color : Db.rule, width: selected ? 2 : 1),
-          ),
-          child: Row(children: [
-            Icon(
-                selected
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked,
-                color: selected ? color : Db.mute,
-                size: 18),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: color),
             const SizedBox(width: 12),
-            Expanded(child: Text(label, style: dbSans(15, 600, Db.chalk))),
-          ]),
+            Expanded(
+              child: Text(text, style: dbMono(12, Db.chalkDim, height: 1.4)),
+            ),
+          ],
         ),
       );
+
+  Widget _field(String label, TextEditingController c, String hint) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: dbLabel(size: 10, tracking: 0.16)),
+      const SizedBox(height: 8),
+      TextField(
+        controller: c,
+        style: dbMono(12, Db.chalk),
+        cursorColor: Db.segnale,
+        maxLines: 2,
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: Db.slate3,
+          hintText: hint,
+          hintStyle: dbMono(11, Db.muteDim),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
+          enabledBorder: const OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: Db.rule),
+          ),
+          focusedBorder: const OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: Db.segnale),
+          ),
+        ),
+      ),
+    ],
+  );
+
+  Widget _option(
+    String label,
+    Color color,
+    bool selected,
+    VoidCallback onTap,
+  ) => InkWell(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: selected ? color.withValues(alpha: 0.12) : Db.void_,
+        border: Border.all(
+          color: selected ? color : Db.rule,
+          width: selected ? 2 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            selected
+                ? Icons.radio_button_checked
+                : Icons.radio_button_unchecked,
+            color: selected ? color : Db.mute,
+            size: 18,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label, style: dbSans(15, 600, Db.chalk))),
+        ],
+      ),
+    ),
+  );
 
   Widget _button(String label, VoidCallback? onTap) => SizedBox(
-        width: double.infinity,
-        child: FilledButton(
-          onPressed: onTap,
-          style: FilledButton.styleFrom(
-            backgroundColor: Db.segnale,
-            disabledBackgroundColor: Db.slate,
-            foregroundColor: Db.void_,
-            shape: const RoundedRectangleBorder(),
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          child: Text(label,
-              style: dbSans(13, 800, onTap != null ? Db.void_ : Db.mute,
-                  letterSpacing: 1.2)),
+    width: double.infinity,
+    child: FilledButton(
+      onPressed: onTap,
+      style: FilledButton.styleFrom(
+        backgroundColor: Db.segnale,
+        disabledBackgroundColor: Db.slate,
+        foregroundColor: Db.void_,
+        shape: const RoundedRectangleBorder(),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+      child: Text(
+        label,
+        style: dbSans(
+          13,
+          800,
+          onTap != null ? Db.void_ : Db.mute,
+          letterSpacing: 1.2,
         ),
-      );
+      ),
+    ),
+  );
 }

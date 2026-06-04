@@ -5,6 +5,19 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **BLE proximity attestation for live meetings** — the other half of NFC/BLE.
+  While a live-meeting voter is *pending* (showing their 4-digit code), the app
+  scans (`flutter_blue_plus`) for the organizer's BLE beacon — a service UUID both
+  sides derive from the public poll address (`bleBeaconUuid`, unit-tested) — and
+  shows a silent **"✓ Verified in the room (BLE)"** chip. Anti-remote-voting: it
+  only *adds* trust and never gates the face-to-face code. The `ProximityService`
+  seam was refactored web-safe (conditional-import factory keeping
+  `flutter_blue_plus`/`dart:io` out of the web compile, mirroring NFC) and wired
+  into `LiveVoteViewModel` (default no-op, so existing callers are unaffected).
+  `analyze` + `flutter test` green; the BLE scan + the organizer *advertising* the
+  beacon (flutter_blue_plus is scan-only — needs a physical beacon or a
+  peripheral-mode plugin) are device-fenced. Design:
+  `docs/superpowers/specs/2026-06-04-ble-proximity-design.md`.
 - **NFC tap-to-open polls** — a poll's `tessera://poll/<addr>?module=<m>` link
   (the *same* payload the QR encodes) can be written to an **NFC tag** from the
   share sheet: a venue/booth puts a tap-to-vote sticker instead of asking people

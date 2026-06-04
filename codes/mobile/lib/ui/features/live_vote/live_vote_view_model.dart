@@ -8,6 +8,7 @@ import '../../../data/services/chain_reader.dart';
 import '../../../data/services/identity_store.dart';
 import '../../../data/services/proof_service.dart';
 import '../../../data/services/proof_service_factory.dart';
+import '../../../data/services/proximity_service.dart';
 import '../../../data/services/relay_client.dart';
 
 enum LiveVoteStage {
@@ -30,6 +31,7 @@ class LiveVoteViewModel extends ChangeNotifier {
   final ProofService _proof;
   final RelayClient _relay;
   final ChainReader _reader;
+  final ProximityService _proximity;
   final String pollAddress;
 
   LiveVoteViewModel({
@@ -37,12 +39,14 @@ class LiveVoteViewModel extends ChangeNotifier {
     required RelayClient relay,
     required ChainReader reader,
     required this.pollAddress,
+    ProximityService proximity = const UnsupportedProximityService(),
     String? initialTicket,
     bool? canVoteOverride,
-  })  : _proof = proof,
-        _relay = relay,
-        _reader = reader,
-        _canVoteOverride = canVoteOverride {
+  }) : _proof = proof,
+       _relay = relay,
+       _reader = reader,
+       _proximity = proximity,
+       _canVoteOverride = canVoteOverride {
     if (initialTicket != null && initialTicket.isNotEmpty) {
       ticket = extractTicket(initialTicket);
     }
@@ -64,6 +68,11 @@ class LiveVoteViewModel extends ChangeNotifier {
   String? txHash;
   List<String> options = const [];
   Timer? _poll;
+
+  // Optional BLE proximity attestation (live-meeting anti-remote augment). Stays
+  // false/silent without a radio; the face-to-face code is always the baseline.
+  bool proximityChecking = false;
+  bool proximityNearby = false;
 
   bool get canVote => _canVoteOverride ?? proofServiceAvailable;
 
@@ -119,9 +128,12 @@ class LiveVoteViewModel extends ChangeNotifier {
       }
       stage = LiveVoteStage.pending;
       _notify();
+      _attestProximity(); // background BLE "in the room" check; no-op without a radio
       _poll?.cancel(); // a re-join must not stack a second polling timer
       _poll = Timer.periodic(
-          const Duration(seconds: 3), (_) => _checkRegistered());
+        const Duration(seconds: 3),
+        (_) => _checkRegistered(),
+      );
     } catch (e) {
       error = e.toString();
       stage = LiveVoteStage.error;
@@ -141,6 +153,21 @@ class LiveVoteViewModel extends ChangeNotifier {
     } catch (_) {
       // transient; keep polling
     }
+  }
+
+  /// Background BLE proximity attestation: while the voter is pending, scan for
+  /// the organizer's beacon so the screen can show "✓ in the room". Silent
+  /// no-op where there's no radio (or the beacon isn't found) — it only ever
+  /// ADDS a trust signal; the face-to-face confirmation code is the baseline.
+  Future<void> _attestProximity() async {
+    if (!_proximity.supported) return;
+    proximityChecking = true;
+    _notify();
+    final r = await _proximity.attest(bleBeaconUuid(pollAddress));
+    if (_disposed) return;
+    proximityChecking = false;
+    proximityNearby = r.verified;
+    _notify();
   }
 
   Future<void> castVote(int option) async {
