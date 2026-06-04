@@ -5,11 +5,12 @@
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
-    <!-- Debug-only: allow cleartext HTTP so the emulator can reach the local
-         dev-stack at http://10.0.2.2:8545 (Hardhat) and :3001 (relayer).
-         The emulator NATs 10.0.2.2 -> host loopback; Android 9+ blocks
-         cleartext by default. The release manifest stays locked down. -->
-    <application android:usesCleartextTraffic="true">
+    <!-- Cleartext to the emulator host (10.0.2.2:8545 Hardhat / :3001 relayer)
+         and loopback is now permitted for ALL build types by the scoped
+         res/xml/network_security_config.xml (real domains stay blocked). That
+         config also unblocks the on-device prover's loopback server in RELEASE,
+         so the previous debug-only usesCleartextTraffic="true" is redundant. -->
+    <application>
         <!-- Debug-only: render with Skia instead of Impeller. The dev/CI
              emulator recipe for this host (API-31 x86_64, swiftshader GL) hits
              Impeller GL aborts / 0-width surfaces; Skia is the known-good path

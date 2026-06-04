@@ -5,6 +5,18 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Fixed
+- **On-device prover hung at "Minting your identity" on release builds** — the
+  Android `ProofServiceMobile` runs `zkprover.js` in a headless WebView and
+  serves its bundled Groth16 artifacts from an in-app loopback server at
+  `http://127.0.0.1:<port>` (cleartext). The **release** manifest had no cleartext
+  allowance (modern `targetSdk` blocks it by default — only the *debug* manifest
+  set `usesCleartextTraffic`), so on a real device the WebView couldn't load the
+  loopback page, `zkprover.js` never ran, and the host timed out
+  (*"never reached readiness"*). Anything needing a proof — minting a live-meeting
+  identity, casting — stalled. Added a **scoped `network_security_config.xml`**
+  permitting cleartext only for `127.0.0.1` / `localhost` / `10.0.2.2` (the
+  loopback prover + emulator host); every real domain stays blocked. The
+  on-device prover now works in release, not just debug.
 - **Settings → Network "save" appeared to hang** — `NetworkConfigStore` was
   registered in the screen's test harness but **not** in `main()`'s
   `MultiProvider`, so on-device `context.read<NetworkConfigStore>()` threw
