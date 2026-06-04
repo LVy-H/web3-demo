@@ -13,25 +13,23 @@ const kQrScanPaste = ' __tessera_paste__';
 
 /// Whether the in-app camera QR scanner can be offered on this platform.
 ///
-/// VERIFIED-OR-FENCED: this is the capability gate. It is intentionally checked
-/// with `defaultTargetPlatform` from `package:flutter/foundation.dart` (NOT
-/// `dart:io`'s `Platform`), because `live_vote_screen.dart` is in the **web**
-/// compile graph and `dart:io` is unavailable there. The gate returns:
-///   - mobile (Android/iOS) → true   (camera path offered)
-///   - web / desktop (Linux/Win/macOS) → false (paste is the sole input)
-/// so the camera affordance is simply absent off-mobile and `mobile_scanner`'s
-/// camera code is never instantiated on desktop/web — it can never block or
-/// regress the always-available paste-based voting path.
-///
-/// REAL-DEVICE FOLLOW-UP: the camera scan itself is NOT verified on this host
-/// (emulator virtual-camera QR injection is unreliable). The paste fallback is
-/// the verified route; live camera scanning is a named real-device follow-up
-/// gate. See docs/superpowers/specs/2026-06-02-mobile-scan-and-native-proving-design.md
-/// ("Camera scan = real-device / fenced").
+/// Checked with `defaultTargetPlatform` from `package:flutter/foundation.dart`
+/// (NOT `dart:io`'s `Platform`), because `live_vote_screen.dart` is in the
+/// **web** compile graph where `dart:io` is unavailable. The gate returns:
+///   - mobile (Android/iOS) → true (native camera path).
+///   - web → true: `mobile_scanner` ships a web plugin (`MobileScannerWeb`)
+///     using the browser `BarcodeDetector` on Chromium browsers (a ZXing
+///     fallback elsewhere). Camera access needs a SECURE CONTEXT (HTTPS or
+///     localhost) — satisfied when the app is hosted (e.g. Cloudflare) or run
+///     locally — so the live-meeting QR can be scanned from a hosted web client,
+///     not just a phone. The paste fallback + [_CameraError] keep voting working
+///     if the browser denies the camera or lacks a decoder.
+///   - desktop (Linux/Win/macOS) → false (paste is the sole input; mobile_scanner
+///     desktop camera support is limited).
 bool get cameraScanSupported =>
-    !kIsWeb &&
-    (defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS);
+    kIsWeb ||
+    defaultTargetPlatform == TargetPlatform.android ||
+    defaultTargetPlatform == TargetPlatform.iOS;
 
 /// Opens the camera QR scanner in a modal sheet and resolves with the first
 /// successfully decoded raw barcode value, [kQrScanPaste] if the user chose to
