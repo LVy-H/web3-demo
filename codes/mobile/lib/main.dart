@@ -157,6 +157,10 @@ class ZkVoteApp extends StatelessWidget {
         // Local record of polls this device created (the relayer is the on-chain
         // creator for wallet-free polls, so "mine" can't come from the chain).
         Provider<CreatedPollsStore>(create: (_) => SecureCreatedPollsStore()),
+        // The same store main() loaded the network override from — exposed so
+        // Settings → Network can persist/clear it. (Without this, the network
+        // config screen's context.read<NetworkConfigStore>() throws at runtime.)
+        Provider<NetworkConfigStore>.value(value: configStore),
         Provider<ChainWriter>(
           create: (_) => writer,
           dispose: (_, w) => w.dispose(),

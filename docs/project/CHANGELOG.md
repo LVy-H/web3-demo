@@ -4,6 +4,17 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
+### Fixed
+- **Settings → Network "save" appeared to hang** — `NetworkConfigStore` was
+  registered in the screen's test harness but **not** in `main()`'s
+  `MultiProvider`, so on-device `context.read<NetworkConfigStore>()` threw
+  `ProviderNotFoundException` *after* the button flipped to `SAVING…` — which
+  never reset, looking like a hang (analyze + the widget test passed because the
+  test supplied the provider itself). Registered the provider in `main()`, and
+  hardened the save/reset path so any store failure now resets the button and
+  surfaces a snackbar instead of sticking. Regression test added (screen with no
+  provider → error shown, button recovers).
+
 ### Added
 - **Runtime network config — point one build at any backend (no rebuild)** —
   the backend pointers (RPC, relayer, registry, Semaphore verifier, chain id)

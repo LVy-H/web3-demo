@@ -93,4 +93,25 @@ void main() {
     expect(await store.load(), isNull);
     expect(find.text('SAVED'), findsOneWidget);
   });
+
+  // Regression: the store provider was registered in this test harness but NOT
+  // in main()'s MultiProvider, so on-device the save threw ProviderNotFound
+  // *after* the button went to SAVING… — and never reset (looked like a hang).
+  // With the provider missing, the screen must surface the error and recover the
+  // button, never stick on SAVING…
+  testWidgets('missing store provider surfaces an error, never sticks', (
+    tester,
+  ) async {
+    _tallSurface(tester);
+    // No Provider<NetworkConfigStore> in the tree.
+    await tester.pumpWidget(const MaterialApp(home: NetworkConfigScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.textContaining('SAVE'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Could not save'), findsOneWidget);
+    expect(find.text('SAVING…'), findsNothing); // button recovered
+    expect(find.text('SAVED'), findsNothing);
+  });
 }
