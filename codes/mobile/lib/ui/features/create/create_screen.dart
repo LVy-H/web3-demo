@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../data/services/created_polls_store.dart';
 import '../../../data/services/poll_creator.dart';
 import '../../../data/services/relay_client.dart' show CreatePollResult;
 import '../../../data/services/sponsored_poll_creator.dart';
@@ -229,6 +230,9 @@ class _CreateScreenState extends State<CreateScreen> {
   void _afterSponsored(CreatePollResult res) {
     if (!mounted) return;
     if (res.ok) {
+      // Remember it locally so the browse "MINE" filter can surface it (the
+      // on-chain creator is the relayer, so this is the only "I made it" signal).
+      context.read<CreatedPollsStore>().add(res.pollAddress!);
       _snack('Poll created · ${shortAddr(res.pollAddress!)}');
       context.go('/poll/${res.pollAddress}?module=${_moduleString(_module)}');
     } else {

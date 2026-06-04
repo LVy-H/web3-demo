@@ -16,6 +16,7 @@ import 'package:tessera/data/repositories/quadratic_repository.dart';
 import 'package:tessera/data/services/blind_commit_store.dart';
 import 'package:tessera/data/services/chain_reader.dart';
 import 'package:tessera/data/services/chain_writer.dart';
+import 'package:tessera/data/services/created_polls_store.dart';
 import 'package:tessera/data/services/proof_service.dart';
 import 'package:tessera/data/services/relay_client.dart';
 import 'package:tessera/data/services/wallet_service.dart';
@@ -388,6 +389,9 @@ void main() {
             Provider<ChainWriter>(
               create: (_) =>
                   ChainWriter(rpcUrl: 'http://127.0.0.1:1', chainId: 31337),
+            ),
+            Provider<CreatedPollsStore>(
+              create: (_) => InMemoryCreatedPollsStore(),
             ),
           ],
           child: const BrowseScreen(),
