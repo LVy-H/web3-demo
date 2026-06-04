@@ -10,6 +10,7 @@ import '../../../data/services/proof_service_factory.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
 import '../../core/poll_header.dart';
+import '../../core/share_poll_sheet.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
 import '../../widgets/results_bars.dart';
@@ -59,12 +60,12 @@ class _SurveyPollScreenState extends State<SurveyPollScreen> {
               child: Consumer<SurveyVoteViewModel>(
                 builder: (context, vm, _) => switch (vm.state) {
                   ViewState.idle || ViewState.loading => const Center(
-                      child: CircularProgressIndicator(color: Db.segnale),
-                    ),
+                    child: CircularProgressIndicator(color: Db.segnale),
+                  ),
                   ViewState.error => _ErrorView(
-                      message: vm.error ?? 'Unknown error',
-                      onRetry: vm.load,
-                    ),
+                    message: vm.error ?? 'Unknown error',
+                    onRetry: vm.load,
+                  ),
                   ViewState.loaded => _Body(survey: vm.survey!),
                 },
               ),
@@ -90,7 +91,7 @@ class _Body extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Header(shortAddr: _shortAddr),
+            _Header(shortAddr: _shortAddr, address: survey.address),
             const SizedBox(height: 20),
             _PhaseStrip(state: survey.state),
             const SizedBox(height: 16),
@@ -110,10 +111,7 @@ class _Body extends StatelessWidget {
             const SizedBox(height: 24),
             Text('OWNER', style: dbLabel(size: 10)),
             const SizedBox(height: 4),
-            Text(
-              survey.owner,
-              style: dbMono(11, Db.mute, letterSpacing: 0.4),
-            ),
+            Text(survey.owner, style: dbMono(11, Db.mute, letterSpacing: 0.4)),
           ],
         ),
       ),
@@ -123,17 +121,20 @@ class _Body extends StatelessWidget {
 
 class _Header extends StatelessWidget {
   final String shortAddr;
-  const _Header({required this.shortAddr});
+  final String address;
+  const _Header({required this.shortAddr, required this.address});
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 12),
-        child: pollDetailHeaderRow(
-          context: context,
-          badgeLabel: 'ZK · SURVEY',
-          badgeColor: Db.oltremare,
-          shortAddr: shortAddr,
-        ),
-      );
+    padding: const EdgeInsets.only(top: 8, bottom: 12),
+    child: pollDetailHeaderRow(
+      context: context,
+      badgeLabel: 'ZK · SURVEY',
+      badgeColor: Db.oltremare,
+      shortAddr: shortAddr,
+      onShare: () =>
+          showSharePollSheet(context, address: address, module: 'survey-vote'),
+    ),
+  );
 }
 
 class _PhaseStrip extends StatelessWidget {
@@ -218,13 +219,18 @@ class _SurveyResults extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           resultsTitleRow(
-              icon: Icons.bar_chart,
-              title: 'SURVEY RESULTS',
-              trailing: '${survey.participantCount} RESPONDENTS'),
+            icon: Icons.bar_chart,
+            title: 'SURVEY RESULTS',
+            trailing: '${survey.participantCount} RESPONDENTS',
+          ),
           const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(Icons.insights_outlined, size: 13, color: Db.oltremare),
+              const Icon(
+                Icons.insights_outlined,
+                size: 13,
+                color: Db.oltremare,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -394,11 +400,11 @@ class _AnswerFormState extends State<_AnswerForm> {
   }
 
   void _snack(String m) => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(m, style: dbMono(12, Db.chalk)),
-          backgroundColor: Db.slate,
-        ),
-      );
+    SnackBar(
+      content: Text(m, style: dbMono(12, Db.chalk)),
+      backgroundColor: Db.slate,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -482,8 +488,8 @@ class _AnswerFormState extends State<_AnswerForm> {
             enabled: canCast,
             onTap: canCast
                 ? () => context.read<SurveyVoteViewModel>().castSurvey(
-                      identitySeed: _seed.text.trim(),
-                    )
+                    identitySeed: _seed.text.trim(),
+                  )
                 : null,
           ),
           if (vm.status == SurveyVoteStatus.success)
@@ -504,15 +510,15 @@ class _AnswerFormState extends State<_AnswerForm> {
   }
 
   Widget _statusLine(IconData icon, Color color, String text) => Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 8),
-            Expanded(child: Text(text, style: dbMono(12, color))),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.only(top: 12),
+    child: Row(
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: dbMono(12, color))),
+      ],
+    ),
+  );
 }
 
 /// One question's answer control: a RADIO group (SingleChoice) or CHECKBOXES
@@ -544,9 +550,7 @@ class _QuestionForm extends StatelessWidget {
               Text('Q${index + 1}', style: dbLabel(size: 11, tracking: 0.1)),
               const SizedBox(width: 8),
               Text(
-                question.isMultiSelect
-                    ? 'CHECK ANY THAT APPLY'
-                    : 'PICK ONE',
+                question.isMultiSelect ? 'CHECK ANY THAT APPLY' : 'PICK ONE',
                 style: dbLabel(size: 9, tracking: 0.12),
               ),
               const Spacer(),
@@ -592,38 +596,38 @@ class _SingleOption extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? color.withValues(alpha: 0.12) : Db.slate,
-            border: Border.all(
-              color: selected ? color : Db.rule,
-              width: selected ? 2 : 1,
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: selected ? color.withValues(alpha: 0.12) : Db.slate,
+        border: Border.all(
+          color: selected ? color : Db.rule,
+          width: selected ? 2 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            selected
+                ? Icons.radio_button_checked
+                : Icons.radio_button_unchecked,
+            size: 18,
+            color: selected ? color : Db.mute,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: dbSans(14, selected ? 700 : 600, Db.chalk),
             ),
           ),
-          child: Row(
-            children: [
-              Icon(
-                selected
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked,
-                size: 18,
-                color: selected ? color : Db.mute,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: dbSans(14, selected ? 700 : 600, Db.chalk),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
 
 /// A checkbox-style option row for a MultiSelect question.
@@ -640,36 +644,36 @@ class _MultiOption extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: checked ? color.withValues(alpha: 0.12) : Db.slate,
-            border: Border.all(
-              color: checked ? color : Db.rule,
-              width: checked ? 2 : 1,
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: checked ? color.withValues(alpha: 0.12) : Db.slate,
+        border: Border.all(
+          color: checked ? color : Db.rule,
+          width: checked ? 2 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            checked ? Icons.check_box : Icons.check_box_outline_blank,
+            size: 18,
+            color: checked ? color : Db.mute,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: dbSans(14, checked ? 700 : 600, Db.chalk),
             ),
           ),
-          child: Row(
-            children: [
-              Icon(
-                checked ? Icons.check_box : Icons.check_box_outline_blank,
-                size: 18,
-                color: checked ? color : Db.mute,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: dbSans(14, checked ? 700 : 600, Db.chalk),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
 
 // Proactive registration status (identical pattern to the sibling modules).
@@ -797,17 +801,12 @@ class _CastButton extends StatelessWidget {
   final bool enabled;
   final String? busyLabel;
   final VoidCallback? onTap;
-  const _CastButton({
-    required this.enabled,
-    this.busyLabel,
-    this.onTap,
-  });
+  const _CastButton({required this.enabled, this.busyLabel, this.onTap});
   @override
   Widget build(BuildContext context) {
-    final label = busyLabel ??
-        (enabled
-            ? 'CAST SURVEY BALLOT →'
-            : '[ ANSWER EVERY QUESTION ]');
+    final label =
+        busyLabel ??
+        (enabled ? 'CAST SURVEY BALLOT →' : '[ ANSWER EVERY QUESTION ]');
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -838,35 +837,34 @@ class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.onRetry});
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.cloud_off, color: Db.segnale, size: 40),
-              const SizedBox(height: 12),
-              Text(
-                "COULDN'T LOAD THIS SURVEY",
-                style: dbLabel(size: 12, color: Db.chalk),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: dbMono(12, Db.mute),
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton(
-                onPressed: onRetry,
-                style: OutlinedButton.styleFrom(
-                  shape: const RoundedRectangleBorder(),
-                  side: const BorderSide(color: Db.rule),
-                ),
-                child:
-                    Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off, color: Db.segnale, size: 40),
+          const SizedBox(height: 12),
+          Text(
+            "COULDN'T LOAD THIS SURVEY",
+            style: dbLabel(size: 12, color: Db.chalk),
           ),
-        ),
-      );
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: dbMono(12, Db.mute),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: onRetry,
+            style: OutlinedButton.styleFrom(
+              shape: const RoundedRectangleBorder(),
+              side: const BorderSide(color: Db.rule),
+            ),
+            child: Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),
+          ),
+        ],
+      ),
+    ),
+  );
 }

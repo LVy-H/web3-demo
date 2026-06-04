@@ -5,6 +5,12 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Share + the signing explainer reach every screen** — the **SHARE** button now
+  appears on all six poll-detail surfaces (anon / blind / approval / ranked /
+  quadratic / survey), each generating its own correct module deep-link; and the
+  **How signing works** explainer is now linked from the create screen too. This
+  is the "adopt it with a one-liner" follow-through on the two features below,
+  completing the scan loop and the wallet-free messaging app-wide.
 - **"How signing works" explainer + truthful Settings signer status** — directly
   on the wallet-UX pain point. Settings → SIGNING & PROVING no longer claims
   `"wallet (connect to sign)"` when there's no dev-signer; it probes the relayer

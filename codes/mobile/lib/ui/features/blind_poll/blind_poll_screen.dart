@@ -5,6 +5,7 @@ import '../../../data/models/blind_snapshot.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
 import '../../core/poll_header.dart';
+import '../../core/share_poll_sheet.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
 import '../../widgets/results_bars.dart';
@@ -24,8 +25,9 @@ class _BlindPollScreenState extends State<BlindPollScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => context.read<BlindPollViewModel>().load());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => context.read<BlindPollViewModel>().load(),
+    );
   }
 
   @override
@@ -39,9 +41,12 @@ class _BlindPollScreenState extends State<BlindPollScreen> {
               child: Consumer<BlindPollViewModel>(
                 builder: (context, vm, _) => switch (vm.state) {
                   ViewState.idle || ViewState.loading => const Center(
-                      child: CircularProgressIndicator(color: Db.segnale)),
+                    child: CircularProgressIndicator(color: Db.segnale),
+                  ),
                   ViewState.error => _Error(
-                      message: vm.error ?? 'Unknown error', onRetry: vm.load),
+                    message: vm.error ?? 'Unknown error',
+                    onRetry: vm.load,
+                  ),
                   ViewState.loaded => _Body(vm: vm),
                 },
               ),
@@ -75,25 +80,25 @@ class _Body extends StatelessWidget {
               style: dbLabel(size: 11, tracking: 0.1),
             ),
             const SizedBox(height: 24),
-            LayoutBuilder(builder: (context, c) {
-              final results = _ResultsBars(snapshot: s);
-              final action = _ActionPanel(vm: vm);
-              if (c.maxWidth > 840) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: results),
-                    const SizedBox(width: 16),
-                    Expanded(child: action),
-                  ],
+            LayoutBuilder(
+              builder: (context, c) {
+                final results = _ResultsBars(snapshot: s);
+                final action = _ActionPanel(vm: vm);
+                if (c.maxWidth > 840) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: results),
+                      const SizedBox(width: 16),
+                      Expanded(child: action),
+                    ],
+                  );
+                }
+                return Column(
+                  children: [results, const SizedBox(height: 20), action],
                 );
-              }
-              return Column(children: [
-                results,
-                const SizedBox(height: 20),
-                action,
-              ]);
-            }),
+              },
+            ),
             const SizedBox(height: 24),
             Text('OWNER', style: dbLabel(size: 10)),
             const SizedBox(height: 4),
@@ -105,14 +110,16 @@ class _Body extends StatelessWidget {
   }
 
   Widget _header(BuildContext context, BlindSnapshot s) => Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 12),
-        child: pollDetailHeaderRow(
-          context: context,
-          badgeLabel: 'BLIND · COMMIT-REVEAL',
-          badgeColor: Db.amber,
-          shortAddr: shortAddr(s.address),
-        ),
-      );
+    padding: const EdgeInsets.only(top: 8, bottom: 12),
+    child: pollDetailHeaderRow(
+      context: context,
+      badgeLabel: 'BLIND · COMMIT-REVEAL',
+      badgeColor: Db.amber,
+      shortAddr: shortAddr(s.address),
+      onShare: () =>
+          showSharePollSheet(context, address: s.address, module: 'blind-vote'),
+    ),
+  );
 }
 
 class _PhaseStrip extends StatelessWidget {
@@ -122,33 +129,41 @@ class _PhaseStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        decoration: const BoxDecoration(
-            border: Border.fromBorderSide(BorderSide(color: Db.rule))),
-        child: Row(children: [
-          for (var i = 0; i < 3; i++)
-            Expanded(
-              child: Container(
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: i == state
-                      ? Db.amber
-                      : (i < state ? Db.slate : Db.void_),
-                  border: i < 2
-                      ? const Border(right: BorderSide(color: Db.rule))
-                      : null,
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(_labels[i],
-                      style: dbSans(11, 800,
-                          i == state ? Db.void_ : Db.mute,
-                          letterSpacing: 11 * 0.16)),
+    decoration: const BoxDecoration(
+      border: Border.fromBorderSide(BorderSide(color: Db.rule)),
+    ),
+    child: Row(
+      children: [
+        for (var i = 0; i < 3; i++)
+          Expanded(
+            child: Container(
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: i == state
+                    ? Db.amber
+                    : (i < state ? Db.slate : Db.void_),
+                border: i < 2
+                    ? const Border(right: BorderSide(color: Db.rule))
+                    : null,
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  _labels[i],
+                  style: dbSans(
+                    11,
+                    800,
+                    i == state ? Db.void_ : Db.mute,
+                    letterSpacing: 11 * 0.16,
+                  ),
                 ),
               ),
             ),
-        ]),
-      );
+          ),
+      ],
+    ),
+  );
 }
 
 class _ResultsBars extends StatelessWidget {
@@ -168,9 +183,10 @@ class _ResultsBars extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           resultsTitleRow(
-              icon: Icons.bar_chart,
-              title: 'REVEALED TALLY',
-              trailing: '$total REVEALED'),
+            icon: Icons.bar_chart,
+            title: 'REVEALED TALLY',
+            trailing: '$total REVEALED',
+          ),
           const SizedBox(height: 18),
           ResultsBars(
             options: [
@@ -185,7 +201,8 @@ class _ResultsBars extends StatelessWidget {
             total: total,
             // Reveal-specific copy in place of the generic "No votes yet" so the
             // zero state explains *why* the tally is empty.
-            emptyLabel: 'Votes are hidden until voters reveal after voting ends.',
+            emptyLabel:
+                'Votes are hidden until voters reveal after voting ends.',
           ),
         ],
       ),
@@ -216,25 +233,33 @@ class _ActionPanelState extends State<_ActionPanel> {
         color: Db.slate,
         border: Border.fromBorderSide(BorderSide(color: Db.rule)),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('YOUR ACTIONS', style: dbSectionTitle),
-        const SizedBox(height: 14),
-        if (!vm.canWrite)
-          _info(Icons.lock_outline,
-              'Read-only. Set a dev signer (DEV_PRIVATE_KEY) or connect a wallet to act.')
-        else ...[
-          ..._phaseActions(vm, s, isOwner),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('YOUR ACTIONS', style: dbSectionTitle),
+          const SizedBox(height: 14),
+          if (!vm.canWrite)
+            _info(
+              Icons.lock_outline,
+              'Read-only. Set a dev signer (DEV_PRIVATE_KEY) or connect a wallet to act.',
+            )
+          else ...[
+            ..._phaseActions(vm, s, isOwner),
+          ],
+          if (vm.actionMsg != null)
+            _line(Icons.check_circle, Db.success, vm.actionMsg!),
+          if (vm.actionError != null)
+            _line(Icons.error_outline, Db.amber, vm.actionError!),
         ],
-        if (vm.actionMsg != null)
-          _line(Icons.check_circle, Db.success, vm.actionMsg!),
-        if (vm.actionError != null)
-          _line(Icons.error_outline, Db.amber, vm.actionError!),
-      ]),
+      ),
     );
   }
 
   List<Widget> _phaseActions(
-      BlindPollViewModel vm, BlindSnapshot s, bool isOwner) {
+    BlindPollViewModel vm,
+    BlindSnapshot s,
+    bool isOwner,
+  ) {
     switch (s.state) {
       case 0: // Registration
         return [
@@ -244,8 +269,11 @@ class _ActionPanelState extends State<_ActionPanel> {
             _info(Icons.how_to_reg, 'You are registered.'),
           if (isOwner) ...[
             const SizedBox(height: 10),
-            _button('START VOTING (OWNER)', vm.busy ? null : vm.startVoting,
-                secondary: true),
+            _button(
+              'START VOTING (OWNER)',
+              vm.busy ? null : vm.startVoting,
+              secondary: true,
+            ),
           ],
         ];
       case 1: // Voting
@@ -273,8 +301,11 @@ class _ActionPanelState extends State<_ActionPanel> {
             _info(Icons.block, 'Registration closed; you are not registered.'),
           if (isOwner) ...[
             const SizedBox(height: 10),
-            _button('END VOTING (OWNER)', vm.busy ? null : vm.endVoting,
-                secondary: true),
+            _button(
+              'END VOTING (OWNER)',
+              vm.busy ? null : vm.endVoting,
+              secondary: true,
+            ),
           ],
         ];
       default: // Ended
@@ -283,8 +314,10 @@ class _ActionPanelState extends State<_ActionPanel> {
             if (vm.hasSavedCommit)
               _button('REVEAL MY VOTE', vm.busy ? null : vm.reveal)
             else
-              _info(Icons.help_outline,
-                  "This device has no saved salt — reveal where you committed."),
+              _info(
+                Icons.help_outline,
+                "This device has no saved salt — reveal where you committed.",
+              ),
           ] else if (s.revealed)
             _info(Icons.check_circle, 'Your vote is revealed and tallied.')
           else
@@ -294,8 +327,11 @@ class _ActionPanelState extends State<_ActionPanel> {
             _info(Icons.verified, 'Results finalized.'),
           ] else if (isOwner) ...[
             const SizedBox(height: 10),
-            _button('FINALIZE RESULTS (OWNER)', vm.busy ? null : vm.finalize,
-                secondary: true),
+            _button(
+              'FINALIZE RESULTS (OWNER)',
+              vm.busy ? null : vm.finalize,
+              secondary: true,
+            ),
           ],
         ];
     }
@@ -312,35 +348,47 @@ class _ActionPanelState extends State<_ActionPanel> {
         decoration: BoxDecoration(
           color: secondary ? Db.void_ : (enabled ? Db.amber : Db.void_),
           border: Border.all(
-              color: enabled ? (secondary ? Db.rule : Db.amber) : Db.rule),
+            color: enabled ? (secondary ? Db.rule : Db.amber) : Db.rule,
+          ),
         ),
-        child: Text(label,
-            style: dbSans(
-                12,
-                800,
-                secondary ? Db.chalkDim : (enabled ? Db.void_ : Db.mute),
-                letterSpacing: 1.2)),
+        child: Text(
+          label,
+          style: dbSans(
+            12,
+            800,
+            secondary ? Db.chalkDim : (enabled ? Db.void_ : Db.mute),
+            letterSpacing: 1.2,
+          ),
+        ),
       ),
     );
   }
 
   Widget _info(IconData icon, String text) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, size: 16, color: Db.mute),
-          const SizedBox(width: 10),
-          Expanded(child: Text(text, style: dbMono(12, Db.chalkDim, height: 1.5))),
-        ]),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: Db.mute),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(text, style: dbMono(12, Db.chalkDim, height: 1.5)),
+        ),
+      ],
+    ),
+  );
 
   Widget _line(IconData icon, Color color, String text) => Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 8),
-          Expanded(child: Text(text, style: dbMono(12, color, height: 1.4))),
-        ]),
-      );
+    padding: const EdgeInsets.only(top: 12),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: dbMono(12, color, height: 1.4))),
+      ],
+    ),
+  );
 }
 
 class _OptionTile extends StatelessWidget {
@@ -348,33 +396,39 @@ class _OptionTile extends StatelessWidget {
   final Color color;
   final bool selected;
   final VoidCallback? onTap;
-  const _OptionTile(
-      {required this.label,
-      required this.color,
-      required this.selected,
-      required this.onTap});
+  const _OptionTile({
+    required this.label,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
   @override
   Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            color: selected ? color.withValues(alpha: 0.12) : Db.void_,
-            border: Border.all(
-                color: selected ? color : Db.rule, width: selected ? 2 : 1),
-          ),
-          child: Row(children: [
-            Icon(
-                selected
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked,
-                color: selected ? color : Db.mute,
-                size: 18),
-            const SizedBox(width: 12),
-            Expanded(child: Text(label, style: dbSans(15, 600, Db.chalk))),
-          ]),
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: selected ? color.withValues(alpha: 0.12) : Db.void_,
+        border: Border.all(
+          color: selected ? color : Db.rule,
+          width: selected ? 2 : 1,
         ),
-      );
+      ),
+      child: Row(
+        children: [
+          Icon(
+            selected
+                ? Icons.radio_button_checked
+                : Icons.radio_button_unchecked,
+            color: selected ? color : Db.mute,
+            size: 18,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label, style: dbSans(15, 600, Db.chalk))),
+        ],
+      ),
+    ),
+  );
 }
 
 class _Error extends StatelessWidget {
@@ -383,25 +437,34 @@ class _Error extends StatelessWidget {
   const _Error({required this.message, required this.onRetry});
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.cloud_off, color: Db.amber, size: 40),
-            const SizedBox(height: 12),
-            Text("COULDN'T LOAD THIS POLL",
-                style: dbLabel(size: 12, color: Db.chalk)),
-            const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center, style: dbMono(12, Db.mute)),
-            const SizedBox(height: 16),
-            OutlinedButton(
-              onPressed: onRetry,
-              style: OutlinedButton.styleFrom(
-                shape: const RoundedRectangleBorder(),
-                side: const BorderSide(color: Db.rule),
-              ),
-              child: Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off, color: Db.amber, size: 40),
+          const SizedBox(height: 12),
+          Text(
+            "COULDN'T LOAD THIS POLL",
+            style: dbLabel(size: 12, color: Db.chalk),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: dbMono(12, Db.mute),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: onRetry,
+            style: OutlinedButton.styleFrom(
+              shape: const RoundedRectangleBorder(),
+              side: const BorderSide(color: Db.rule),
             ),
-          ]),
-        ),
-      );
+            child: Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),
+          ),
+        ],
+      ),
+    ),
+  );
 }

@@ -8,6 +8,7 @@ import '../../../data/services/sponsored_poll_creator.dart';
 import '../../../data/services/wallet_service.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
+import '../../core/signing_explainer.dart';
 import '../../core/theme.dart';
 import '../wallet/wallet_button.dart';
 import 'survey_question_builder.dart';
@@ -80,13 +81,13 @@ class _CreateScreenState extends State<CreateScreen> {
 
   /// Canonical module-type string for the sponsored `createPoll` call.
   String _moduleString(_ModuleType m) => switch (m) {
-        _ModuleType.anonVote => 'anon-vote',
-        _ModuleType.approvalVote => 'approval-vote',
-        _ModuleType.rankedVote => 'ranked-vote',
-        _ModuleType.quadraticVote => 'quadratic-vote',
-        _ModuleType.surveyVote => 'survey-vote',
-        _ModuleType.blindVote => 'blind-vote', // never deployed here
-      };
+    _ModuleType.anonVote => 'anon-vote',
+    _ModuleType.approvalVote => 'approval-vote',
+    _ModuleType.rankedVote => 'ranked-vote',
+    _ModuleType.quadraticVote => 'quadratic-vote',
+    _ModuleType.surveyVote => 'survey-vote',
+    _ModuleType.blindVote => 'blind-vote', // never deployed here
+  };
 
   @override
   void dispose() {
@@ -107,8 +108,7 @@ class _CreateScreenState extends State<CreateScreen> {
   /// Ranked + quadratic cap options at 8 on-chain; everything else allows the
   /// module's own (higher) cap, so only the row count matters here.
   bool get _moduleCapsAtEight =>
-      _module == _ModuleType.rankedVote ||
-      _module == _ModuleType.quadraticVote;
+      _module == _ModuleType.rankedVote || _module == _ModuleType.quadraticVote;
 
   /// True when the current option-row count is valid for the selected module.
   /// Ranked/quadratic require 2..8; anon/approval require ≥2 (no upper bound the
@@ -133,8 +133,10 @@ class _CreateScreenState extends State<CreateScreen> {
       await _deploySurvey(creator, title);
       return;
     }
-    final opts =
-        _options.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
+    final opts = _options
+        .map((c) => c.text.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
     if (title.isEmpty || opts.length < 2) {
       _snack('Add a title and at least two options.');
       return;
@@ -143,8 +145,10 @@ class _CreateScreenState extends State<CreateScreen> {
     // `initialize` can't revert with `TooManyOptions`. (The submit button is also
     // disabled in this state; this is the belt-and-braces check.)
     if (_moduleCapsAtEight && opts.length > _rankedQuadraticMaxOptions) {
-      _snack('Ranked & quadratic polls allow at most '
-          '$_rankedQuadraticMaxOptions options.');
+      _snack(
+        'Ranked & quadratic polls allow at most '
+        '$_rankedQuadraticMaxOptions options.',
+      );
       return;
     }
     setState(() => _busy = true);
@@ -158,19 +162,31 @@ class _CreateScreenState extends State<CreateScreen> {
         switch (_module) {
           case _ModuleType.approvalVote:
             tx = await creator.createApprovalPoll(
-                title: title, description: desc0, options: opts);
+              title: title,
+              description: desc0,
+              options: opts,
+            );
           case _ModuleType.rankedVote:
             tx = await creator.createRankedPoll(
-                title: title, description: desc0, options: opts);
+              title: title,
+              description: desc0,
+              options: opts,
+            );
           case _ModuleType.quadraticVote:
             tx = await creator.createQuadraticPoll(
-                title: title, description: desc0, options: opts);
+              title: title,
+              description: desc0,
+              options: opts,
+            );
           case _ModuleType.surveyVote:
             return; // unreachable: survey branched into _deploySurvey above
           case _ModuleType.anonVote:
           case _ModuleType.blindVote:
             tx = await creator.createAnonPoll(
-                title: title, description: desc0, options: opts);
+              title: title,
+              description: desc0,
+              options: opts,
+            );
         }
         if (!mounted) return;
         _snack('Deploy sent · ${shortAddr(tx)}');
@@ -179,22 +195,27 @@ class _CreateScreenState extends State<CreateScreen> {
         // Wallet-free: the relayer pays gas + owns the poll. Works for every
         // sponsored module (anon/approval/ranked/quadratic), not just anon.
         final res = await context.read<SponsoredPollCreator>().createFlatPoll(
-              moduleType: _moduleString(_module),
-              title: title,
-              description: desc0,
-              options: opts,
-            );
+          moduleType: _moduleString(_module),
+          title: title,
+          description: desc0,
+          options: opts,
+        );
         _afterSponsored(res);
       } else if (w.isConnected) {
         // Advanced/fenced wallet path (anon-only, public-testnet — pending P10).
         final tx = await w.createPoll(
-            title: title, description: desc0, options: opts);
+          title: title,
+          description: desc0,
+          options: opts,
+        );
         if (!mounted) return;
         _snack('Deploy sent · ${shortAddr(tx)}');
         context.canPop() ? context.pop() : context.go('/');
       } else {
-        _snack('No signer available — start the relayer (./dev-stack.sh up) for '
-            'sponsored creation, or set DEV_PRIVATE_KEY for local dev.');
+        _snack(
+          'No signer available — start the relayer (./dev-stack.sh up) for '
+          'sponsored creation, or set DEV_PRIVATE_KEY for local dev.',
+        );
       }
     } catch (e) {
       if (mounted) _snack('Deploy failed: $e');
@@ -234,20 +255,25 @@ class _CreateScreenState extends State<CreateScreen> {
     try {
       if (creator.canSign) {
         final tx = await creator.createSurveyPoll(
-            title: title, description: desc0, questions: _survey.toQuestions());
+          title: title,
+          description: desc0,
+          questions: _survey.toQuestions(),
+        );
         if (!mounted) return;
         _snack('Deploy sent · ${shortAddr(tx)}');
         context.canPop() ? context.pop() : context.go('/');
       } else if (_sponsoredReady) {
         final res = await context.read<SponsoredPollCreator>().createSurveyPoll(
-              title: title,
-              description: desc0,
-              questions: _survey.toQuestions(),
-            );
+          title: title,
+          description: desc0,
+          questions: _survey.toQuestions(),
+        );
         _afterSponsored(res);
       } else {
-        _snack('No signer available — start the relayer (./dev-stack.sh up) for '
-            'sponsored creation, or set DEV_PRIVATE_KEY for local dev.');
+        _snack(
+          'No signer available — start the relayer (./dev-stack.sh up) for '
+          'sponsored creation, or set DEV_PRIVATE_KEY for local dev.',
+        );
       }
     } catch (e) {
       if (mounted) _snack('Deploy failed: $e');
@@ -256,10 +282,12 @@ class _CreateScreenState extends State<CreateScreen> {
     }
   }
 
-  void _snack(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(m, style: dbMono(12, Db.chalk)),
-        backgroundColor: Db.slate,
-      ));
+  void _snack(String m) => ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(m, style: dbMono(12, Db.chalk)),
+      backgroundColor: Db.slate,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -292,8 +320,7 @@ class _CreateScreenState extends State<CreateScreen> {
                   _field('DESCRIPTION', _desc, 'Optional context', maxLines: 3),
                   const SizedBox(height: 20),
                   if (_isSurvey) ...[
-                    Text('QUESTIONS',
-                        style: dbLabel(size: 10, tracking: 0.16)),
+                    Text('QUESTIONS', style: dbLabel(size: 10, tracking: 0.16)),
                     const SizedBox(height: 10),
                     SurveyQuestionBuilder(
                       draft: _survey,
@@ -321,14 +348,28 @@ class _CreateScreenState extends State<CreateScreen> {
                     devSigner
                         ? 'Signing locally with the dev key — no wallet needed.'
                         : _sponsoredReady
-                            ? 'Wallet-free: the relayer sponsors creation (pays '
-                                'the gas and runs the poll). No wallet needed.'
-                            : 'No signer yet — start the relayer (./dev-stack.sh '
-                                'up) for sponsored, wallet-free creation, or set '
-                                'DEV_PRIVATE_KEY for local dev. Connecting a '
-                                'wallet is an optional advanced path (public '
-                                'testnet — pending Phase 10).',
+                        ? 'Wallet-free: the relayer sponsors creation (pays '
+                              'the gas and runs the poll). No wallet needed.'
+                        : 'No signer yet — start the relayer (./dev-stack.sh '
+                              'up) for sponsored, wallet-free creation, or set '
+                              'DEV_PRIVATE_KEY for local dev. Connecting a '
+                              'wallet is an optional advanced path (public '
+                              'testnet — pending Phase 10).',
                     style: dbMono(10, Db.muteDim, height: 1.6),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: InkWell(
+                      onTap: () => showSigningExplainerSheet(context),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'How signing works  ›',
+                          style: dbLabel(size: 10, color: Db.segnale),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -362,7 +403,7 @@ class _CreateScreenState extends State<CreateScreen> {
         title: 'Approval — multi-select',
         subtitle: devSigner
             ? 'Approve any number of options; the tally counts every approval. '
-                '(approval-vote)'
+                  '(approval-vote)'
             : 'Needs a signer — start the relayer or set DEV_PRIVATE_KEY. (approval-vote)',
         icon: Icons.check_box,
         accent: Db.oltremare,
@@ -373,7 +414,7 @@ class _CreateScreenState extends State<CreateScreen> {
         title: 'Ranked choice — rank your favorites',
         subtitle: devSigner
             ? 'Rank options; an instant-runoff finds the winner. Up to 8 options. '
-                '(ranked-vote)'
+                  '(ranked-vote)'
             : 'Needs a signer — start the relayer or set DEV_PRIVATE_KEY. (ranked-vote)',
         icon: Icons.format_list_numbered,
         accent: Db.success,
@@ -384,7 +425,7 @@ class _CreateScreenState extends State<CreateScreen> {
         title: 'Quadratic — spend 100 credits, cost = votes²',
         subtitle: devSigner
             ? 'Allocate a credit budget across options; cost grows as votes². '
-                'Up to 8 options. (quadratic-vote)'
+                  'Up to 8 options. (quadratic-vote)'
             : 'Needs a signer — start the relayer or set DEV_PRIVATE_KEY. (quadratic-vote)',
         icon: Icons.calculate_outlined,
         accent: Db.catSocial,
@@ -395,7 +436,7 @@ class _CreateScreenState extends State<CreateScreen> {
         title: 'Survey — multiple questions',
         subtitle: devSigner
             ? 'Compose several questions (single-choice or multi-select); voters '
-                'answer them all in one ballot. (survey-vote)'
+                  'answer them all in one ballot. (survey-vote)'
             : 'Needs a signer — start the relayer or set DEV_PRIVATE_KEY. (survey-vote)',
         icon: Icons.list_alt,
         accent: Db.oltremare,
@@ -410,12 +451,14 @@ class _CreateScreenState extends State<CreateScreen> {
         enabled: false,
       ),
     ];
-    return Column(children: [
-      for (var i = 0; i < tiles.length; i++) ...[
-        if (i > 0) const SizedBox(height: 8),
-        tiles[i],
+    return Column(
+      children: [
+        for (var i = 0; i < tiles.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
+          tiles[i],
+        ],
       ],
-    ]);
+    );
   }
 
   Widget _moduleTile({
@@ -436,31 +479,34 @@ class _CreateScreenState extends State<CreateScreen> {
           decoration: BoxDecoration(
             color: selected ? accent.withValues(alpha: 0.10) : Db.slate3,
             border: Border.all(
-                color: selected ? accent : Db.rule, width: selected ? 2 : 1),
-          ),
-          child: Row(children: [
-            Icon(icon, size: 18, color: selected ? accent : Db.mute),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: dbSans(14, 700, Db.chalk)),
-                  const SizedBox(height: 3),
-                  Text(subtitle, style: dbMono(10, Db.mute, height: 1.4)),
-                ],
-              ),
+              color: selected ? accent : Db.rule,
+              width: selected ? 2 : 1,
             ),
-            if (!enabled)
-              const Icon(Icons.lock_outline, size: 14, color: Db.muteDim)
-            else
-              Icon(
-                  selected
-                      ? Icons.check_circle
-                      : Icons.radio_button_unchecked,
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: selected ? accent : Db.mute),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: dbSans(14, 700, Db.chalk)),
+                    const SizedBox(height: 3),
+                    Text(subtitle, style: dbMono(10, Db.mute, height: 1.4)),
+                  ],
+                ),
+              ),
+              if (!enabled)
+                const Icon(Icons.lock_outline, size: 14, color: Db.muteDim)
+              else
+                Icon(
+                  selected ? Icons.check_circle : Icons.radio_button_unchecked,
                   size: 16,
-                  color: selected ? accent : Db.muteDim),
-          ]),
+                  color: selected ? accent : Db.muteDim,
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -476,8 +522,10 @@ class _CreateScreenState extends State<CreateScreen> {
       return _bannerBox(
         accent: Db.success,
         icon: Icons.vpn_key_outlined,
-        child: Text('Signing locally (dev signer) — no wallet needed\n$addr',
-            style: dbMono(11, Db.chalkDim, height: 1.5)),
+        child: Text(
+          'Signing locally (dev signer) — no wallet needed\n$addr',
+          style: dbMono(11, Db.chalkDim, height: 1.5),
+        ),
       );
     }
     // Path 2 — sponsored relayer (wallet-free, the production default).
@@ -486,9 +534,10 @@ class _CreateScreenState extends State<CreateScreen> {
         accent: Db.success,
         icon: Icons.bolt_outlined,
         child: Text(
-            'Wallet-free — Tessera sponsors creation: the relayer pays the gas '
-            'and runs the poll. No wallet needed.',
-            style: dbMono(11, Db.chalkDim, height: 1.5)),
+          'Wallet-free — Tessera sponsors creation: the relayer pays the gas '
+          'and runs the poll. No wallet needed.',
+          style: dbMono(11, Db.chalkDim, height: 1.5),
+        ),
       );
     }
     // Path 3 — nothing wallet-free reachable: honest guidance + the optional,
@@ -504,20 +553,24 @@ class _CreateScreenState extends State<CreateScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           connected
-              ? Text('Wallet connected (advanced)\n${w.address ?? ''}',
-                  style: dbMono(11, Db.chalkDim, height: 1.5))
+              ? Text(
+                  'Wallet connected (advanced)\n${w.address ?? ''}',
+                  style: dbMono(11, Db.chalkDim, height: 1.5),
+                )
               : Text(
                   'No wallet-free signer reachable. Start the relayer '
                   '(./dev-stack.sh up) for sponsored creation, or set '
                   'DEV_PRIVATE_KEY for local dev.',
-                  style: dbSans(12, 500, Db.chalk, height: 1.4)),
+                  style: dbSans(12, 500, Db.chalk, height: 1.4),
+                ),
           if (w.supported && !connected) ...[
             const SizedBox(height: 12),
-            Text('Advanced — public testnet (pending Phase 10)',
-                style: dbLabel(size: 9, color: Db.mute)),
+            Text(
+              'Advanced — public testnet (pending Phase 10)',
+              style: dbLabel(size: 9, color: Db.mute),
+            ),
             const SizedBox(height: 6),
-            const Align(
-                alignment: Alignment.centerLeft, child: WalletButton()),
+            const Align(alignment: Alignment.centerLeft, child: WalletButton()),
           ],
         ],
       ),
@@ -529,93 +582,109 @@ class _CreateScreenState extends State<CreateScreen> {
     required Color accent,
     required IconData icon,
     required Widget child,
-  }) =>
-      Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Db.slate,
-          border: Border(left: BorderSide(color: accent, width: 3)),
-        ),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, size: 18, color: accent),
-          const SizedBox(width: 12),
-          Expanded(child: child),
-        ]),
-      );
+  }) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Db.slate,
+      border: Border(left: BorderSide(color: accent, width: 3)),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: accent),
+        const SizedBox(width: 12),
+        Expanded(child: child),
+      ],
+    ),
+  );
 
-  Widget _field(String label, TextEditingController c, String hint,
-          {int maxLines = 1}) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: dbLabel(size: 10, tracking: 0.16)),
-        const SizedBox(height: 8),
-        TextField(
-          controller: c,
-          maxLines: maxLines,
-          style: dbSans(15, 600, Db.chalk),
-          cursorColor: Db.segnale,
-          decoration: InputDecoration(
-            isDense: true,
-            filled: true,
-            fillColor: Db.slate3,
-            hintText: hint,
-            hintStyle: dbSans(14, 400, Db.muteDim),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            enabledBorder: const OutlineInputBorder(
-                borderRadius: BorderRadius.zero,
-                borderSide: BorderSide(color: Db.rule)),
-            focusedBorder: const OutlineInputBorder(
-                borderRadius: BorderRadius.zero,
-                borderSide: BorderSide(color: Db.segnale)),
+  Widget _field(
+    String label,
+    TextEditingController c,
+    String hint, {
+    int maxLines = 1,
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: dbLabel(size: 10, tracking: 0.16)),
+      const SizedBox(height: 8),
+      TextField(
+        controller: c,
+        maxLines: maxLines,
+        style: dbSans(15, 600, Db.chalk),
+        cursorColor: Db.segnale,
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: Db.slate3,
+          hintText: hint,
+          hintStyle: dbSans(14, 400, Db.muteDim),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
+          enabledBorder: const OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: Db.rule),
+          ),
+          focusedBorder: const OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: Db.segnale),
           ),
         ),
-      ]);
+      ),
+    ],
+  );
 
   Widget _optionRow(int i) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Row(children: [
-          Text('0${i + 1}', style: dbMono(13, Db.mute, wght: 700)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: _options[i],
-              style: dbSans(14, 600, Db.chalk),
-              cursorColor: Db.segnale,
-              decoration: InputDecoration(
-                isDense: true,
-                filled: true,
-                fillColor: Db.slate3,
-                hintText: 'Option ${i + 1}',
-                hintStyle: dbSans(13, 400, Db.muteDim),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                enabledBorder: const OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: Db.rule)),
-                focusedBorder: const OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: Db.segnale)),
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      children: [
+        Text('0${i + 1}', style: dbMono(13, Db.mute, wght: 700)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: TextField(
+            controller: _options[i],
+            style: dbSans(14, 600, Db.chalk),
+            cursorColor: Db.segnale,
+            decoration: InputDecoration(
+              isDense: true,
+              filled: true,
+              fillColor: Db.slate3,
+              hintText: 'Option ${i + 1}',
+              hintStyle: dbSans(13, 400, Db.muteDim),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
+              enabledBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: Db.rule),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: Db.segnale),
               ),
             ),
           ),
-          if (_options.length > 2)
-            IconButton(
-              icon: const Icon(Icons.close, size: 16, color: Db.mute),
-              onPressed: () => setState(() => _options.removeAt(i).dispose()),
-            ),
-        ]),
-      );
+        ),
+        if (_options.length > 2)
+          IconButton(
+            icon: const Icon(Icons.close, size: 16, color: Db.mute),
+            onPressed: () => setState(() => _options.removeAt(i).dispose()),
+          ),
+      ],
+    ),
+  );
 
   Widget _addOptionButton() => Align(
-        alignment: Alignment.centerLeft,
-        child: TextButton.icon(
-          onPressed: () =>
-              setState(() => _options.add(TextEditingController())),
-          icon: const Icon(Icons.add, size: 15, color: Db.chalkDim),
-          label:
-              Text('ADD OPTION', style: dbLabel(size: 11, color: Db.chalkDim)),
-        ),
-      );
+    alignment: Alignment.centerLeft,
+    child: TextButton.icon(
+      onPressed: () => setState(() => _options.add(TextEditingController())),
+      icon: const Icon(Icons.add, size: 15, color: Db.chalkDim),
+      label: Text('ADD OPTION', style: dbLabel(size: 11, color: Db.chalkDim)),
+    ),
+  );
 
   // Shown only for ranked/quadratic when the option-row count is out of the 2..8
   // range the on-chain `initialize` accepts (so the user can see WHY submit is
@@ -624,23 +693,27 @@ class _CreateScreenState extends State<CreateScreen> {
     final n = _options.length;
     final msg = n > _rankedQuadraticMaxOptions
         ? 'Ranked & quadratic polls allow at most '
-            '$_rankedQuadraticMaxOptions options — remove ${n - _rankedQuadraticMaxOptions}.'
+              '$_rankedQuadraticMaxOptions options — remove ${n - _rankedQuadraticMaxOptions}.'
         : 'Add at least 2 options.';
-    return Row(children: [
-      const Icon(Icons.info_outline, size: 13, color: Db.amber),
-      const SizedBox(width: 8),
-      Expanded(child: Text(msg, style: dbMono(10, Db.amber, height: 1.5))),
-    ]);
+    return Row(
+      children: [
+        const Icon(Icons.info_outline, size: 13, color: Db.amber),
+        const SizedBox(width: 8),
+        Expanded(child: Text(msg, style: dbMono(10, Db.amber, height: 1.5))),
+      ],
+    );
   }
 
   // The survey's own validation hint (1..16 questions / 2..32 options each),
   // surfaced so the user sees WHY deploy is disabled before an `initialize`
   // revert. Distinct from the flat-options `_optionLimitHint`.
-  Widget _surveyHint(String msg) => Row(children: [
-        const Icon(Icons.info_outline, size: 13, color: Db.amber),
-        const SizedBox(width: 8),
-        Expanded(child: Text(msg, style: dbMono(10, Db.amber, height: 1.5))),
-      ]);
+  Widget _surveyHint(String msg) => Row(
+    children: [
+      const Icon(Icons.info_outline, size: 13, color: Db.amber),
+      const SizedBox(width: 8),
+      Expanded(child: Text(msg, style: dbMono(10, Db.amber, height: 1.5))),
+    ],
+  );
 
   Widget _deployButton(WalletService w, bool devSigner) {
     // Wallet-free first: any of dev-signer / sponsored relayer / connected wallet
@@ -653,12 +726,12 @@ class _CreateScreenState extends State<CreateScreen> {
     final label = _busy
         ? 'DEPLOYING…'
         : devSigner
-            ? 'DEPLOY POLL (DEV SIGNER)'
-            : _sponsoredReady
-                ? 'CREATE POLL — WALLET-FREE'
-                : w.isConnected
-                    ? 'DEPLOY POLL (WALLET)'
-                    : 'NO SIGNER — START THE RELAYER';
+        ? 'DEPLOY POLL (DEV SIGNER)'
+        : _sponsoredReady
+        ? 'CREATE POLL — WALLET-FREE'
+        : w.isConnected
+        ? 'DEPLOY POLL (WALLET)'
+        : 'NO SIGNER — START THE RELAYER';
     return SizedBox(
       width: double.infinity,
       child: FilledButton(
@@ -672,8 +745,12 @@ class _CreateScreenState extends State<CreateScreen> {
         ),
         child: Text(
           label,
-          style: dbSans(13, 800, canDeploy ? Db.chalk : Db.mute,
-              letterSpacing: 1.4),
+          style: dbSans(
+            13,
+            800,
+            canDeploy ? Db.chalk : Db.mute,
+            letterSpacing: 1.4,
+          ),
         ),
       ),
     );
