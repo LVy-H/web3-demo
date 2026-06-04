@@ -72,15 +72,35 @@ class _NetworkConfigScreenState extends State<NetworkConfigScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _busy = true);
-    await context.read<NetworkConfigStore>().save(_read());
-    if (mounted) await _applied('Custom backend saved.');
+    final config = _read();
+    await _persist(() => _store.save(config), 'Custom backend saved.');
   }
 
-  Future<void> _reset() async {
+  Future<void> _reset() async =>
+      _persist(() => _store.clear(), 'Reverted to the built-in defaults.');
+
+  NetworkConfigStore get _store => context.read<NetworkConfigStore>();
+
+  /// Run a store write with the busy spinner, then offer the apply step. Any
+  /// failure resets the button (never a stuck "SAVING…") and surfaces the error,
+  /// so a misconfiguration can't look like a silent hang.
+  Future<void> _persist(Future<void> Function() write, String done) async {
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _busy = true);
-    await context.read<NetworkConfigStore>().clear();
-    if (mounted) await _applied('Reverted to the built-in defaults.');
+    try {
+      await write();
+      if (mounted) await _applied(done);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _busy = false);
+        messenger.showSnackBar(
+          SnackBar(
+            backgroundColor: Db.slate,
+            content: Text('Could not save: $e', style: dbSans(13, 600, Db.chalk)),
+          ),
+        );
+      }
+    }
   }
 
   /// Confirm the write and offer the apply step. Web can reload in place (which
