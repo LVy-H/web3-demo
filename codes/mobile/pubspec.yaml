@@ -56,6 +56,7 @@ dependencies:
   package_info_plus: ^9.0.1
   webview_flutter: ^4.10.0  # mobile on-device Semaphore prover host (Phase 11) — runs web/zkprover.js in a headless WebView
   mobile_scanner: ^7.2.0
+  nfc_manager: ^3.5.0       # NFC tag write for tap-to-open polls (Android radio device-fenced)
 
 dev_dependencies:
   flutter_test:

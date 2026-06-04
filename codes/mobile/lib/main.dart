@@ -17,6 +17,8 @@ import 'data/services/blind_commit_store.dart';
 import 'data/services/chain_reader.dart';
 import 'data/services/chain_writer.dart';
 import 'data/services/identity_store.dart';
+import 'data/services/nfc_service.dart';
+import 'data/services/nfc_service_factory.dart';
 import 'data/services/poll_creator.dart';
 import 'data/services/sponsored_poll_creator.dart';
 import 'data/services/proof_service.dart';
@@ -35,13 +37,17 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final izkPollAbi = await rootBundle.loadString('assets/abi/IZkPoll.json');
-  final registryAbi = await rootBundle.loadString('assets/abi/PollRegistry.json');
+  final registryAbi = await rootBundle.loadString(
+    'assets/abi/PollRegistry.json',
+  );
   final anonAbi = await rootBundle.loadString('assets/abi/ZkAnonVoting.json');
   final blindAbi = await rootBundle.loadString('assets/abi/ZkBlindVoting.json');
-  final approvalAbi =
-      await rootBundle.loadString('assets/abi/ZkApprovalVoting.json');
-  final surveyAbi =
-      await rootBundle.loadString('assets/abi/ZkSurveyVoting.json');
+  final approvalAbi = await rootBundle.loadString(
+    'assets/abi/ZkApprovalVoting.json',
+  );
+  final surveyAbi = await rootBundle.loadString(
+    'assets/abi/ZkSurveyVoting.json',
+  );
 
   final registryAbiArr = _abiArray(registryAbi);
   final anonAbiArr = _abiArray(anonAbi);
@@ -65,15 +71,17 @@ Future<void> main() async {
     privateKey: AppConfig.devPrivateKey,
   );
 
-  runApp(ZkVoteApp(
-    reader: reader,
-    writer: writer,
-    registryAbiJson: registryAbiArr,
-    anonAbiJson: anonAbiArr,
-    blindAbiJson: blindAbiArr,
-    approvalAbiJson: approvalAbiArr,
-    surveyAbiJson: surveyAbiArr,
-  ));
+  runApp(
+    ZkVoteApp(
+      reader: reader,
+      writer: writer,
+      registryAbiJson: registryAbiArr,
+      anonAbiJson: anonAbiArr,
+      blindAbiJson: blindAbiArr,
+      approvalAbiJson: approvalAbiArr,
+      surveyAbiJson: surveyAbiArr,
+    ),
+  );
 }
 
 class ZkVoteApp extends StatelessWidget {
@@ -106,7 +114,9 @@ class ZkVoteApp extends StatelessWidget {
         // The same reader, exposed for the live-vote flow (registration polling +
         // options). PollRepository owns its disposal.
         Provider<ChainReader>.value(value: reader),
-        Provider<VerifyRepository>(create: (_) => ChainVerifyRepository(reader)),
+        Provider<VerifyRepository>(
+          create: (_) => ChainVerifyRepository(reader),
+        ),
         Provider<RelayClient>(
           create: (_) => RelayClient(baseUrl: AppConfig.relayerUrl),
           dispose: (_, c) => c.close(),
@@ -115,6 +125,10 @@ class ZkVoteApp extends StatelessWidget {
           create: (_) => createProofService(),
           dispose: (_, s) => s.dispose(), // kills the desktop Node sidecar
         ),
+        // NFC tag writer for tap-to-open polls. Android-only radio (device-
+        // fenced); a no-op everywhere else, so the share sheet hides the NFC
+        // affordance and the QR stays the baseline.
+        Provider<NfcService>(create: (_) => createNfcService()),
         Provider<IdentityStore>(create: (_) => SecureIdentityStore()),
         Provider<ChainWriter>(
           create: (_) => writer,
@@ -195,12 +209,8 @@ class ZkVoteApp extends StatelessWidget {
         // On Android the on-device WebView prover needs its WebView ATTACHED to
         // the tree to run JS. Mount it once here (1×1 offstage), under the
         // providers so `ProofService` resolves. Web/desktop render nothing.
-        builder: (context, child) => Stack(
-          children: [
-            ?child,
-            const _ProofHostMount(),
-          ],
-        ),
+        builder: (context, child) =>
+            Stack(children: [?child, const _ProofHostMount()]),
       ),
     );
   }

@@ -5,6 +5,18 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **NFC tap-to-open polls** — a poll's `tessera://poll/<addr>?module=<m>` link
+  (the *same* payload the QR encodes) can be written to an **NFC tag** from the
+  share sheet: a venue/booth puts a tap-to-vote sticker instead of asking people
+  to aim a camera. Reuses `shareLinkForPoll` + `routeForScannedValue` — NFC is a
+  transport, not a new format. Capability-gated exactly like `ProximityService`
+  (`NfcService` seam + web-safe conditional-import factory keeping `nfc_manager`/
+  `dart:io` out of the web compile): the **WRITE TO NFC TAG** button appears only
+  where a radio is present (probed `isAvailable()`), and the QR stays the baseline
+  everywhere else. `analyze` + `flutter test` (NFC affordance + payload parity +
+  no-op contract) + `build web` (NFC-free) all green; the Android plugin build and
+  the radio write itself are device-fenced (real NFC phone + writable tag).
+  Design: `docs/superpowers/specs/2026-06-04-nfc-tap-share-design.md`.
 - **Poll ownership + permissions clarity** — answers "I don't know who owns a
   poll or what permission everyone has." The poll detail's bare `OWNER: 0x…` row
   is now a meaningful **RUN BY** label: a relayer-owned (wallet-free) poll reads
