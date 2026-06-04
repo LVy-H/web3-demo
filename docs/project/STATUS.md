@@ -1,10 +1,10 @@
 # Status
 
-> **Snapshot:** 2026-06-03 — keep this date current when editing.
+> **Snapshot:** 2026-06-04 — keep this date current when editing.
 
 ## TL;DR
 
-A modular ZK voting system runs end-to-end on a local Hardhat node. **Six voting modules shipped full-stack** (M1 anon-vote, M2 blind-vote, approval-vote, ranked-vote, quadratic-vote, survey-vote), plus a standalone `ZkAirdrop`. **No deployment beyond local Hardhat.** All P0 **and P1** items closed — the contract-hardening pass (OZ `Initializable`/`Ownable`, custom errors, airdrop `ReentrancyGuard` + escape hatch, unified pragma, anon-vote invariants) is on `main`. The remaining gate to `1.0` is Phase 10 (Sepolia + real Groth16 verifier).
+A modular ZK voting system runs end-to-end on a local Hardhat node. **Six voting modules shipped full-stack** (M1 anon-vote, M2 blind-vote, approval-vote, ranked-vote, quadratic-vote, survey-vote), plus a standalone `ZkAirdrop`. **No deployment beyond local Hardhat.** All P0 **and P1** items closed; **Phase 2.5 (Stabilization) closed**. The **real Groth16 `SemaphoreVerifier` is now wired AND proven end-to-end on the live local chain** (a tampered proof reverts, a valid wallet-free vote lands `[1,0]`), with a nightly CI job — so the real verifier is **no longer a `1.0` gate**; the remaining gate is the **Sepolia testnet deployment** (Phase 10). The Tessera Flutter client is **wallet-free first** (sponsored relayer creates / registers / relays), with share-a-poll (QR + NFC), a "how signing works" / "who can do what" explainer, ownership labels (SPONSORED/YOU) + a MINE filter, and a BLE live-meeting proximity seam.
 
 > **Sole client (2026-06-02): the Flutter app `codes/mobile/` — "Tessera" —
 > across mobile, desktop, AND web.** It reached parity with the old React app
@@ -29,7 +29,7 @@ A modular ZK voting system runs end-to-end on a local Hardhat node. **Six voting
   multi-select tallies. **Shipped full-stack** (contract + relayer + Flutter
   read/answer/cast/results + question-builder create flow); 45 hardhat tests ✓
 - `ZkAirdrop` — standalone Semaphore-gated ETH airdrop; tested ✓ (`test/ZkAirdrop.test.ts`)
-- `MockSemaphoreVerifier` — local verifier that always returns true (no SNARK artifacts needed)
+- `MockSemaphoreVerifier` (default, fast) **and the real Groth16 `SemaphoreVerifier`** — `USE_REAL_VERIFIER=true` / `ZK_REAL_VERIFIER=1 ./dev-stack.sh up` deploys the real one. Proven end-to-end on the live chain: `scripts/check-live-verifier.ts` (a bad proof must REVERT — the only thing that tells the real verifier from the mock) + `scripts/e2e-relayer-real-vote.ts` (real proof → `/api/relay/vote` → on-chain verifier; tampered rejected, valid lands `[1,0]`) + the nightly `.github/workflows/real-verifier.yml`. P4-23 done.
 - Deploy script wires it all together and writes `deployed-addresses.json` for the client
 - **268 hardhat tests passing** across 9 test files
 
@@ -38,6 +38,15 @@ A modular ZK voting system runs end-to-end on a local Hardhat node. **Six voting
   (dev-signer or sponsored wallet-free) / per-module poll screens (M1, M2,
   approval, ranked, quadratic, survey) / verify-receipt / identity /
   live-meeting host + voter / settings.
+- **Wallet-free-first + UX (2026-06-04):** the sponsored relayer creates /
+  registers / relays so no wallet is needed; **share a poll** (QR + copyable
+  `tessera://` deep-link, plus an **NFC** tag write) and a **navbar SCAN** that
+  routes those links back; **"how signing works"** + **"who can do what"**
+  explainers; meaningful **ownership** (RUN BY / `SPONSORED` / `YOU`) on the
+  detail and browse cards + a **MINE** filter (locally-tracked created polls);
+  a **BLE proximity** attestation seam for the live-meeting flow. The NFC/BLE
+  radios are capability-gated + device-fenced (verified seam/UI/web-safety; the
+  tap/scan needs real hardware).
 - ZK proving: browser (web), Node sidecar (desktop), and headless
   `webview_flutter` (mobile, emulator-verified) — all against the real
   Groth16 vkey.
@@ -68,14 +77,17 @@ A modular ZK voting system runs end-to-end on a local Hardhat node. **Six voting
 - ~~**[P0-3]**~~ — **Done**: `ZkAirdrop.test.ts` exists; contracts suite 268 passing.
 - ~~**[P0-4]**~~ — **Done**: stale `INSTRUCTIONS.md` / `ZkVotingAirdrop_System_Workflow.md` removed; README rewritten.
 
-*(No open P0 items. Next release gate is Phase 10: Sepolia + real Groth16 verifier → `1.0`.)*
+*(No open P0 items. The real Groth16 verifier is done + proven (P4-23); the next release gate is the Phase 10 Sepolia testnet deployment → `1.0`.)*
 
 These don't block local dev but block any external use.
 
 ## Not started
 
-- Real Groth16 verifier path in tests (only `MockSemaphoreVerifier` exercised; P4-23)
-- Testnet deployment of any kind (Phase 10: Sepolia + real verifier → `1.0`)
+- Testnet deployment of any kind (Phase 10: Sepolia → `1.0`; the real Groth16
+  verifier it needs is already done + proven locally, P4-23)
+- Web prover self-hosting (P4-24, web side): the web prover still CDN-fetches the
+  `zkey`; a parked, unverified fix is on `origin/feat/web-prover-no-cdn` (the
+  test's static server lacks HTTP Range — retry with a Range-capable host)
 - Pagination / event-driven poll list (current `getAllPolls` won't scale past dozens of polls; P4-21/P4-22)
 - M3 (Participation Receipts as a cross-cutting feature) — `verifyParticipation()` exists in IZkPoll; surfaced in the client's Verify screen, not yet a standalone shareable receipt
 - Phase 5 integration layer (SDK / API for third-party use)
