@@ -10,6 +10,7 @@ import '../../../data/services/proof_service_factory.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
 import '../../core/poll_header.dart';
+import '../../core/share_poll_sheet.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
 import '../../widgets/results_bars.dart';
@@ -59,12 +60,12 @@ class _QuadraticPollScreenState extends State<QuadraticPollScreen> {
               child: Consumer<QuadraticVoteViewModel>(
                 builder: (context, vm, _) => switch (vm.state) {
                   ViewState.idle || ViewState.loading => const Center(
-                      child: CircularProgressIndicator(color: Db.segnale),
-                    ),
+                    child: CircularProgressIndicator(color: Db.segnale),
+                  ),
                   ViewState.error => _ErrorView(
-                      message: vm.error ?? 'Unknown error',
-                      onRetry: vm.load,
-                    ),
+                    message: vm.error ?? 'Unknown error',
+                    onRetry: vm.load,
+                  ),
                   ViewState.loaded => _Body(snapshot: vm.snapshot!),
                 },
               ),
@@ -90,7 +91,7 @@ class _Body extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Header(shortAddr: _shortAddr),
+            _Header(shortAddr: _shortAddr, address: snapshot.address),
             const SizedBox(height: 20),
             _PhaseStrip(state: snapshot.state),
             const SizedBox(height: 16),
@@ -137,17 +138,23 @@ class _Body extends StatelessWidget {
 
 class _Header extends StatelessWidget {
   final String shortAddr;
-  const _Header({required this.shortAddr});
+  final String address;
+  const _Header({required this.shortAddr, required this.address});
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 12),
-        child: pollDetailHeaderRow(
-          context: context,
-          badgeLabel: 'ZK · QUADRATIC',
-          badgeColor: Db.oltremare,
-          shortAddr: shortAddr,
-        ),
-      );
+    padding: const EdgeInsets.only(top: 8, bottom: 12),
+    child: pollDetailHeaderRow(
+      context: context,
+      badgeLabel: 'ZK · QUADRATIC',
+      badgeColor: Db.oltremare,
+      shortAddr: shortAddr,
+      onShare: () => showSharePollSheet(
+        context,
+        address: address,
+        module: 'quadratic-vote',
+      ),
+    ),
+  );
 }
 
 class _PhaseStrip extends StatelessWidget {
@@ -231,9 +238,9 @@ class _ResultsBars extends StatelessWidget {
     final isEnded = snapshot.state == 2;
     final caption = isEnded
         ? 'Final per-option vote totals — the on-chain tally is '
-            'authoritative; the leading option is the winner.'
+              'authoritative; the leading option is the winner.'
         : 'Current per-option vote totals — the on-chain tally is '
-            'authoritative; the leading option is ahead.';
+              'authoritative; the leading option is ahead.';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -245,9 +252,10 @@ class _ResultsBars extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           resultsTitleRow(
-              icon: Icons.bar_chart,
-              title: 'VOTE TOTALS',
-              trailing: '${snapshot.participantCount} VOTERS'),
+            icon: Icons.bar_chart,
+            title: 'VOTE TOTALS',
+            trailing: '${snapshot.participantCount} VOTERS',
+          ),
           const SizedBox(height: 6),
           // State-aware caption: provisional during voting, final when ended.
           Row(
@@ -370,11 +378,11 @@ class _QuadraticFormState extends State<_QuadraticForm> {
   }
 
   void _snack(String m) => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(m, style: dbMono(12, Db.chalk)),
-          backgroundColor: Db.slate,
-        ),
-      );
+    SnackBar(
+      content: Text(m, style: dbMono(12, Db.chalk)),
+      backgroundColor: Db.slate,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -467,8 +475,8 @@ class _QuadraticFormState extends State<_QuadraticForm> {
             totalVotes: vm.totalAllocated,
             onTap: canCast
                 ? () => context.read<QuadraticVoteViewModel>().castQuadratic(
-                      identitySeed: _seed.text.trim(),
-                    )
+                    identitySeed: _seed.text.trim(),
+                  )
                 : null,
           ),
           if (vm.status == QuadraticVoteStatus.success)
@@ -489,15 +497,15 @@ class _QuadraticFormState extends State<_QuadraticForm> {
   }
 
   Widget _statusLine(IconData icon, Color color, String text) => Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 8),
-            Expanded(child: Text(text, style: dbMono(12, color))),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.only(top: 12),
+    child: Row(
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: dbMono(12, color))),
+      ],
+    ),
+  );
 }
 
 /// The live budget meter: `SPENT = Σ vᵢ²` / `REMAINING = CREDITS - spent`, with
@@ -540,14 +548,16 @@ class _BudgetMeter extends StatelessWidget {
           const SizedBox(height: 8),
           SizedBox(
             height: 8,
-            child: Stack(children: [
-              const Positioned.fill(child: ColoredBox(color: Db.rule)),
-              FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: frac,
-                child: ColoredBox(color: barColor),
-              ),
-            ]),
+            child: Stack(
+              children: [
+                const Positioned.fill(child: ColoredBox(color: Db.rule)),
+                FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: frac,
+                  child: ColoredBox(color: barColor),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -593,7 +603,10 @@ class _OptionStepper extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: active ? color.withValues(alpha: 0.12) : Db.void_,
-        border: Border.all(color: active ? color : Db.rule, width: active ? 2 : 1),
+        border: Border.all(
+          color: active ? color : Db.rule,
+          width: active ? 2 : 1,
+        ),
       ),
       child: Row(
         children: [
@@ -647,18 +660,18 @@ class _StepBtn extends StatelessWidget {
   const _StepBtn({required this.icon, required this.enabled, this.onTap});
   @override
   Widget build(BuildContext context) => InkWell(
-        onTap: enabled ? onTap : null,
-        child: Container(
-          width: 34,
-          height: 34,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: enabled ? Db.slate : Db.void_,
-            border: Border.all(color: enabled ? Db.chalkDim : Db.rule),
-          ),
-          child: Icon(icon, size: 16, color: enabled ? Db.chalk : Db.muteDim),
-        ),
-      );
+    onTap: enabled ? onTap : null,
+    child: Container(
+      width: 34,
+      height: 34,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: enabled ? Db.slate : Db.void_,
+        border: Border.all(color: enabled ? Db.chalkDim : Db.rule),
+      ),
+      child: Icon(icon, size: 16, color: enabled ? Db.chalk : Db.muteDim),
+    ),
+  );
 }
 
 // Proactive registration status shown above the CAST button (identical pattern
@@ -797,7 +810,8 @@ class _CastButton extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    final label = busyLabel ??
+    final label =
+        busyLabel ??
         (enabled
             ? 'CAST QUADRATIC BALLOT ($totalVotes) →'
             : '[ ALLOCATE AT LEAST ONE VOTE ]');
@@ -831,35 +845,34 @@ class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.onRetry});
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.cloud_off, color: Db.segnale, size: 40),
-              const SizedBox(height: 12),
-              Text(
-                "COULDN'T LOAD THIS POLL",
-                style: dbLabel(size: 12, color: Db.chalk),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: dbMono(12, Db.mute),
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton(
-                onPressed: onRetry,
-                style: OutlinedButton.styleFrom(
-                  shape: const RoundedRectangleBorder(),
-                  side: const BorderSide(color: Db.rule),
-                ),
-                child:
-                    Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off, color: Db.segnale, size: 40),
+          const SizedBox(height: 12),
+          Text(
+            "COULDN'T LOAD THIS POLL",
+            style: dbLabel(size: 12, color: Db.chalk),
           ),
-        ),
-      );
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: dbMono(12, Db.mute),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: onRetry,
+            style: OutlinedButton.styleFrom(
+              shape: const RoundedRectangleBorder(),
+              side: const BorderSide(color: Db.rule),
+            ),
+            child: Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),
+          ),
+        ],
+      ),
+    ),
+  );
 }

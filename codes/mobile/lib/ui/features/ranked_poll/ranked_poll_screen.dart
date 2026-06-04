@@ -10,6 +10,7 @@ import '../../../data/services/proof_service_factory.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
 import '../../core/poll_header.dart';
+import '../../core/share_poll_sheet.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
 import '../../widgets/results_bars.dart';
@@ -52,12 +53,12 @@ class _RankedPollScreenState extends State<RankedPollScreen> {
               child: Consumer<RankedVoteViewModel>(
                 builder: (context, vm, _) => switch (vm.state) {
                   ViewState.idle || ViewState.loading => const Center(
-                      child: CircularProgressIndicator(color: Db.segnale),
-                    ),
+                    child: CircularProgressIndicator(color: Db.segnale),
+                  ),
                   ViewState.error => _ErrorView(
-                      message: vm.error ?? 'Unknown error',
-                      onRetry: vm.load,
-                    ),
+                    message: vm.error ?? 'Unknown error',
+                    onRetry: vm.load,
+                  ),
                   ViewState.loaded => _Body(snapshot: vm.snapshot!),
                 },
               ),
@@ -83,7 +84,7 @@ class _Body extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Header(shortAddr: _shortAddr),
+            _Header(shortAddr: _shortAddr, address: snapshot.address),
             const SizedBox(height: 20),
             _PhaseStrip(state: snapshot.state),
             const SizedBox(height: 16),
@@ -129,17 +130,20 @@ class _Body extends StatelessWidget {
 
 class _Header extends StatelessWidget {
   final String shortAddr;
-  const _Header({required this.shortAddr});
+  final String address;
+  const _Header({required this.shortAddr, required this.address});
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 12),
-        child: pollDetailHeaderRow(
-          context: context,
-          badgeLabel: 'ZK · RANKED',
-          badgeColor: Db.oltremare,
-          shortAddr: shortAddr,
-        ),
-      );
+    padding: const EdgeInsets.only(top: 8, bottom: 12),
+    child: pollDetailHeaderRow(
+      context: context,
+      badgeLabel: 'ZK · RANKED',
+      badgeColor: Db.oltremare,
+      shortAddr: shortAddr,
+      onShare: () =>
+          showSharePollSheet(context, address: address, module: 'ranked-vote'),
+    ),
+  );
 }
 
 class _PhaseStrip extends StatelessWidget {
@@ -225,9 +229,10 @@ class _ResultsBars extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           resultsTitleRow(
-              icon: Icons.bar_chart,
-              title: 'FIRST CHOICES',
-              trailing: '$voters VOTERS'),
+            icon: Icons.bar_chart,
+            title: 'FIRST CHOICES',
+            trailing: '$voters VOTERS',
+          ),
           const SizedBox(height: 6),
           // The load-bearing caption: these bars are NOT the outcome.
           Row(
@@ -356,29 +361,28 @@ class _RankedFormState extends State<_RankedForm> {
   }
 
   void _snack(String m) => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(m, style: dbMono(12, Db.chalk)),
-          backgroundColor: Db.slate,
-        ),
-      );
+    SnackBar(
+      content: Text(m, style: dbMono(12, Db.chalk)),
+      backgroundColor: Db.slate,
+    ),
+  );
 
   List<int> get _unranked => [
-        for (var i = 0; i < widget.options.length; i++)
-          if (!_ranked.contains(i)) i,
-      ];
+    for (var i = 0; i < widget.options.length; i++)
+      if (!_ranked.contains(i)) i,
+  ];
 
   void _addToRanking(int option) => setState(() => _ranked.add(option));
 
-  void _removeFromRanking(int option) =>
-      setState(() => _ranked.remove(option));
+  void _removeFromRanking(int option) => setState(() => _ranked.remove(option));
 
   void _reorder(int oldIndex, int newIndex) => setState(() {
-        // ReorderableListView convention: a downward move yields newIndex one
-        // past the target slot.
-        if (newIndex > oldIndex) newIndex -= 1;
-        final option = _ranked.removeAt(oldIndex);
-        _ranked.insert(newIndex, option);
-      });
+    // ReorderableListView convention: a downward move yields newIndex one
+    // past the target slot.
+    if (newIndex > oldIndex) newIndex -= 1;
+    final option = _ranked.removeAt(oldIndex);
+    _ranked.insert(newIndex, option);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -479,9 +483,9 @@ class _RankedFormState extends State<_RankedForm> {
             rankedCount: _ranked.length,
             onTap: canCast
                 ? () => context.read<RankedVoteViewModel>().castRanked(
-                      identitySeed: _seed.text.trim(),
-                      ranking: List<int>.from(_ranked),
-                    )
+                    identitySeed: _seed.text.trim(),
+                    ranking: List<int>.from(_ranked),
+                  )
                 : null,
           ),
           if (vm.status == RankedVoteStatus.success)
@@ -502,15 +506,15 @@ class _RankedFormState extends State<_RankedForm> {
   }
 
   Widget _statusLine(IconData icon, Color color, String text) => Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 8),
-            Expanded(child: Text(text, style: dbMono(12, color))),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.only(top: 12),
+    child: Row(
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: dbMono(12, color))),
+      ],
+    ),
+  );
 }
 
 /// The voter's ordered ranking as a drag-to-reorder list. Each row shows its
@@ -634,23 +638,23 @@ class _UnrankedChip extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: Db.void_,
-            border: Border.all(color: Db.rule),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.add, size: 14, color: color),
-              const SizedBox(width: 8),
-              Text(label, style: dbSans(13, 600, Db.chalk)),
-            ],
-          ),
-        ),
-      );
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Db.void_,
+        border: Border.all(color: Db.rule),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.add, size: 14, color: color),
+          const SizedBox(width: 8),
+          Text(label, style: dbSans(13, 600, Db.chalk)),
+        ],
+      ),
+    ),
+  );
 }
 
 // Proactive registration status shown above the CAST button (identical pattern
@@ -789,7 +793,8 @@ class _CastButton extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    final label = busyLabel ??
+    final label =
+        busyLabel ??
         (enabled
             ? 'CAST RANKED BALLOT ($rankedCount) →'
             : '[ RANK AT LEAST ONE OPTION ]');
@@ -823,35 +828,34 @@ class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.onRetry});
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.cloud_off, color: Db.segnale, size: 40),
-              const SizedBox(height: 12),
-              Text(
-                "COULDN'T LOAD THIS POLL",
-                style: dbLabel(size: 12, color: Db.chalk),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: dbMono(12, Db.mute),
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton(
-                onPressed: onRetry,
-                style: OutlinedButton.styleFrom(
-                  shape: const RoundedRectangleBorder(),
-                  side: const BorderSide(color: Db.rule),
-                ),
-                child:
-                    Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off, color: Db.segnale, size: 40),
+          const SizedBox(height: 12),
+          Text(
+            "COULDN'T LOAD THIS POLL",
+            style: dbLabel(size: 12, color: Db.chalk),
           ),
-        ),
-      );
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: dbMono(12, Db.mute),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: onRetry,
+            style: OutlinedButton.styleFrom(
+              shape: const RoundedRectangleBorder(),
+              side: const BorderSide(color: Db.rule),
+            ),
+            child: Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),
+          ),
+        ],
+      ),
+    ),
+  );
 }

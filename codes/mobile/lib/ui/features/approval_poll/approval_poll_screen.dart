@@ -10,6 +10,7 @@ import '../../../data/services/proof_service_factory.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
 import '../../core/poll_header.dart';
+import '../../core/share_poll_sheet.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
 import '../../widgets/results_bars.dart';
@@ -79,7 +80,7 @@ class _Body extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Header(shortAddr: _shortAddr),
+            _Header(shortAddr: _shortAddr, address: snapshot.address),
             const SizedBox(height: 20),
             _PhaseStrip(state: snapshot.state),
             const SizedBox(height: 16),
@@ -125,7 +126,8 @@ class _Body extends StatelessWidget {
 
 class _Header extends StatelessWidget {
   final String shortAddr;
-  const _Header({required this.shortAddr});
+  final String address;
+  const _Header({required this.shortAddr, required this.address});
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 8, bottom: 12),
@@ -134,6 +136,11 @@ class _Header extends StatelessWidget {
       badgeLabel: 'ZK · APPROVAL',
       badgeColor: Db.oltremare,
       shortAddr: shortAddr,
+      onShare: () => showSharePollSheet(
+        context,
+        address: address,
+        module: 'approval-vote',
+      ),
     ),
   );
 }
@@ -220,9 +227,10 @@ class _ResultsBars extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           resultsTitleRow(
-              icon: Icons.bar_chart,
-              title: 'APPROVALS',
-              trailing: '$voters VOTERS'),
+            icon: Icons.bar_chart,
+            title: 'APPROVALS',
+            trailing: '$voters VOTERS',
+          ),
           const SizedBox(height: 18),
           ResultsBars(
             options: [
