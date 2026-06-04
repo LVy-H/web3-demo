@@ -376,8 +376,20 @@ void main() {
     );
     await tester.pumpWidget(
       _app(
-        ChangeNotifierProvider(
-          create: (_) => BrowseViewModel(repo),
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => BrowseViewModel(repo)),
+            Provider<RelayClient>(
+              create: (_) => RelayClient(
+                baseUrl: 'http://relayer.test',
+                client: MockClient((_) async => http.Response('{}', 503)),
+              ),
+            ),
+            Provider<ChainWriter>(
+              create: (_) =>
+                  ChainWriter(rpcUrl: 'http://127.0.0.1:1', chainId: 31337),
+            ),
+          ],
           child: const BrowseScreen(),
         ),
       ),

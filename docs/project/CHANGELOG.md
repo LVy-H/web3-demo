@@ -5,6 +5,15 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Ownership labels on the browse cards** — completes the ownership-clarity
+  feedback at the surface where it was actually felt (the list). Each card showed
+  `PollInfo.creator` as a raw hex — and under wallet-free the relayer creates every
+  poll, so every card read the same opaque address. The card now reuses
+  `pollOwner` (#88) to read a short tag — **SPONSORED** (relayer-run) / **YOU** /
+  the creator's address — by probing the relayer address once on open (down →
+  short-address fallback). Widget-tested. Next: a "Mine" filter + local
+  created/voted tracking. Design:
+  `docs/superpowers/specs/2026-06-04-browse-ownership-design.md`.
 - **BLE proximity attestation for live meetings** — the other half of NFC/BLE.
   While a live-meeting voter is *pending* (showing their 4-digit code), the app
   scans (`flutter_blue_plus`) for the organizer's BLE beacon — a service UUID both

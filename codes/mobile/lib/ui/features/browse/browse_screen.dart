@@ -4,8 +4,11 @@ import 'package:provider/provider.dart';
 
 import '../../../data/models/poll_info.dart';
 import '../../../data/models/poll_summary.dart';
+import '../../../data/services/chain_writer.dart';
+import '../../../data/services/relay_client.dart';
 import '../../core/dot_grid_background.dart';
 import '../../core/format.dart';
+import '../../core/poll_roles.dart';
 import '../../core/theme.dart';
 import '../../core/view_state.dart';
 import '../../core/watermark.dart';
@@ -25,22 +28,30 @@ enum _Sort { newest, oldest, titleAsc, titleDesc }
 /// On-chain PollState → card lifecycle phase. Kept identical to the web client
 /// (`Home.tsx`): Registration(0)→upcoming, Voting(1)→active, Ended(2)→ended.
 PollPhase phaseFromState(int state) => switch (state) {
-      1 => PollPhase.active,
-      0 => PollPhase.upcoming,
-      _ => PollPhase.ended,
-    };
+  1 => PollPhase.active,
+  0 => PollPhase.upcoming,
+  _ => PollPhase.ended,
+};
 
 class _BrowseScreenState extends State<BrowseScreen> {
   int _cat = -1; // -1 = all, else category index 0..3
   _Status _status = _Status.active;
   _Sort _sort = _Sort.newest;
   String _search = '';
+  String?
+  _relayerAddress; // labels relayer-owned (sponsored) polls on the cards
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => context.read<BrowseViewModel>().load());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => context.read<BrowseViewModel>().load(),
+    );
+    // Resolve the relayer address so each card can read "SPONSORED" instead of
+    // the same opaque hex on every wallet-free poll.
+    context.read<RelayClient>().getRelayerInfo().then((info) {
+      if (mounted) setState(() => _relayerAddress = info?.relayer);
+    });
   }
 
   // Lifecycle phase from the on-chain state (0 Registration→upcoming,
@@ -50,18 +61,22 @@ class _BrowseScreenState extends State<BrowseScreen> {
       phaseFromState(sums[p.pollAddress]?.state ?? 1);
 
   bool _matchesStatus(PollPhase phase) => switch (_status) {
-        _Status.all => true,
-        _Status.active => phase == PollPhase.active,
-        _Status.upcoming => phase == PollPhase.upcoming,
-        _Status.ended => phase == PollPhase.ended,
-      };
+    _Status.all => true,
+    _Status.active => phase == PollPhase.active,
+    _Status.upcoming => phase == PollPhase.upcoming,
+    _Status.ended => phase == PollPhase.ended,
+  };
 
-  List<PollInfo> _filterSort(List<PollInfo> polls, Map<String, PollSummary> sums) {
+  List<PollInfo> _filterSort(
+    List<PollInfo> polls,
+    Map<String, PollSummary> sums,
+  ) {
     final q = _search.trim().toLowerCase();
     final out = polls.where((p) {
       final catOk = _cat == -1 || Db.categoryFor(p.pollAddress) == _cat;
       final statusOk = _matchesStatus(_phaseOf(p, sums));
-      final searchOk = q.isEmpty ||
+      final searchOk =
+          q.isEmpty ||
           p.title.toLowerCase().contains(q) ||
           p.description.toLowerCase().contains(q);
       return catOk && statusOk && searchOk;
@@ -72,9 +87,13 @@ class _BrowseScreenState extends State<BrowseScreen> {
       case _Sort.oldest:
         out.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       case _Sort.titleAsc:
-        out.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        out.sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
       case _Sort.titleDesc:
-        out.sort((a, b) => b.title.toLowerCase().compareTo(a.title.toLowerCase()));
+        out.sort(
+          (a, b) => b.title.toLowerCase().compareTo(a.title.toLowerCase()),
+        );
     }
     return out;
   }
@@ -87,8 +106,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
           child: Consumer<BrowseViewModel>(
             builder: (context, vm, _) => switch (vm.state) {
               ViewState.idle || ViewState.loading => const _LoadingView(),
-              ViewState.error =>
-                _ErrorView(message: vm.error ?? 'Unknown error', onRetry: vm.load),
+              ViewState.error => _ErrorView(
+                message: vm.error ?? 'Unknown error',
+                onRetry: vm.load,
+              ),
               ViewState.loaded => _loaded(context, vm),
             },
           ),
@@ -128,7 +149,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
             constraints: const BoxConstraints(maxWidth: 1180),
             child: Padding(
               padding: EdgeInsets.symmetric(
-                  horizontal: width < 600 ? 16 : 32, vertical: 28),
+                horizontal: width < 600 ? 16 : 32,
+                vertical: 28,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -154,27 +177,33 @@ class _BrowseScreenState extends State<BrowseScreen> {
                   if (filtered.isEmpty)
                     const _EmptyView()
                   else
-                    LayoutBuilder(builder: (context, c) {
-                      final cols = (c.maxWidth / 340).floor().clamp(1, 3);
-                      const gap = 16.0;
-                      final itemW = (c.maxWidth - gap * (cols - 1)) / cols;
-                      return Wrap(
-                        spacing: gap,
-                        runSpacing: gap,
-                        children: [
-                          for (final p in filtered)
-                            SizedBox(
-                              width: itemW,
-                              child: _PollCard(
-                                poll: p,
-                                category: Db.categoryFor(p.pollAddress),
-                                phase: _phaseOf(p, sums),
-                                votes: sums[p.pollAddress]?.totalVotes,
+                    LayoutBuilder(
+                      builder: (context, c) {
+                        final cols = (c.maxWidth / 340).floor().clamp(1, 3);
+                        const gap = 16.0;
+                        final itemW = (c.maxWidth - gap * (cols - 1)) / cols;
+                        return Wrap(
+                          spacing: gap,
+                          runSpacing: gap,
+                          children: [
+                            for (final p in filtered)
+                              SizedBox(
+                                width: itemW,
+                                child: _PollCard(
+                                  poll: p,
+                                  category: Db.categoryFor(p.pollAddress),
+                                  phase: _phaseOf(p, sums),
+                                  votes: sums[p.pollAddress]?.totalVotes,
+                                  relayerAddress: _relayerAddress,
+                                  myAddress: context
+                                      .read<ChainWriter>()
+                                      .signerAddress,
+                                ),
                               ),
-                            ),
-                        ],
-                      );
-                    }),
+                          ],
+                        );
+                      },
+                    ),
                   const SizedBox(height: 20),
                   if (filtered.isNotEmpty)
                     Padding(
@@ -217,14 +246,19 @@ class _Hero extends StatelessWidget {
       children: [
         Text('POLLS', style: dbHero(heroSize)),
         const SizedBox(height: 12),
-        Text.rich(TextSpan(children: [
-          const TextSpan(text: 'Active proposals across the community. '),
+        Text.rich(
           TextSpan(
-            text: '$total total · $active active · $upcoming upcoming · $ended ended.',
-            style: dbSans(14, 400, Db.mute, height: 1.6),
+            children: [
+              const TextSpan(text: 'Active proposals across the community. '),
+              TextSpan(
+                text:
+                    '$total total · $active active · $upcoming upcoming · $ended ended.',
+                style: dbSans(14, 400, Db.mute, height: 1.6),
+              ),
+            ],
           ),
-        ]),
-            style: dbSans(14, 400, Db.chalkDim, height: 1.6)),
+          style: dbSans(14, 400, Db.chalkDim, height: 1.6),
+        ),
       ],
     );
   }
@@ -270,8 +304,10 @@ class _FilterStrip extends StatelessWidget {
               decoration: InputDecoration(
                 isDense: true,
                 prefixIcon: const Icon(Icons.search, size: 16, color: Db.mute),
-                prefixIconConstraints:
-                    const BoxConstraints(minWidth: 30, minHeight: 30),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 30,
+                  minHeight: 30,
+                ),
                 hintText: 'SEARCH POLLS',
                 hintStyle: dbLabel(size: 11, tracking: 0.1),
                 border: InputBorder.none,
@@ -283,21 +319,41 @@ class _FilterStrip extends StatelessWidget {
           // tall, overwhelming block on a phone.
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: Row(children: [
-              _stripLabel('STATUS'),
-              _Pill('ACTIVE', status == _Status.active,
-                  () => onStatus(_Status.active), activeColor: Db.segnale),
-              _Pill('UPCOMING', status == _Status.upcoming,
-                  () => onStatus(_Status.upcoming)),
-              _Pill('ENDED', status == _Status.ended,
-                  () => onStatus(_Status.ended)),
-              _Pill('ALL', status == _Status.all, () => onStatus(_Status.all)),
-              _stripLabel('CATEGORY'),
-              _Pill('All', cat == -1, () => onCat(-1)),
-              for (var i = 0; i < 4; i++)
-                _Pill(Db.categoryLabels[i].toUpperCase(), cat == i,
-                    () => onCat(i), swatch: Db.categoryColor(i)),
-            ]),
+            child: Row(
+              children: [
+                _stripLabel('STATUS'),
+                _Pill(
+                  'ACTIVE',
+                  status == _Status.active,
+                  () => onStatus(_Status.active),
+                  activeColor: Db.segnale,
+                ),
+                _Pill(
+                  'UPCOMING',
+                  status == _Status.upcoming,
+                  () => onStatus(_Status.upcoming),
+                ),
+                _Pill(
+                  'ENDED',
+                  status == _Status.ended,
+                  () => onStatus(_Status.ended),
+                ),
+                _Pill(
+                  'ALL',
+                  status == _Status.all,
+                  () => onStatus(_Status.all),
+                ),
+                _stripLabel('CATEGORY'),
+                _Pill('All', cat == -1, () => onCat(-1)),
+                for (var i = 0; i < 4; i++)
+                  _Pill(
+                    Db.categoryLabels[i].toUpperCase(),
+                    cat == i,
+                    () => onCat(i),
+                    swatch: Db.categoryColor(i),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -305,12 +361,12 @@ class _FilterStrip extends StatelessWidget {
   }
 
   Widget _stripLabel(String t) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: const BoxDecoration(
-          border: Border(right: BorderSide(color: Db.rule)),
-        ),
-        child: Text(t, style: dbLabel(size: 10)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    decoration: const BoxDecoration(
+      border: Border(right: BorderSide(color: Db.rule)),
+    ),
+    child: Text(t, style: dbLabel(size: 10)),
+  );
 }
 
 class _Pill extends StatelessWidget {
@@ -319,8 +375,13 @@ class _Pill extends StatelessWidget {
   final VoidCallback onTap;
   final Color? swatch;
   final Color activeColor;
-  const _Pill(this.label, this.active, this.onTap,
-      {this.swatch, this.activeColor = Db.slate});
+  const _Pill(
+    this.label,
+    this.active,
+    this.onTap, {
+    this.swatch,
+    this.activeColor = Db.slate,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -338,13 +399,20 @@ class _Pill extends StatelessWidget {
           color: bg,
           border: const Border(right: BorderSide(color: Db.rule)),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (swatch != null) ...[
-            Container(width: 10, height: 3, color: active ? swatch : Db.muteDim),
-            const SizedBox(width: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (swatch != null) ...[
+              Container(
+                width: 10,
+                height: 3,
+                color: active ? swatch : Db.muteDim,
+              ),
+              const SizedBox(width: 8),
+            ],
+            Text(label, style: dbLabel(size: 11, color: fg, tracking: 0.1)),
           ],
-          Text(label, style: dbLabel(size: 11, color: fg, tracking: 0.1)),
-        ]),
+        ),
       ),
     );
   }
@@ -355,11 +423,16 @@ class _PollCard extends StatefulWidget {
   final int category;
   final PollPhase phase;
   final BigInt? votes; // null = summary not loaded yet
-  const _PollCard(
-      {required this.poll,
-      required this.category,
-      required this.phase,
-      this.votes});
+  final String? relayerAddress;
+  final String? myAddress;
+  const _PollCard({
+    required this.poll,
+    required this.category,
+    required this.phase,
+    this.votes,
+    this.relayerAddress,
+    this.myAddress,
+  });
   @override
   State<_PollCard> createState() => _PollCardState();
 }
@@ -367,14 +440,28 @@ class _PollCard extends StatefulWidget {
 class _PollCardState extends State<_PollCard> {
   bool _hover = false;
 
-  String get _shortCreator => shortAddr(widget.poll.creator).toUpperCase();
+  // A short ownership tag for the card: a wallet-free poll reads SPONSORED (the
+  // relayer runs it) instead of an opaque hex repeated on every card; your own
+  // reads YOU; otherwise the creator's short address.
+  String get _ownerLabel {
+    final o = pollOwner(
+      owner: widget.poll.creator,
+      relayerAddress: widget.relayerAddress,
+      myAddress: widget.myAddress,
+    );
+    return switch (o.kind) {
+      PollOwnerKind.sponsored => 'SPONSORED',
+      PollOwnerKind.you => 'YOU',
+      PollOwnerKind.other => shortAddr(widget.poll.creator).toUpperCase(),
+    };
+  }
 
   // Surface tint per phase, matching the web (bg-db-slate / slate-2 / slate-dim).
   Color get _surface => switch (widget.phase) {
-        PollPhase.active => Db.slate,
-        PollPhase.upcoming => Db.slate2,
-        PollPhase.ended => Db.slateDim,
-      };
+    PollPhase.active => Db.slate,
+    PollPhase.upcoming => Db.slate2,
+    PollPhase.ended => Db.slateDim,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -385,7 +472,8 @@ class _PollCardState extends State<_PollCard> {
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: () => context.go(
-            '/poll/${widget.poll.pollAddress}?module=${widget.poll.moduleType}'),
+          '/poll/${widget.poll.pollAddress}?module=${widget.poll.moduleType}',
+        ),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           transform: Matrix4.translationValues(0, _hover ? -2 : 0, 0),
@@ -398,7 +486,12 @@ class _PollCardState extends State<_PollCard> {
             children: [
               // top accent strip
               Positioned(
-                  left: 0, right: 0, top: 0, height: 4, child: ColoredBox(color: cat)),
+                left: 0,
+                right: 0,
+                top: 0,
+                height: 4,
+                child: ColoredBox(color: cat),
+              ),
               // watermark
               Positioned(
                 right: -10,
@@ -410,25 +503,38 @@ class _PollCardState extends State<_PollCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [
-                      Container(width: 8, height: 8, color: cat),
-                      const SizedBox(width: 8),
-                      Text(Db.categoryLabels[widget.category].toUpperCase(),
-                          style: dbLabel(size: 10, color: cat, tracking: 0.22)),
-                      const Spacer(),
-                      _StateChip(phase: widget.phase),
-                    ]),
+                    Row(
+                      children: [
+                        Container(width: 8, height: 8, color: cat),
+                        const SizedBox(width: 8),
+                        Text(
+                          Db.categoryLabels[widget.category].toUpperCase(),
+                          style: dbLabel(size: 10, color: cat, tracking: 0.22),
+                        ),
+                        const Spacer(),
+                        _StateChip(phase: widget.phase),
+                      ],
+                    ),
                     const SizedBox(height: 12),
                     Text(
-                      widget.poll.title.isEmpty ? '(untitled)' : widget.poll.title,
+                      widget.poll.title.isEmpty
+                          ? '(untitled)'
+                          : widget.poll.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: dbSans(19, 600, Db.chalk,
-                          height: 1.28, letterSpacing: -0.1),
+                      style: dbSans(
+                        19,
+                        600,
+                        Db.chalk,
+                        height: 1.28,
+                        letterSpacing: -0.1,
+                      ),
                     ),
                     const SizedBox(height: 10),
-                    Text('$_shortCreator · OPENED RECENTLY',
-                        style: dbMono(11, Db.mute, letterSpacing: 0.4)),
+                    Text(
+                      '$_ownerLabel · OPENED RECENTLY',
+                      style: dbMono(11, Db.mute, letterSpacing: 0.4),
+                    ),
                     const SizedBox(height: 16),
                     _HeroStat(votes: widget.votes),
                   ],
@@ -437,8 +543,11 @@ class _PollCardState extends State<_PollCard> {
               Positioned(
                 right: 14,
                 bottom: 14,
-                child: Icon(Icons.arrow_outward,
-                    size: 18, color: _hover ? cat : Db.muteDim),
+                child: Icon(
+                  Icons.arrow_outward,
+                  size: 18,
+                  color: _hover ? cat : Db.muteDim,
+                ),
               ),
             ],
           ),
@@ -456,26 +565,26 @@ class _StateChip extends StatelessWidget {
   ({String label, Color fill, Color border, Color ink, Color dot}) get _spec =>
       switch (phase) {
         PollPhase.active => (
-            label: 'VOTING',
-            fill: Db.segnale,
-            border: Db.segnale,
-            ink: Db.chalk,
-            dot: Db.chalk,
-          ),
+          label: 'VOTING',
+          fill: Db.segnale,
+          border: Db.segnale,
+          ink: Db.chalk,
+          dot: Db.chalk,
+        ),
         PollPhase.upcoming => (
-            label: 'UPCOMING',
-            fill: Colors.transparent,
-            border: Db.oltremare,
-            ink: Db.oltremare,
-            dot: Db.oltremare,
-          ),
+          label: 'UPCOMING',
+          fill: Colors.transparent,
+          border: Db.oltremare,
+          ink: Db.oltremare,
+          dot: Db.oltremare,
+        ),
         PollPhase.ended => (
-            label: 'ENDED',
-            fill: Db.slate4,
-            border: Db.rule,
-            ink: Db.mute,
-            dot: Db.muteDim,
-          ),
+          label: 'ENDED',
+          fill: Db.slate4,
+          border: Db.rule,
+          ink: Db.mute,
+          dot: Db.muteDim,
+        ),
       };
 
   @override
@@ -483,13 +592,21 @@ class _StateChip extends StatelessWidget {
     final s = _spec;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: s.fill, border: Border.all(color: s.border)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 6, height: 6, color: s.dot),
-        const SizedBox(width: 6),
-        Text(s.label,
-            style: dbLabel(size: 9.5, color: s.ink, tracking: 0.18, wght: 600)),
-      ]),
+      decoration: BoxDecoration(
+        color: s.fill,
+        border: Border.all(color: s.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 6, height: 6, color: s.dot),
+          const SizedBox(width: 6),
+          Text(
+            s.label,
+            style: dbLabel(size: 9.5, color: s.ink, tracking: 0.18, wght: 600),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -499,48 +616,61 @@ class _HeroStat extends StatelessWidget {
   const _HeroStat({this.votes});
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.only(top: 14),
-        decoration:
-            const BoxDecoration(border: Border(top: BorderSide(color: Db.ruleSoft))),
-        // Just the vote tally. The old trailing 'T-MINUS —' was a half-wired
-        // countdown that only ever rendered an em-dash (these poll types carry no
-        // deadline), and on a narrow card it overflowed the row. The poll's phase
-        // is already shown honestly by the _StateChip at the top of the card, so
-        // a second status word here would be redundant — dropped entirely. The
-        // big number is Flexible+ellipsis so a huge tally can't overflow either.
-        child: Row(crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic, children: [
-          Flexible(
-            child: Text(votes?.toString() ?? '—',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: dbSans(28, 700, Db.chalk, letterSpacing: -0.6)),
+    padding: const EdgeInsets.only(top: 14),
+    decoration: const BoxDecoration(
+      border: Border(top: BorderSide(color: Db.ruleSoft)),
+    ),
+    // Just the vote tally. The old trailing 'T-MINUS —' was a half-wired
+    // countdown that only ever rendered an em-dash (these poll types carry no
+    // deadline), and on a narrow card it overflowed the row. The poll's phase
+    // is already shown honestly by the _StateChip at the top of the card, so
+    // a second status word here would be redundant — dropped entirely. The
+    // big number is Flexible+ellipsis so a huge tally can't overflow either.
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Flexible(
+          child: Text(
+            votes?.toString() ?? '—',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: dbSans(28, 700, Db.chalk, letterSpacing: -0.6),
           ),
-          const SizedBox(width: 8),
-          Text('VOTES', style: dbLabel(size: 10)),
-        ]),
-      );
+        ),
+        const SizedBox(width: 8),
+        Text('VOTES', style: dbLabel(size: 10)),
+      ],
+    ),
+  );
 }
 
 class _EmptyView extends StatelessWidget {
   const _EmptyView();
   @override
   Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 56, horizontal: 24),
-        decoration: const BoxDecoration(
-          color: Db.slate3,
-          border: Border.fromBorderSide(BorderSide(color: Db.rule)),
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(vertical: 56, horizontal: 24),
+    decoration: const BoxDecoration(
+      color: Db.slate3,
+      border: Border.fromBorderSide(BorderSide(color: Db.rule)),
+    ),
+    child: Column(
+      children: [
+        const Icon(Icons.description_outlined, size: 44, color: Db.muteDim),
+        const SizedBox(height: 14),
+        Text(
+          'No polls match this filter',
+          style: dbSans(18, 700, Db.chalk, letterSpacing: -0.2),
         ),
-        child: Column(children: [
-          const Icon(Icons.description_outlined, size: 44, color: Db.muteDim),
-          const SizedBox(height: 14),
-          Text('No polls match this filter',
-              style: dbSans(18, 700, Db.chalk, letterSpacing: -0.2)),
-          const SizedBox(height: 8),
-          Text('FILTERS RETURNED 0 RESULTS', style: dbLabel(size: 11, tracking: 0.16)),
-        ]),
-      );
+        const SizedBox(height: 8),
+        Text(
+          'FILTERS RETURNED 0 RESULTS',
+          style: dbLabel(size: 11, tracking: 0.16),
+        ),
+      ],
+    ),
+  );
 }
 
 class _LoadingView extends StatelessWidget {
@@ -554,25 +684,29 @@ class _LoadingView extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 1180),
           child: Padding(
             padding: EdgeInsets.symmetric(
-                horizontal: width < 600 ? 16 : 32, vertical: 28),
+              horizontal: width < 600 ? 16 : 32,
+              vertical: 28,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(width: 220, height: 56, color: Db.slate),
                 const SizedBox(height: 28),
-                LayoutBuilder(builder: (context, c) {
-                  final cols = (c.maxWidth / 340).floor().clamp(1, 3);
-                  const gap = 16.0;
-                  final itemW = (c.maxWidth - gap * (cols - 1)) / cols;
-                  return Wrap(
-                    spacing: gap,
-                    runSpacing: gap,
-                    children: [
-                      for (var i = 0; i < cols * 2; i++)
-                        SizedBox(width: itemW, child: const _SkeletonCard()),
-                    ],
-                  );
-                }),
+                LayoutBuilder(
+                  builder: (context, c) {
+                    final cols = (c.maxWidth / 340).floor().clamp(1, 3);
+                    const gap = 16.0;
+                    final itemW = (c.maxWidth - gap * (cols - 1)) / cols;
+                    return Wrap(
+                      spacing: gap,
+                      runSpacing: gap,
+                      children: [
+                        for (var i = 0; i < cols * 2; i++)
+                          SizedBox(width: itemW, child: const _SkeletonCard()),
+                      ],
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -588,14 +722,25 @@ class _SkeletonCard extends StatelessWidget {
       Container(width: w, height: h, color: Db.ruleSoft);
   @override
   Widget build(BuildContext context) => Container(
-        height: 232,
-        decoration: BoxDecoration(color: Db.slate, border: Border.all(color: Db.rule)),
-        child: Stack(children: [
-          const Positioned(
-              left: 0, right: 0, top: 0, height: 4, child: ColoredBox(color: Db.rule)),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    height: 232,
+    decoration: BoxDecoration(
+      color: Db.slate,
+      border: Border.all(color: Db.rule),
+    ),
+    child: Stack(
+      children: [
+        const Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          height: 4,
+          child: ColoredBox(color: Db.rule),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               _bar(80, 10),
               const SizedBox(height: 18),
               _bar(double.infinity, 18),
@@ -603,10 +748,12 @@ class _SkeletonCard extends StatelessWidget {
               _bar(150, 18),
               const Spacer(),
               _bar(120, 12),
-            ]),
+            ],
           ),
-        ]),
-      );
+        ),
+      ],
+    ),
+  );
 }
 
 class _ErrorView extends StatelessWidget {
@@ -615,25 +762,34 @@ class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.onRetry});
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.cloud_off, color: Db.segnale, size: 40),
-            const SizedBox(height: 12),
-            Text("COULDN'T LOAD POLLS", style: dbLabel(size: 12, color: Db.chalk)),
-            const SizedBox(height: 8),
-            Text(message,
-                textAlign: TextAlign.center, style: dbMono(12, Db.mute)),
-            const SizedBox(height: 16),
-            OutlinedButton(
-              onPressed: onRetry,
-              style: OutlinedButton.styleFrom(
-                shape: const RoundedRectangleBorder(),
-                side: const BorderSide(color: Db.rule),
-              ),
-              child: Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off, color: Db.segnale, size: 40),
+          const SizedBox(height: 12),
+          Text(
+            "COULDN'T LOAD POLLS",
+            style: dbLabel(size: 12, color: Db.chalk),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: dbMono(12, Db.mute),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: onRetry,
+            style: OutlinedButton.styleFrom(
+              shape: const RoundedRectangleBorder(),
+              side: const BorderSide(color: Db.rule),
             ),
-          ]),
-        ),
-      );
+            child: Text('RETRY', style: dbLabel(size: 11, color: Db.chalk)),
+          ),
+        ],
+      ),
+    ),
+  );
 }
