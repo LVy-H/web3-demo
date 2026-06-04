@@ -5,6 +5,15 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Share a poll** — closes the scan loop opened by the navbar SCAN action (#76):
+  the poll-detail header now has a **SHARE** button that opens a themed sheet with
+  a scannable QR + copyable `tessera://poll/<addr>?module=<m>` deep-link. The link
+  generator (`shareLinkForPoll`) is the exact inverse of the scanner's
+  `routeForScannedValue`, pinned by a round-trip property test across all six
+  module types (a shared QR always scans back to the same poll). No new
+  dependency — reuses the bundled `qr_flutter`. Share lives in the shared
+  `pollDetailHeaderRow` (opt-in `onShare`), so other module screens adopt it with
+  a one-liner. Design: `docs/superpowers/specs/2026-06-04-share-a-poll-design.md`.
 - **Wallet-free voting proven against the real Groth16 verifier on the live
   chain** — `ZK_REAL_VERIFIER=1 ./dev-stack.sh up` now brings up a real-verifier
   stack end to end (the demo seed skips its mock-proof cast under

@@ -27,59 +27,83 @@ Widget pollDetailHeaderRow({
   required Color badgeColor,
   required String shortAddr,
   String backLabel = 'BACK TO POLLS',
-}) =>
-    Row(children: [
-      Flexible(
-        child: InkWell(
-          onTap: () => context.canPop() ? context.pop() : context.go('/'),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
+  // When provided, renders a SHARE button (QR + deep-link) at the row's end.
+  // Default null keeps every existing caller's header unchanged.
+  VoidCallback? onShare,
+}) => Row(
+  children: [
+    Flexible(
+      child: InkWell(
+        onTap: () => context.canPop() ? context.pop() : context.go('/'),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             const Icon(Icons.arrow_back, size: 14, color: Db.mute),
             const SizedBox(width: 6),
             Flexible(
-              child: Text(backLabel,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: false,
-                  style: dbLabel(size: 11, tracking: 0.16)),
+              child: Text(
+                backLabel,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                style: dbLabel(size: 11, tracking: 0.16),
+              ),
             ),
-          ]),
+          ],
         ),
       ),
-      // Pushes the badge group to the right edge (the original look); collapses
-      // to zero on a tight row so it never forces an overflow.
-      const Spacer(),
-      const SizedBox(width: 8),
-      // The module badge — its label scales down on a tight row rather than
-      // overflowing. Flexible so the whole badge can cede width if needed.
-      Flexible(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          color: badgeColor,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(badgeLabel,
-                maxLines: 1,
-                style: dbSans(11, 800, Db.void_, letterSpacing: 2.0)),
+    ),
+    // Pushes the badge group to the right edge (the original look); collapses
+    // to zero on a tight row so it never forces an overflow.
+    const Spacer(),
+    const SizedBox(width: 8),
+    // The module badge — its label scales down on a tight row rather than
+    // overflowing. Flexible so the whole badge can cede width if needed.
+    Flexible(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        color: badgeColor,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            badgeLabel,
+            maxLines: 1,
+            style: dbSans(11, 800, Db.void_, letterSpacing: 2.0),
           ),
         ),
       ),
-      const SizedBox(width: 8),
-      // The short address badge — ellipsizes if it ever can't fit.
-      Flexible(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: const BoxDecoration(
-            color: Db.slate,
-            border: Border.fromBorderSide(BorderSide(color: Db.rule)),
-          ),
-          child: Text(shortAddr,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              softWrap: false,
-              style: dbMono(11, Db.mute, letterSpacing: 0.5)),
+    ),
+    const SizedBox(width: 8),
+    // The short address badge — ellipsizes if it ever can't fit.
+    Flexible(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: const BoxDecoration(
+          color: Db.slate,
+          border: Border.fromBorderSide(BorderSide(color: Db.rule)),
+        ),
+        child: Text(
+          shortAddr,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
+          style: dbMono(11, Db.mute, letterSpacing: 0.5),
         ),
       ),
-    ]);
+    ),
+    if (onShare != null) ...[
+      const SizedBox(width: 4),
+      IconButton(
+        onPressed: onShare,
+        icon: const Icon(Icons.ios_share, size: 18, color: Db.mute),
+        tooltip: 'Share poll',
+        splashRadius: 18,
+        padding: const EdgeInsets.all(6),
+        constraints: const BoxConstraints(),
+      ),
+    ],
+  ],
+);
 
 /// The shared "results card" title row: a leading icon, the section title, and a
 /// right-aligned count chip ("12 VOTES", "5 VOTERS", …). The title is [Expanded]
@@ -89,21 +113,28 @@ Widget resultsTitleRow({
   required IconData icon,
   required String title,
   required String trailing,
-}) =>
-    Row(children: [
-      Icon(icon, size: 16, color: Db.mute),
-      const SizedBox(width: 8),
-      Expanded(
-        child: Text(title,
-            maxLines: 1, overflow: TextOverflow.ellipsis, style: dbSectionTitle),
+}) => Row(
+  children: [
+    Icon(icon, size: 16, color: Db.mute),
+    const SizedBox(width: 8),
+    Expanded(
+      child: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: dbSectionTitle,
       ),
-      const SizedBox(width: 8),
-      Flexible(
-        child: Text(trailing,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            softWrap: false,
-            textAlign: TextAlign.right,
-            style: dbLabel(size: 11, tracking: 0.05)),
+    ),
+    const SizedBox(width: 8),
+    Flexible(
+      child: Text(
+        trailing,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
+        textAlign: TextAlign.right,
+        style: dbLabel(size: 11, tracking: 0.05),
       ),
-    ]);
+    ),
+  ],
+);

@@ -52,15 +52,54 @@ void main() {
   group('routeForScannedValue — rejects (→ null)', () {
     test('empty string', () => expect(routeForScannedValue(''), isNull));
     test('whitespace only', () => expect(routeForScannedValue('   '), isNull));
-    test('foreign scheme',
-        () => expect(routeForScannedValue('mailto:a@b.c'), isNull));
-    test('unrecognized tessera path',
-        () => expect(routeForScannedValue('tessera://wat/0x1'), isNull));
-    test('plain text',
-        () => expect(routeForScannedValue('just some text'), isNull));
-    test('tessera root with no segment',
-        () => expect(routeForScannedValue('tessera://'), isNull));
-    test('live without the /vote|/host leaf',
-        () => expect(routeForScannedValue('tessera://live/0xA'), isNull));
+    test(
+      'foreign scheme',
+      () => expect(routeForScannedValue('mailto:a@b.c'), isNull),
+    );
+    test(
+      'unrecognized tessera path',
+      () => expect(routeForScannedValue('tessera://wat/0x1'), isNull),
+    );
+    test(
+      'plain text',
+      () => expect(routeForScannedValue('just some text'), isNull),
+    );
+    test(
+      'tessera root with no segment',
+      () => expect(routeForScannedValue('tessera://'), isNull),
+    );
+    test(
+      'live without the /vote|/host leaf',
+      () => expect(routeForScannedValue('tessera://live/0xA'), isNull),
+    );
+  });
+
+  // The share QR's writer must be the exact inverse of the reader: a poll's
+  // generated link always scans back to that same poll-detail location.
+  group('shareLinkForPoll ↔ routeForScannedValue round-trip', () {
+    const addr = '0xAbC0000000000000000000000000000000000123';
+    const modules = [
+      'anon-vote',
+      'blind-vote',
+      'approval-vote',
+      'ranked-vote',
+      'quadratic-vote',
+      'survey-vote',
+    ];
+    for (final m in modules) {
+      test('module $m scans back to its poll route', () {
+        final link = shareLinkForPoll(addr, module: m);
+        expect(link, 'tessera://poll/$addr?module=$m');
+        expect(routeForScannedValue(link), '/poll/$addr?module=$m');
+      });
+    }
+    test('no module → bare poll link round-trips', () {
+      final link = shareLinkForPoll(addr);
+      expect(link, 'tessera://poll/$addr');
+      expect(routeForScannedValue(link), '/poll/$addr');
+    });
+    test('empty module is treated as no module', () {
+      expect(shareLinkForPoll(addr, module: ''), 'tessera://poll/$addr');
+    });
   });
 }
