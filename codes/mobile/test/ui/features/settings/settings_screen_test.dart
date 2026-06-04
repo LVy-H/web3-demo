@@ -44,6 +44,14 @@ void main() {
   });
 
   testWidgets('renders the diagnostics sections + version', (tester) async {
+    // Tall surface so every section (incl. ABOUT at the bottom) is built — the
+    // ListView lazily builds only visible children, and the screen is now taller
+    // than the default 800×600 (overflow-at-narrow-width is covered separately
+    // in narrow_overflow_test).
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     await tester.pumpWidget(_host());
     await tester.pumpAndSettle();
 

@@ -5,6 +5,19 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Runtime network config — point one build at any backend (no rebuild)** —
+  the backend pointers (RPC, relayer, registry, Semaphore verifier, chain id)
+  were compile-time only (`--dart-define`), so a hosted build (e.g. on Cloudflare
+  Pages) had `localhost` baked in and couldn't reach your chain. A new
+  **Settings → Network** screen edits them in-app; the override is persisted
+  (secure storage, incl. browser localStorage on web) and overlaid onto the
+  compile-time defaults once at startup. Web offers a one-tap **Reload to apply**;
+  native shows "restart to apply". Hardened: the override is applied in exactly
+  one place (`main()`) so every consumer stays consistent for the run, and a
+  format-validated load guard means a corrupt/garbage blob can never brick
+  startup (the registry address is parsed eagerly — a bad value would otherwise
+  white-screen the app with Settings unreachable). Unit + widget tested
+  (store/validator contract, form save/validate/reset).
 - **CI publishes downloadable build artifacts** — every CI run now uploads
   `tessera-web` (the static `build/web` site, the thing you deploy to Cloudflare
   Pages / any static host) from the `mobile` job, and a new `android` job builds

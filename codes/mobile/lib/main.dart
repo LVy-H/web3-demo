@@ -18,6 +18,7 @@ import 'data/services/chain_reader.dart';
 import 'data/services/chain_writer.dart';
 import 'data/services/created_polls_store.dart';
 import 'data/services/identity_store.dart';
+import 'data/services/network_config_store.dart';
 import 'data/services/nfc_service.dart';
 import 'data/services/nfc_service_factory.dart';
 import 'data/services/proximity_service.dart';
@@ -38,6 +39,20 @@ String _abiArray(String artifactJson) =>
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Overlay the saved network override (Settings → Network) onto the compile-
+  // time defaults — the one and only call to AppConfig.apply, so every consumer
+  // (the reader/writer/relay built below AND the poll creators that read the
+  // statics directly) sees the same config for this run. The format guard is a
+  // brick-proof: ChainReader parses the registry address eagerly, so a corrupt
+  // blob would otherwise throw here and white-screen the app with no way back to
+  // Settings. A malformed/partial blob is ignored (defaults stand, Settings stays
+  // reachable, the user can re-enter it).
+  final configStore = SecureNetworkConfigStore();
+  final savedConfig = await configStore.load();
+  if (savedConfig != null && savedConfig.isValidFormat) {
+    AppConfig.apply(savedConfig);
+  }
 
   final izkPollAbi = await rootBundle.loadString('assets/abi/IZkPoll.json');
   final registryAbi = await rootBundle.loadString(
@@ -78,6 +93,7 @@ Future<void> main() async {
     ZkVoteApp(
       reader: reader,
       writer: writer,
+      configStore: configStore,
       registryAbiJson: registryAbiArr,
       anonAbiJson: anonAbiArr,
       blindAbiJson: blindAbiArr,
@@ -90,6 +106,7 @@ Future<void> main() async {
 class ZkVoteApp extends StatelessWidget {
   final ChainReader reader;
   final ChainWriter writer;
+  final NetworkConfigStore configStore;
   final String registryAbiJson;
   final String anonAbiJson;
   final String blindAbiJson;
@@ -99,6 +116,7 @@ class ZkVoteApp extends StatelessWidget {
     super.key,
     required this.reader,
     required this.writer,
+    required this.configStore,
     required this.registryAbiJson,
     required this.anonAbiJson,
     required this.blindAbiJson,
