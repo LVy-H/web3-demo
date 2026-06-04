@@ -20,7 +20,9 @@ String? routeForScannedValue(String raw) {
   if (s.isEmpty) return null;
   final uri = Uri.tryParse(s);
   if (uri == null) return null;
-  if (uri.scheme != 'tessera' && uri.scheme != 'https' && uri.scheme != 'http') {
+  if (uri.scheme != 'tessera' &&
+      uri.scheme != 'https' &&
+      uri.scheme != 'http') {
     return null;
   }
   // For the custom `tessera://<seg0>/<seg1>/…` scheme, Dart parses <seg0> as the
@@ -48,6 +50,16 @@ String? routeForScannedValue(String raw) {
   return null;
 }
 
+/// Build the canonical Tessera deep-link for a poll — the inverse of
+/// [routeForScannedValue]. The link encodes into a QR (see `share_poll_sheet`)
+/// that the existing scanner reads back to the same poll-detail location:
+/// `routeForScannedValue(shareLinkForPoll(a, module: m)) == '/poll/$a?module=$m'`.
+/// Keeping the writer next to the reader makes that round-trip invariant local.
+String shareLinkForPoll(String address, {String? module}) {
+  final q = (module != null && module.isNotEmpty) ? '?module=$module' : '';
+  return 'tessera://poll/$address$q';
+}
+
 /// Open the QR scanner (camera on mobile) or a paste dialog, then route the
 /// result. Wired to the navbar SCAN action. Camera unsupported → straight to
 /// paste; camera dismissed → cancel; "paste instead" inside the sheet → paste.
@@ -64,7 +76,8 @@ Future<void> scanAndRoute(BuildContext context) async {
     raw = await showQrScanSheet(
       context,
       title: 'SCAN QR',
-      hint: "Point the camera at a Tessera QR — a live-meeting ticket, a poll, "
+      hint:
+          "Point the camera at a Tessera QR — a live-meeting ticket, a poll, "
           "or a verification link. Can't scan? Paste a link instead.",
       showPasteAction: true,
     );
@@ -84,25 +97,26 @@ Future<void> scanAndRoute(BuildContext context) async {
   } else {
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        backgroundColor: Db.slate,
-        behavior: SnackBarBehavior.floating,
-        content: Text(
-          "Couldn't read that as a Tessera link.",
-          style: dbMono(12, Db.chalk),
+      ..showSnackBar(
+        SnackBar(
+          backgroundColor: Db.slate,
+          behavior: SnackBarBehavior.floating,
+          content: Text(
+            "Couldn't read that as a Tessera link.",
+            style: dbMono(12, Db.chalk),
+          ),
         ),
-      ));
+      );
   }
 }
 
 /// A themed paste-a-link dialog — the always-reachable fallback for when the
 /// camera is unavailable / denied, or the user prefers typing. Returns the
 /// trimmed input, or `null` if cancelled.
-Future<String?> showPasteLinkDialog(BuildContext context) =>
-    showDialog<String>(
-      context: context,
-      builder: (_) => const _PasteLinkDialog(),
-    );
+Future<String?> showPasteLinkDialog(BuildContext context) => showDialog<String>(
+  context: context,
+  builder: (_) => const _PasteLinkDialog(),
+);
 
 class _PasteLinkDialog extends StatefulWidget {
   const _PasteLinkDialog();
@@ -123,35 +137,35 @@ class _PasteLinkDialogState extends State<_PasteLinkDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        backgroundColor: Db.slate,
-        shape: const RoundedRectangleBorder(side: BorderSide(color: Db.rule)),
-        title: Text('PASTE A LINK', style: dbLabel(size: 12, tracking: 0.16)),
-        content: TextField(
-          controller: _controller,
-          autofocus: true,
-          style: dbMono(13, Db.chalk),
-          cursorColor: Db.segnale,
-          decoration: InputDecoration(
-            hintText: 'tessera://…',
-            hintStyle: dbMono(13, Db.muteDim),
-            enabledBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: Db.rule),
-            ),
-            focusedBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: Db.segnale),
-            ),
-          ),
-          onSubmitted: (_) => _submit(),
+    backgroundColor: Db.slate,
+    shape: const RoundedRectangleBorder(side: BorderSide(color: Db.rule)),
+    title: Text('PASTE A LINK', style: dbLabel(size: 12, tracking: 0.16)),
+    content: TextField(
+      controller: _controller,
+      autofocus: true,
+      style: dbMono(13, Db.chalk),
+      cursorColor: Db.segnale,
+      decoration: InputDecoration(
+        hintText: 'tessera://…',
+        hintStyle: dbMono(13, Db.muteDim),
+        enabledBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: Db.rule),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('CANCEL', style: dbLabel(size: 11, color: Db.mute)),
-          ),
-          TextButton(
-            onPressed: _submit,
-            child: Text('GO', style: dbLabel(size: 11, color: Db.segnale)),
-          ),
-        ],
-      );
+        focusedBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: Db.segnale),
+        ),
+      ),
+      onSubmitted: (_) => _submit(),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: Text('CANCEL', style: dbLabel(size: 11, color: Db.mute)),
+      ),
+      TextButton(
+        onPressed: _submit,
+        child: Text('GO', style: dbLabel(size: 11, color: Db.segnale)),
+      ),
+    ],
+  );
 }
