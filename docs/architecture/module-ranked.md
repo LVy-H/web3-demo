@@ -79,7 +79,8 @@ Registration ──startVoting()──> Voting ──endVoting()──> Ended
 function initialize(
     address _semaphoreAddress,
     address _owner,
-    string[] calldata _initialOptions
+    string[] calldata _initialOptions,
+    uint8 _resultsPolicy          // R4: 0 = sealed-until-close (default), 1 = live-public
 ) external initializer
 ```
 `_disableInitializers()` in the implementation constructor makes the bare

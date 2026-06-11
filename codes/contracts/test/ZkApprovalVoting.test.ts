@@ -33,6 +33,7 @@ describe("ZkApprovalVoting", function () {
             await semaphore.getAddress(),
             owner.address,
             initialOptions,
+            0, // resultsPolicy: sealed-until-close (default)
         ]);
 
         await registry.createPoll(MODULE, "Test", "Test approval poll", initData);
@@ -190,6 +191,7 @@ describe("ZkApprovalVoting", function () {
                 await semaphore.getAddress(),
                 owner.address,
                 opts,
+                0, // resultsPolicy: sealed-until-close (default)
             ]);
             await expect(
                 registry.createPoll(MODULE, "Too many", "33 options", initData)
@@ -443,7 +445,7 @@ describe("ZkApprovalVoting", function () {
 
         it("Prevents double initialization", async function () {
             await expect(
-                voting.initialize(await semaphore.getAddress(), owner.address, ["X", "Y"])
+                voting.initialize(await semaphore.getAddress(), owner.address, ["X", "Y"], 0)
             ).to.be.revertedWithCustomError(voting, "InvalidInitialization");
         });
     });
@@ -472,4 +474,49 @@ describe("ZkApprovalVoting", function () {
                 .withArgs(nonOwner.address);
         });
     });
+    // ── R4 privacy defaults: resultsPolicy ──────────────────────────
+
+    describe("resultsPolicy (R4 privacy defaults)", function () {
+        it("defaults to sealed-until-close (0) in the standard fixture", async function () {
+            expect(await voting.resultsPolicy()).to.equal(0);
+        });
+
+        /** Fresh registry + impl so the fixture's poll stays untouched. */
+        async function freshRegistry() {
+            const Impl = await ethers.getContractFactory("ZkApprovalVoting");
+            const impl = await Impl.deploy();
+            const Registry = await ethers.getContractFactory("PollRegistry");
+            const registry = await Registry.deploy();
+            await registry.registerModule(MODULE, await impl.getAddress());
+            return { registry, impl };
+        }
+
+        it("round-trips the live-public opt-in (1)", async function () {
+            const { registry, impl } = await freshRegistry();
+            const initData = impl.interface.encodeFunctionData("initialize", [
+                await semaphore.getAddress(),
+                owner.address,
+                ["Yes", "No"],
+                1, // resultsPolicy: live-public (creation-time opt-in)
+            ]);
+            await registry.createPoll(MODULE, "Live results", "", initData);
+            const addr = (await registry.getAllPolls())[0].pollAddress;
+            const live = await ethers.getContractAt("ZkApprovalVoting", addr);
+            expect(await live.resultsPolicy()).to.equal(1);
+        });
+
+        it("rejects an out-of-range policy (surfaces as registry InitFailed)", async function () {
+            const { registry, impl } = await freshRegistry();
+            const initData = impl.interface.encodeFunctionData("initialize", [
+                await semaphore.getAddress(),
+                owner.address,
+                ["Yes", "No"],
+                2, // invalid: only 0 (sealed) and 1 (live) exist
+            ]);
+            await expect(
+                registry.createPoll(MODULE, "Bad policy", "", initData)
+            ).to.be.revertedWithCustomError(registry, "InitFailed");
+        });
+    });
+
 });

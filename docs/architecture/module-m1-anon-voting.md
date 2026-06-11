@@ -32,7 +32,8 @@ Unlike a constructor, `initialize()` is called after the EIP-1167 clone is creat
 function initialize(
     address _semaphoreAddress,
     address _owner,
-    string[] memory _initialOptions
+    string[] memory _initialOptions,
+    uint8 _resultsPolicy          // R4: 0 = sealed-until-close (default), 1 = live-public
 ) external
 ```
 A `_initialized` guard prevents double initialization.

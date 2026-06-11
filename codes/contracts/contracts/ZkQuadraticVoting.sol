@@ -26,6 +26,7 @@ error AlreadyVoted();
 error InvalidScope();
 error TamperedVoteSignal();
 error InvalidProof();
+error InvalidResultsPolicy(uint8 resultsPolicy);
 
 /// @title ZkQuadraticVoting (Phase 12c)
 /// @notice Quadratic-voting (QV) module implementing IZkPoll. A structural
@@ -80,6 +81,13 @@ contract ZkQuadraticVoting is IZkPoll, Initializable, Ownable {
 
     uint256 public participantCount;
 
+    /// @notice Results-timing policy (R4): 0 = sealed-until-close (DEFAULT),
+    ///         1 = live-public (creation-time opt-in). See {IZkPoll-resultsPolicy}
+    ///         for the v1 enforcement note: metadata honored by compliant
+    ///         clients/relayer, NOT an on-chain seal — getResults() stays open
+    ///         because ballots are public calldata anyway.
+    uint8 public override resultsPolicy;
+
     event VoterRegistered(uint256 identityCommitment);
     event VoteCast(uint256 packedAlloc);
     event PollClosed();
@@ -94,12 +102,16 @@ contract ZkQuadraticVoting is IZkPoll, Initializable, Ownable {
     /// @param _semaphoreAddress  Address of the Semaphore contract
     /// @param _owner             Poll owner / admin
     /// @param _initialOptions    Initial set of voting options
+    /// @param _resultsPolicy     0 = sealed-until-close (default), 1 = live-public
     function initialize(
         address _semaphoreAddress,
         address _owner,
-        string[] calldata _initialOptions
+        string[] calldata _initialOptions,
+        uint8 _resultsPolicy
     ) external initializer {
         if (_initialOptions.length > MAX_OPTIONS) revert TooManyOptions();
+        if (_resultsPolicy > 1) revert InvalidResultsPolicy(_resultsPolicy);
+        resultsPolicy = _resultsPolicy;
 
         semaphore = ISemaphore(_semaphoreAddress);
         _transferOwnership(_owner);

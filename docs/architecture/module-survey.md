@@ -131,7 +131,8 @@ Registration ──startVoting()──> Voting ──endVoting()──> Ended
 function initialize(
     address _semaphoreAddress,
     address _owner,
-    bytes calldata initData    // abi.encode((QType qType, string[] options)[])
+    bytes calldata initData,   // abi.encode((QType qType, string[] options)[])
+    uint8 _resultsPolicy          // R4: 0 = sealed-until-close (default), 1 = live-public
 ) external initializer
 ```
 `initData` decodes into the ordered `Question[]` and is validated: **≥1 question**

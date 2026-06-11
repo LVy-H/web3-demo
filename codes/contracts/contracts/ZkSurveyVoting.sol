@@ -30,6 +30,7 @@ error NoQuestions();
 error TooManyQuestions();
 error WrongQuestionCount();
 error InvalidAnswer();
+error InvalidResultsPolicy(uint8 resultsPolicy);
 
 /// @title ZkSurveyVoting (Phase 12d)
 /// @notice Multi-question ("Google-Forms") survey module implementing IZkPoll. A
@@ -122,6 +123,13 @@ contract ZkSurveyVoting is IZkPoll, Initializable, Ownable {
 
     uint256 public participantCount;
 
+    /// @notice Results-timing policy (R4): 0 = sealed-until-close (DEFAULT),
+    ///         1 = live-public (creation-time opt-in). See {IZkPoll-resultsPolicy}
+    ///         for the v1 enforcement note: metadata honored by compliant
+    ///         clients/relayer, NOT an on-chain seal — getResults() stays open
+    ///         because ballots are public calldata anyway.
+    uint8 public override resultsPolicy;
+
     event VoterRegistered(uint256 identityCommitment);
     /// @notice The FULL answer vector, on-chain for auditability (the answer
     ///         content is public — the survey hides WHO answered, not WHAT).
@@ -143,11 +151,15 @@ contract ZkSurveyVoting is IZkPoll, Initializable, Ownable {
     ///                           TooManyQuestions); each question ≥2 options
     ///                           (else NeedAtLeastTwoOptions) and ≤ MAX_OPTIONS
     ///                           (else TooManyOptions).
+    /// @param _resultsPolicy    0 = sealed-until-close (default), 1 = live-public
     function initialize(
         address _semaphoreAddress,
         address _owner,
-        bytes calldata initData
+        bytes calldata initData,
+        uint8 _resultsPolicy
     ) external initializer {
+        if (_resultsPolicy > 1) revert InvalidResultsPolicy(_resultsPolicy);
+        resultsPolicy = _resultsPolicy;
         Question[] memory qs = abi.decode(initData, (Question[]));
         if (qs.length == 0) revert NoQuestions();
         if (qs.length > MAX_QUESTIONS) revert TooManyQuestions();

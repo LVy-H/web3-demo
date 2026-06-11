@@ -8,6 +8,19 @@ describe("PollRegistry", function () {
     let semaphore: any;
     let zkAnonVotingImpl: any;
 
+    /** Encode ZkAnonVoting.initialize(semaphore, owner, options, resultsPolicy). */
+    async function anonInitData(
+        options: string[] = ["Yes", "No"],
+        resultsPolicy = 0
+    ): Promise<string> {
+        return zkAnonVotingImpl.interface.encodeFunctionData("initialize", [
+            await semaphore.getAddress(),
+            owner.address,
+            options,
+            resultsPolicy,
+        ]);
+    }
+
     beforeEach(async function () {
         [owner, nonOwner] = await ethers.getSigners();
 
@@ -77,11 +90,7 @@ describe("PollRegistry", function () {
         });
 
         it("Creates a poll and returns its address", async function () {
-            const semaphoreAddr = await semaphore.getAddress();
-            const initData = zkAnonVotingImpl.interface.encodeFunctionData(
-                "initialize",
-                [semaphoreAddr, owner.address, ["Yes", "No"]]
-            );
+            const initData = await anonInitData();
 
             const tx = await registry.createPoll(
                 "zk-anon-voting",
@@ -89,7 +98,7 @@ describe("PollRegistry", function () {
                 "A test poll",
                 initData
             );
-            const receipt = await tx.wait();
+            await tx.wait();
 
             // Verify poll count
             expect(await registry.getPollCount()).to.equal(1);
@@ -122,18 +131,12 @@ describe("PollRegistry", function () {
         });
 
         it("Lists all polls", async function () {
-            const semaphoreAddr = await semaphore.getAddress();
-
             for (let i = 0; i < 3; i++) {
-                const initData = zkAnonVotingImpl.interface.encodeFunctionData(
-                    "initialize",
-                    [semaphoreAddr, owner.address, ["A", "B"]]
-                );
                 await registry.createPoll(
                     "zk-anon-voting",
                     `Poll ${i}`,
                     `Desc ${i}`,
-                    initData
+                    await anonInitData(["A", "B"])
                 );
             }
 
@@ -141,6 +144,152 @@ describe("PollRegistry", function () {
             const all = await registry.getAllPolls();
             expect(all.length).to.equal(3);
             expect(all[2].title).to.equal("Poll 2");
+        });
+    });
+
+    // ── R4 privacy defaults: visibility + getListedPolls + getPollInfo ──
+
+    describe("visibility (R4 privacy defaults)", function () {
+        beforeEach(async function () {
+            await registry.registerModule(
+                "zk-anon-voting",
+                await zkAnonVotingImpl.getAddress()
+            );
+        });
+
+        it("4-arg createPoll defaults to UNLISTED (visibility = 0)", async function () {
+            await registry.createPoll(
+                "zk-anon-voting",
+                "Default",
+                "no visibility arg",
+                await anonInitData()
+            );
+
+            const all = await registry.getAllPolls();
+            expect(all.length).to.equal(1);
+            expect(all[0].visibility).to.equal(0);
+        });
+
+        it("4-arg createPoll emits PollCreated with visibility = 0", async function () {
+            await expect(
+                registry.createPoll("zk-anon-voting", "Default", "d", await anonInitData())
+            )
+                .to.emit(registry, "PollCreated")
+                .withArgs(
+                    (addr: string) => ethers.isAddress(addr) && addr !== ethers.ZeroAddress,
+                    "zk-anon-voting",
+                    "Default",
+                    owner.address,
+                    0
+                );
+        });
+
+        it("5-arg createPoll stores the opted-in LISTED flag and emits it", async function () {
+            await expect(
+                registry["createPoll(string,string,string,uint8,bytes)"](
+                    "zk-anon-voting",
+                    "Public",
+                    "opted in",
+                    1,
+                    await anonInitData()
+                )
+            )
+                .to.emit(registry, "PollCreated")
+                .withArgs(
+                    (addr: string) => ethers.isAddress(addr) && addr !== ethers.ZeroAddress,
+                    "zk-anon-voting",
+                    "Public",
+                    owner.address,
+                    1
+                );
+
+            const all = await registry.getAllPolls();
+            expect(all[0].visibility).to.equal(1);
+        });
+
+        it("5-arg createPoll with explicit 0 stays unlisted", async function () {
+            await registry["createPoll(string,string,string,uint8,bytes)"](
+                "zk-anon-voting",
+                "Explicitly private",
+                "",
+                0,
+                await anonInitData()
+            );
+            expect((await registry.getAllPolls())[0].visibility).to.equal(0);
+        });
+
+        it("Rejects an out-of-range visibility value", async function () {
+            await expect(
+                registry["createPoll(string,string,string,uint8,bytes)"](
+                    "zk-anon-voting",
+                    "Bad",
+                    "",
+                    2,
+                    await anonInitData()
+                )
+            )
+                .to.be.revertedWithCustomError(registry, "InvalidVisibility")
+                .withArgs(2);
+        });
+
+        it("getListedPolls returns ONLY listed polls (directory view)", async function () {
+            // 2 unlisted (default), 2 listed (opt-in), 1 more unlisted (explicit)
+            await registry.createPoll("zk-anon-voting", "U0", "", await anonInitData());
+            await registry["createPoll(string,string,string,uint8,bytes)"](
+                "zk-anon-voting", "L1", "", 1, await anonInitData());
+            await registry.createPoll("zk-anon-voting", "U2", "", await anonInitData());
+            await registry["createPoll(string,string,string,uint8,bytes)"](
+                "zk-anon-voting", "L3", "", 1, await anonInitData());
+            await registry["createPoll(string,string,string,uint8,bytes)"](
+                "zk-anon-voting", "U4", "", 0, await anonInitData());
+
+            // getAllPolls (owner/ops compat) still returns everything…
+            expect((await registry.getAllPolls()).length).to.equal(5);
+
+            // …but the public directory view filters to the opt-ins, in order.
+            const listed = await registry.getListedPolls();
+            expect(listed.length).to.equal(2);
+            expect(listed.map((p: any) => p.title)).to.deep.equal(["L1", "L3"]);
+            for (const p of listed) expect(p.visibility).to.equal(1);
+        });
+
+        it("getListedPolls is empty when every poll kept the default", async function () {
+            await registry.createPoll("zk-anon-voting", "U0", "", await anonInitData());
+            await registry.createPoll("zk-anon-voting", "U1", "", await anonInitData());
+            expect((await registry.getListedPolls()).length).to.equal(0);
+        });
+
+        it("getPollInfo resolves an UNLISTED poll by address (link-access model)", async function () {
+            await registry.createPoll(
+                "zk-anon-voting",
+                "Secret club vote",
+                "link-only",
+                await anonInitData()
+            );
+            const pollAddress = (await registry.getAllPolls())[0].pollAddress;
+
+            // Not in the directory…
+            expect((await registry.getListedPolls()).length).to.equal(0);
+
+            // …but fully resolvable by whoever holds the link/QR/code.
+            const info = await registry.getPollInfo(pollAddress);
+            expect(info.pollAddress).to.equal(pollAddress);
+            expect(info.title).to.equal("Secret club vote");
+            expect(info.moduleType).to.equal("zk-anon-voting");
+            expect(info.creator).to.equal(owner.address);
+            expect(info.visibility).to.equal(0);
+        });
+
+        it("getPollInfo reverts UnknownPoll for an address the registry didn't create", async function () {
+            const stranger = ethers.getAddress("0x00000000000000000000000000000000000000ff");
+            await expect(registry.getPollInfo(stranger))
+                .to.be.revertedWithCustomError(registry, "UnknownPoll")
+                .withArgs(stranger);
+        });
+
+        it("exposes the visibility constants", async function () {
+            expect(await registry.VISIBILITY_UNLISTED()).to.equal(0);
+            expect(await registry.VISIBILITY_LISTED()).to.equal(1);
         });
     });
 });

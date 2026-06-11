@@ -300,17 +300,60 @@ function mapLifecycleRevert(err: unknown): ClientFacingError | null {
     return null;
 }
 
+// ── R4 privacy defaults: initialize-arg shapes per sponsored module ──────────
+//
+// Every module's initialize(...) gained a trailing `uint8 resultsPolicy` (R4).
+// Clients keep sending initData WITHOUT that arg (the pre-R4 shape below); the
+// relayer decodes it, appends the request's resultsPolicy (default 0 = sealed)
+// and re-encodes against the new signature. This keeps the create API additive:
+// an R4-unaware client gets sealed-by-default instead of a revert.
+const INIT_ARG_TYPES: Record<string, string[]> = {
+    "anon-vote": ["address", "address", "string[]"],
+    "approval-vote": ["address", "address", "string[]"],
+    "ranked-vote": ["address", "address", "string[]"],
+    "quadratic-vote": ["address", "address", "string[]"],
+    "survey-vote": ["address", "address", "bytes"],
+};
+
+/** Re-encode a client-supplied initialize(...) call with the R4 resultsPolicy
+ *  appended as the trailing uint8 arg. The client's initData is the PRE-R4
+ *  shape (no resultsPolicy); the per-module arg list above is the contract of
+ *  this shim. Throws on an unknown module or undecodable initData (both are
+ *  pre-validated upstream, so this is defensive). */
+export function appendResultsPolicyToInitData(
+    moduleType: string,
+    initData: string,
+    resultsPolicy: number
+): string {
+    const argTypes = INIT_ARG_TYPES[moduleType];
+    if (!argTypes) {
+        throw new Error(`No initialize arg shape known for module "${moduleType}"`);
+    }
+    // Strip "0x" + the 4-byte selector, decode the pre-R4 args…
+    const coder = ethers.AbiCoder.defaultAbiCoder();
+    const args = coder.decode(argTypes, "0x" + initData.slice(2 + 8));
+    // …and re-encode against the NEW initialize signature (selector changes too).
+    const newIface = new ethers.Interface([
+        `function initialize(${argTypes.join(",")},uint8)`,
+    ]);
+    return newIface.encodeFunctionData("initialize", [...args, resultsPolicy]);
+}
+
 /** Sponsored CREATE: the relayer pays gas to clone + initialize a poll via
  *  PollRegistry.createPoll. The owner baked into initData is enforced == relayer
  *  upstream (validateCreatePollRequest), so the created poll is relayer-owned and
- *  the relayer can later register/start it. Returns the new poll address, parsed
- *  from the PollCreated event (a state-changing call's return value is NOT in the
- *  receipt — it must be read from the emitted log). */
+ *  the relayer can later register/start it. R4: `visibility` rides on the
+ *  registry's 5-arg createPoll overload and `resultsPolicy` is appended to the
+ *  module initialize call (both default 0 = unlisted / sealed upstream). Returns
+ *  the new poll address, parsed from the PollCreated event (a state-changing
+ *  call's return value is NOT in the receipt — it must be read from the log). */
 export async function relayCreatePoll(
     moduleType: string,
     title: string,
     description: string,
-    initData: string
+    initData: string,
+    visibility: number = 0,
+    resultsPolicy: number = 0
 ): Promise<{ pollAddress: string; txHash: string }> {
     const registryAddress = getRegistryAddress();
     if (!registryAddress) {
@@ -320,13 +363,17 @@ export async function relayCreatePoll(
     const wallet = getRelayerWallet();
     const registry = new ethers.Contract(registryAddress, PollRegistryABI.abi, wallet);
 
+    const fullInitData = appendResultsPolicyToInitData(moduleType, initData, resultsPolicy);
+
+    // createPoll is overloaded post-R4; select the explicit 5-arg signature.
+    const createPoll = registry.getFunction("createPoll(string,string,string,uint8,bytes)");
     const { receipt } = await getTxManager().send("createPoll", () =>
-        registry.createPoll.populateTransaction(moduleType, title, description, initData)
+        createPoll.populateTransaction(moduleType, title, description, visibility, fullInitData)
     );
 
     // Parse PollCreated(address pollAddress, string moduleType, string title,
-    // address creator) out of the logs — createPoll's returned address is not
-    // available from a sent tx's receipt.
+    // address creator, uint8 visibility) out of the logs — createPoll's returned
+    // address is not available from a sent tx's receipt.
     const iface = new ethers.Interface(PollRegistryABI.abi);
     let pollAddress: string | undefined;
     for (const log of receipt.logs) {

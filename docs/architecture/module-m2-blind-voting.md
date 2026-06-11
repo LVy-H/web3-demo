@@ -35,7 +35,8 @@ Registration ──startVoting()──> Voting ──endVoting()──> Ended �
 function initialize(
     address _owner,
     string[] memory _initialOptions,
-    uint256 _revealDuration   // seconds — how long the reveal window stays open
+    uint256 _revealDuration,  // seconds — how long the reveal window stays open
+    uint8 _resultsPolicy          // R4: 0 = sealed-until-close (default), 1 = live-public
 ) external
 ```
 A `_initialized` guard prevents double initialization. **Note:** unlike M1, there is no Semaphore dependency — M2 doesn't use ZK proofs.

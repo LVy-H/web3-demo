@@ -60,6 +60,7 @@ describe("SPIKE S0.3 — organizer-owned live-meeting loop (no contract changes)
             await semaphore.getAddress(),
             organizer.address,
             options,
+            0, // resultsPolicy: sealed-until-close (default)
         ]);
         await registry
             .connect(organizer)

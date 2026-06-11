@@ -51,6 +51,17 @@
       "type": "error"
     },
     {
+      "inputs": [
+        {
+          "internalType": "uint8",
+          "name": "resultsPolicy",
+          "type": "uint8"
+        }
+      ],
+      "name": "InvalidResultsPolicy",
+      "type": "error"
+    },
+    {
       "inputs": [],
       "name": "InvalidScope",
       "type": "error"
@@ -451,6 +462,11 @@
           "internalType": "bytes",
           "name": "initData",
           "type": "bytes"
+        },
+        {
+          "internalType": "uint8",
+          "name": "_resultsPolicy",
+          "type": "uint8"
         }
       ],
       "name": "initialize",
@@ -553,6 +569,19 @@
       "name": "renounceOwnership",
       "outputs": [],
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "resultsPolicy",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {

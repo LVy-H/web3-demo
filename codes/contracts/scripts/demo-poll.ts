@@ -91,9 +91,19 @@ async function main() {
     SEMAPHORE,
     owner.address,
     OPTIONS,
+    0, // resultsPolicy: sealed-until-close (default)
   ]);
 
-  const tx = await registry.createPoll("anon-vote", TITLE, DESCRIPTION, initData);
+  // R4: demo polls exist to be FOUND (Browse-screen seed data), so they opt in
+  // to the public listing (visibility=1) via the 5-arg createPoll overload.
+  // Real polls default to unlisted (link-access) — see PollRegistry.sol.
+  const tx = await registry["createPoll(string,string,string,uint8,bytes)"](
+    "anon-vote",
+    TITLE,
+    DESCRIPTION,
+    1, // visibility: listed (demo seed — explicit opt-in)
+    initData
+  );
   const receipt = await tx.wait();
 
   // Parse PollCreated to learn the clone address.
@@ -141,11 +151,13 @@ async function main() {
     SEMAPHORE,
     owner.address,
     questionBlob,
+    0, // resultsPolicy: sealed-until-close (default)
   ]);
-  const surveyTx = await registry.createPoll(
+  const surveyTx = await registry["createPoll(string,string,string,uint8,bytes)"](
     "survey-vote",
     SURVEY_TITLE,
     SURVEY_DESCRIPTION,
+    1, // visibility: listed (demo seed — explicit opt-in)
     surveyInit,
   );
   const surveyReceipt = await surveyTx.wait();

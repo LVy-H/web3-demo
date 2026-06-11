@@ -346,10 +346,22 @@ export function createApp(): express.Express {
                 return;
             }
 
-            const { moduleType, title, description, initData } = validation.data;
-            console.log(`[RELAY] createPoll → module=${moduleType} title=${JSON.stringify(title)}`);
+            const { moduleType, title, description, initData, visibility, resultsPolicy } =
+                validation.data;
+            // R4: visibility/resultsPolicy are SAFE to log (they are policy flags,
+            // not ballot contents) and useful for ops auditing of opt-ins.
+            console.log(
+                `[RELAY] createPoll → module=${moduleType} title=${JSON.stringify(title)} visibility=${visibility} resultsPolicy=${resultsPolicy}`
+            );
 
-            const result = await relayCreatePoll(moduleType, title, description, initData);
+            const result = await relayCreatePoll(
+                moduleType,
+                title,
+                description,
+                initData,
+                visibility,
+                resultsPolicy
+            );
             console.log(`[RELAY] ✓ poll=${result.pollAddress} txHash=${result.txHash}`);
 
             res.json({ success: true, pollAddress: result.pollAddress, txHash: result.txHash });

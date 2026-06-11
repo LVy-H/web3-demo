@@ -52,6 +52,7 @@ const DEPTH = 16; // matches the bundled artifacts; LeanIMT root is member-deriv
             await semaphore.getAddress(),
             owner.address,
             ["Yes", "No"],
+            0, // resultsPolicy: sealed-until-close (default)
         ]);
         await registry.createPoll("anon-vote", "Real", "real verifier", initData);
         const pollAddr = (await registry.getAllPolls())[0].pollAddress;

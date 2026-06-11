@@ -58,7 +58,14 @@ export interface CreatePollRequest {
     moduleType: string;
     title: string;
     description: string;
-    initData: string; // 0x hex: the ABI-encoded initialize(...) call
+    initData: string; // 0x hex: the ABI-encoded initialize(...) call WITHOUT the
+    //                   trailing resultsPolicy arg — the relayer appends it (R4).
+    /** R4 discovery visibility: 0 = unlisted (DEFAULT), 1 = listed (opt-in).
+     *  Passed to PollRegistry.createPoll's 5-arg overload. */
+    visibility: number;
+    /** R4 results timing: 0 = sealed-until-close (DEFAULT), 1 = live-public
+     *  (opt-in). Appended to the module's initialize(...) call by the relayer. */
+    resultsPolicy: number;
 }
 
 export interface RegisterVoterRequest {
@@ -544,6 +551,17 @@ function decodeInitDataOwner(initData: string): string | null {
     }
 }
 
+/** Parse an OPTIONAL binary policy flag (R4 visibility / resultsPolicy).
+ *  Returns the value (0|1), the privacy-preserving default 0 when the field is
+ *  absent, or null when present-but-invalid. The default is deliberately the
+ *  private choice (unlisted / sealed-until-close): a client that doesn't know
+ *  about R4 gets privacy, not exposure (spec §3 principle 1-2). */
+function parsePolicyFlag(v: unknown): number | null {
+    if (v === undefined || v === null) return 0;
+    if (typeof v !== "number" || !Number.isInteger(v) || (v !== 0 && v !== 1)) return null;
+    return v;
+}
+
 /** Validate a sponsored CREATE-POLL request. The relayer pays gas to clone +
  *  initialize a poll, so this guards three things before any tx:
  *   1. moduleType is a known sponsored module (allow-list).
@@ -604,6 +622,23 @@ export function validateCreatePollRequest(
         };
     }
 
+    // R4 privacy defaults: both flags are OPTIONAL and default to the private
+    // choice (0 = unlisted / 0 = sealed-until-close). Only 0|1 are accepted.
+    const visibility = parsePolicyFlag(b.visibility);
+    if (visibility === null) {
+        return {
+            ok: false,
+            error: "Invalid visibility: must be 0 (unlisted, default) or 1 (listed)",
+        };
+    }
+    const resultsPolicy = parsePolicyFlag(b.resultsPolicy);
+    if (resultsPolicy === null) {
+        return {
+            ok: false,
+            error: "Invalid resultsPolicy: must be 0 (sealed-until-close, default) or 1 (live-public)",
+        };
+    }
+
     const owner = decodeInitDataOwner(b.initData);
     if (owner === null) {
         return {
@@ -627,6 +662,8 @@ export function validateCreatePollRequest(
             title: b.title,
             description: b.description,
             initData: b.initData,
+            visibility,
+            resultsPolicy,
         },
     };
 }

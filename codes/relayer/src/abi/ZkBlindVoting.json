@@ -51,6 +51,17 @@
       "type": "error"
     },
     {
+      "inputs": [
+        {
+          "internalType": "uint8",
+          "name": "resultsPolicy",
+          "type": "uint8"
+        }
+      ],
+      "name": "InvalidResultsPolicy",
+      "type": "error"
+    },
+    {
       "inputs": [],
       "name": "NeedAtLeastOneVoter",
       "type": "error"
@@ -445,6 +456,11 @@
           "internalType": "uint256",
           "name": "_revealDuration",
           "type": "uint256"
+        },
+        {
+          "internalType": "uint8",
+          "name": "_resultsPolicy",
+          "type": "uint8"
         }
       ],
       "name": "initialize",
@@ -551,6 +567,19 @@
           "internalType": "bool",
           "name": "",
           "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "resultsPolicy",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
         }
       ],
       "stateMutability": "view",
