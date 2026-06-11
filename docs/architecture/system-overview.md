@@ -16,8 +16,37 @@ The system uses a modular contract architecture with a central registry.
   - `"survey-vote"` — see [`module-survey.md`](./module-survey.md)
 - **Key functions:**
   - `registerModule(moduleType, implementation)` -- owner registers a new module
-  - `createPoll(moduleType, title, description, initData)` -- anyone creates a poll
-  - `getAllPolls()` -- returns all polls with metadata
+  - `createPoll(moduleType, title, description, initData)` -- anyone creates a poll (UNLISTED by default)
+  - `createPoll(moduleType, title, description, visibility, initData)` -- overload with an explicit visibility opt-in
+  - `getListedPolls()` -- the public-directory view: only polls that opted in to listing
+  - `getAllPolls()` -- returns ALL polls (owner/ops compat; public directories must use `getListedPolls()`)
+  - `getPollInfo(pollAddress)` -- resolve one poll by address (link-access path for unlisted polls)
+
+### Privacy defaults (R4)
+
+Two creation-time flags implement the revolution spec's "private by default"
+principles (design spec §3.1-2, §5). Both default to the private choice and are
+opt-IN to exposure:
+
+| Flag | Where | Values | Default |
+|---|---|---|---|
+| `visibility` | `PollRegistry` (per poll, in `PollInfo` + `PollCreated`) | 0 = unlisted (link/QR/code access only), 1 = listed | **0 — unlisted** |
+| `resultsPolicy` | every module (last `initialize` param, `resultsPolicy()` view) | 0 = sealed-until-close, 1 = live-public | **0 — sealed** |
+
+Honesty notes (the flags' exact claims, no more):
+
+- `visibility` is **discovery** privacy, not content privacy. Chain data is
+  public — anyone with the poll address (or scanning events) can read
+  everything. The flag keeps compliant directories from *presenting* unlisted
+  polls; the link is the capability.
+- `resultsPolicy` is **metadata** that compliant clients and the relayer honor.
+  Ballots are public calldata, so an on-chain `getResults()` restriction would
+  be security theater — it stays unrestricted. Cryptographic sealing
+  (threshold/timelock) is the R5 roadmap phase.
+- The relayer's create route accepts optional `visibility` / `resultsPolicy`
+  fields (defaulting to 0/0) and appends `resultsPolicy` to the client's
+  encoded `initialize` call, so pre-R4 clients keep working and get the
+  private defaults.
 
 ### IZkPoll (Interface)
 - **Role:** Shared interface that all voting modules implement.
@@ -28,6 +57,7 @@ The system uses a modular contract architecture with a central registry.
   - `getParticipantCount()` -- number of registered participants
   - `verifyParticipation(nullifierHash)` -- M3 receipt verification
   - `owner()` -- poll creator address
+  - `resultsPolicy()` -- R4 results-timing policy (0 = sealed-until-close, 1 = live-public)
 
 ### Minimal Proxy Pattern (EIP-1167)
 Each poll is a thin clone (~45 bytes of bytecode) that delegates all calls to a deployed implementation contract. This saves gas: creating a poll costs ~45k gas instead of ~2M+ gas for a full contract deployment.
