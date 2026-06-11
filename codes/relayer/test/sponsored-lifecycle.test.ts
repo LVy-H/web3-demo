@@ -170,6 +170,114 @@ describe("validateCreatePollRequest", () => {
     });
 });
 
+// ── 1b. R4 privacy defaults: visibility / resultsPolicy ─────────────────────
+
+describe("validateCreatePollRequest — R4 privacy defaults", () => {
+    const base = () => ({
+        moduleType: "anon-vote",
+        title: "Lunch?",
+        description: "",
+        initData: encodeAnonInitData(RELAYER),
+    });
+
+    it("DEFAULTS to unlisted (0) + sealed-until-close (0) when both fields are omitted", () => {
+        const res = validateCreatePollRequest(base(), RELAYER);
+        expect(res.ok).toBe(true);
+        if (res.ok) {
+            expect(res.data.visibility).toBe(0);
+            expect(res.data.resultsPolicy).toBe(0);
+        }
+    });
+
+    it("treats explicit null like omitted (privacy default, not an error)", () => {
+        const res = validateCreatePollRequest(
+            { ...base(), visibility: null, resultsPolicy: null },
+            RELAYER
+        );
+        expect(res.ok).toBe(true);
+        if (res.ok) {
+            expect(res.data.visibility).toBe(0);
+            expect(res.data.resultsPolicy).toBe(0);
+        }
+    });
+
+    it("passes through the explicit opt-ins (listed + live-public)", () => {
+        const res = validateCreatePollRequest(
+            { ...base(), visibility: 1, resultsPolicy: 1 },
+            RELAYER
+        );
+        expect(res.ok).toBe(true);
+        if (res.ok) {
+            expect(res.data.visibility).toBe(1);
+            expect(res.data.resultsPolicy).toBe(1);
+        }
+    });
+
+    it("accepts explicit 0s (the defaults, stated out loud)", () => {
+        const res = validateCreatePollRequest(
+            { ...base(), visibility: 0, resultsPolicy: 0 },
+            RELAYER
+        );
+        expect(res.ok).toBe(true);
+        if (res.ok) {
+            expect(res.data.visibility).toBe(0);
+            expect(res.data.resultsPolicy).toBe(0);
+        }
+    });
+
+    it("rejects out-of-range / non-integer / non-number visibility", () => {
+        for (const bad of [2, -1, 1.5, "1", true, {}]) {
+            const res = validateCreatePollRequest({ ...base(), visibility: bad }, RELAYER);
+            expect(res.ok).toBe(false);
+            if (!res.ok) expect(res.error).toMatch(/visibility/);
+        }
+    });
+
+    it("rejects out-of-range / non-integer / non-number resultsPolicy", () => {
+        for (const bad of [2, -1, 0.5, "0", false, []]) {
+            const res = validateCreatePollRequest({ ...base(), resultsPolicy: bad }, RELAYER);
+            expect(res.ok).toBe(false);
+            if (!res.ok) expect(res.error).toMatch(/resultsPolicy/);
+        }
+    });
+});
+
+describe("appendResultsPolicyToInitData (R4 initialize re-encode shim)", () => {
+    it("re-encodes an anon-shape init call with the trailing resultsPolicy uint8", async () => {
+        const { appendResultsPolicyToInitData } = await import("../src/relay");
+        const out = appendResultsPolicyToInitData("anon-vote", encodeAnonInitData(RELAYER), 1);
+        const newIface = new ethers.Interface([
+            "function initialize(address,address,string[],uint8)",
+        ]);
+        expect(out).toBe(
+            newIface.encodeFunctionData("initialize", [SEMAPHORE, RELAYER, ["Yes", "No"], 1])
+        );
+        // Selector changed (the signature changed), args preserved.
+        const decoded = newIface.decodeFunctionData("initialize", out);
+        expect(decoded[1]).toBe(RELAYER);
+        expect([...decoded[2]]).toEqual(["Yes", "No"]);
+        expect(Number(decoded[3])).toBe(1);
+    });
+
+    it("re-encodes the survey bytes-shape init call too", async () => {
+        const { appendResultsPolicyToInitData } = await import("../src/relay");
+        const out = appendResultsPolicyToInitData("survey-vote", encodeSurveyInitData(RELAYER), 0);
+        const newIface = new ethers.Interface([
+            "function initialize(address,address,bytes,uint8)",
+        ]);
+        expect(out).toBe(
+            newIface.encodeFunctionData("initialize", [SEMAPHORE, RELAYER, "0x1234", 0])
+        );
+    });
+
+    it("throws on a module with no known initialize shape", async () => {
+        const { appendResultsPolicyToInitData } = await import("../src/relay");
+        expect(() =>
+            appendResultsPolicyToInitData("blind-vote", encodeAnonInitData(RELAYER), 0)
+        ).toThrow(/initialize arg shape/);
+    });
+});
+
 describe("validateRegisterVoterRequest", () => {
     const COMMITMENT = "12345678901234567890";
 
@@ -320,6 +428,33 @@ describe("sponsored-lifecycle routes + abuse guards", () => {
             });
         expect(res.status).toBe(400);
         expect(res.body.error).toMatch(/moduleType/);
+    });
+
+    it("create-poll rejects (400) an out-of-range visibility / resultsPolicy", async () => {
+        const app = newApp();
+        const badVisibility = await request(app)
+            .post("/api/relay/create-poll")
+            .send({
+                moduleType: "anon-vote",
+                title: "x",
+                description: "",
+                initData: encodeAnonInitData(RELAYER),
+                visibility: 2,
+            });
+        expect(badVisibility.status).toBe(400);
+        expect(badVisibility.body.error).toMatch(/visibility/);
+
+        const badPolicy = await request(app)
+            .post("/api/relay/create-poll")
+            .send({
+                moduleType: "anon-vote",
+                title: "x",
+                description: "",
+                initData: encodeAnonInitData(RELAYER),
+                resultsPolicy: 7,
+            });
+        expect(badPolicy.status).toBe(400);
+        expect(badPolicy.body.error).toMatch(/resultsPolicy/);
     });
 
     it("create-poll is OPEN when CREATE_SECRET is unset (request passes the secret gate)", async () => {
