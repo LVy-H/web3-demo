@@ -1,0 +1,37 @@
+name: tessera
+description: "Tessera — one app for anonymous on-chain voting. Revolution shell (R1): composition root only; features land in R2+."
+publish_to: 'none'
+version: 0.3.0+1 # Revolution line; codes/mobile stays the 0.2.x reference until cutover
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Workspace packages (resolved by the pub workspace, not pub.dev).
+  core_chain: any
+  core_crypto: any
+  core_domain: any
+  core_relay: any
+  core_storage: any
+  design_system: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf
