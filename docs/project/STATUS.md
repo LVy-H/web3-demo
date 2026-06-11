@@ -67,7 +67,7 @@ A modular ZK voting system runs end-to-end on a local Hardhat node. **Six voting
 
 > Track the current iteration's work in [FOCUS.md](./FOCUS.md). Items here are mid-implementation but not blocked.
 
-*(empty — fill in when work starts)*
+- 2026-06-11 — **R1 (Tessera Revolution): workspace + extraction** — pub workspace at `codes/app/` (melos 7); proven non-UI code lifted from `codes/mobile/` into `core_domain` / `core_chain` / `core_crypto` / `core_relay` / `core_storage` / `design_system` + a minimal `apps/tessera` shell. `codes/mobile/` untouched (working reference until cutover). Spec: `docs/superpowers/specs/2026-06-11-tessera-revolution-design.md`.
 
 ## Blocked / known broken
 

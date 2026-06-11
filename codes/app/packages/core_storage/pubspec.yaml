@@ -1,0 +1,19 @@
+name: core_storage
+description: "Tessera storage layer — secure stores for the identity seed, blind-vote salts, created polls, org keys, and the network-config override."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  core_chain: any # NetworkConfig (persisted by NetworkConfigStore)
+  flutter_secure_storage: ^9.2.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

@@ -1,0 +1,50 @@
+# Tessera Revolution workspace root (spec §6, R1).
+#
+# Dart pub workspace: one shared resolution for the app shell + the core
+# packages. Melos (v7) runs on top of it — its configuration lives in the
+# `melos:` section below (melos 7 dropped the standalone melos.yaml in favor
+# of the workspace root pubspec). See codes/app/melos.yaml for the pointer.
+name: tessera_workspace
+description: "Tessera Revolution — pub workspace for the app shell and core packages."
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+workspace:
+  - apps/tessera
+  - packages/core_chain
+  - packages/core_crypto
+  - packages/core_domain
+  - packages/core_relay
+  - packages/core_storage
+  - packages/design_system
+
+dev_dependencies:
+  melos: ^7.1.0
+
+melos:
+  scripts:
+    analyze:
+      description: Static analysis in every package (same gate as codes/mobile CI).
+      run: dart run melos exec --concurrency=1 -- dart analyze --fatal-infos .
+
+    test:
+      description: Every package's test suite (dart test for pure-Dart packages, flutter test elsewhere).
+      run: dart run melos run test:dart && dart run melos run test:flutter
+
+    test:dart:
+      description: Pure-Dart packages (no Flutter anywhere in their dev graph).
+      run: dart run melos exec --concurrency=1 --scope="core_domain" --scope="core_chain" -- dart test
+
+    test:flutter:
+      description: Flutter packages + packages whose tests need flutter_test.
+      run: dart run melos exec --concurrency=1 --dir-exists=test --ignore="core_domain" --ignore="core_chain" -- flutter test
+
+    format:
+      description: Format all packages in place.
+      run: dart run melos exec --concurrency=1 -- dart format .
+
+    format:check:
+      description: Fail when any file is unformatted (CI gate).
+      run: dart run melos exec --concurrency=1 -- dart format --set-exit-if-changed .

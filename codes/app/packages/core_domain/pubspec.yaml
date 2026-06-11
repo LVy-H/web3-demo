@@ -1,0 +1,16 @@
+name: core_domain
+description: "Tessera core domain — models, voting math, and (R2) journey state machines. Pure Dart: no Flutter dependency."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  # EthereumAddress lives here since web3dart 3.x (used by PollInfo).
+  wallet: ^0.0.18
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0

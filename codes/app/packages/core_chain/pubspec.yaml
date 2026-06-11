@@ -1,0 +1,26 @@
+name: core_chain
+description: "Tessera chain layer — JSON-RPC reader/writer, network config, and the contract ABI assets. Pure Dart: no Flutter dependency."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  core_domain: any
+  http: ^1.2.2
+  wallet: ^0.0.18
+  web3dart: ^3.0.1
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# ABI JSON shipped as Flutter assets so apps depending on this package bundle
+# them (rootBundle key: packages/core_chain/assets/abi/<Name>.json). The
+# package itself stays pure Dart — the `flutter:` section is only read by the
+# Flutter build of a consuming app.
+flutter:
+  assets:
+    - assets/abi/

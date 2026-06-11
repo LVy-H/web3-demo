@@ -1,0 +1,32 @@
+name: core_crypto
+description: "Tessera crypto layer — commitments, tickets, confirmation codes, org keypairs, and the platform proof services (web js_interop / Android WebView / desktop Node sidecar)."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  core_chain: any
+  core_domain: any
+  convert: ^3.1.2
+  crypto: ^3.0.6
+  ed25519_edwards: ^0.3.1
+  pointycastle: ^4.0.0
+  webview_flutter: ^4.10.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  web: ^1.1.1 # DOM access in the in-browser ProofServiceWeb test
+  flutter_lints: ^6.0.0
+
+flutter:
+  # Bundled depth-16 Semaphore Groth16 artifacts (wasm+zkey) + prover bundle for
+  # the Android WebView prover. Consuming apps load them via rootBundle at
+  # packages/core_crypto/assets/zk/<file>.
+  assets:
+    - assets/zk/

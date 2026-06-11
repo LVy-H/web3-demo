@@ -1,0 +1,14 @@
+# NOTE (R1 deviation, documented in the PR): Melos 7.x no longer reads
+# melos.yaml — with Dart pub workspaces its configuration moved into the
+# workspace root pubspec.yaml. The Melos config (packages come from the
+# `workspace:` list; scripts: analyze / test / test:dart / test:flutter /
+# format / format:check) lives in ./pubspec.yaml under the `melos:` key.
+#
+# Usage, from codes/app/:
+#   flutter pub get
+#   dart run melos run analyze
+#   dart run melos run test
+#   dart run melos run format
+#
+# This file is kept only as a pointer so nobody looks for a Melos setup and
+# concludes there isn't one. It is intentionally not valid Melos 6 config.
