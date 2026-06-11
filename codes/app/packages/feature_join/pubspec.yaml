@@ -1,0 +1,17 @@
+name: feature_join
+description: "Tessera JOIN — the universal-entry grammar: deep links, pasted/typed values, and short join-codes parsed into typed JoinTargets. Pure Dart: no Flutter, no UI."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+# Intentionally dependency-free. The spec's dependency rule allows
+# feature_* → core_* + design_system, and this package may depend on
+# core_domain only — today the grammar needs nothing from it, so the
+# dependency list stays empty until a real need appears.
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0

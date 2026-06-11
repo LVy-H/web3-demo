@@ -19,6 +19,7 @@ workspace:
   - packages/core_relay
   - packages/core_storage
   - packages/design_system
+  - packages/feature_join
 
 dev_dependencies:
   melos: ^7.1.0
@@ -35,11 +36,11 @@ melos:
 
     test:dart:
       description: Pure-Dart packages (no Flutter anywhere in their dev graph).
-      run: dart run melos exec --concurrency=1 --scope="core_domain" --scope="core_chain" -- dart test
+      run: dart run melos exec --concurrency=1 --scope="core_domain" --scope="core_chain" --scope="feature_join" -- dart test
 
     test:flutter:
       description: Flutter packages + packages whose tests need flutter_test.
-      run: dart run melos exec --concurrency=1 --dir-exists=test --ignore="core_domain" --ignore="core_chain" -- flutter test
+      run: dart run melos exec --concurrency=1 --dir-exists=test --ignore="core_domain" --ignore="core_chain" --ignore="feature_join" -- flutter test
 
     format:
       description: Format all packages in place.
