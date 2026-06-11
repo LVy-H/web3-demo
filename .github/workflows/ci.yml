@@ -72,6 +72,28 @@ jobs:
           path: codes/mobile/build/web
           retention-days: 14
 
+  # Tessera Revolution workspace (codes/app — spec 2026-06-11, phase R1+).
+  # Pub workspace + melos: per-package analyze + tests, then the shell's web
+  # build as the compile gate. The legacy `mobile` job above stays the gate for
+  # codes/mobile until the R-phase cutover PR.
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codes/app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart run melos run analyze
+      - run: dart run melos run test
+      - run: flutter build web --no-tree-shake-icons
+        working-directory: codes/app/apps/tessera
+
   # Android release APK. Separate from `mobile` so an Android/Gradle hiccup never
   # blocks the web gate. Release uses debug signing (android/app/build.gradle.kts),
   # so the APK is installable for testing without a release keystore.
