@@ -1,0 +1,9 @@
+# Dart / Flutter workspace artifacts (root + every member package)
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+*.iml
