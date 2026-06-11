@@ -45,6 +45,7 @@ async function main() {
     addrs.SEMAPHORE_ADDRESS,
     owner.address,
     ["Yes", "No"],
+    0, // resultsPolicy: sealed-until-close (default)
   ]);
   await (
     await registry.createPoll(

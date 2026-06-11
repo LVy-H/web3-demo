@@ -75,6 +75,7 @@ describe("ZkSurveyVoting", function () {
             await semaphore.getAddress(),
             owner.address,
             encodeQuestions(qs),
+            0, // resultsPolicy: sealed-until-close (default)
         ]);
 
         await registry.createPoll(MODULE, "Survey", "Test survey", initData);
@@ -212,6 +213,7 @@ describe("ZkSurveyVoting", function () {
                 await semaphore.getAddress(),
                 owner.address,
                 encodeQuestions([]),
+                0, // resultsPolicy: sealed-until-close (default)
             ]);
             await expect(
                 registry.createPoll(MODULE, "Empty", "no questions", initData)
@@ -224,6 +226,7 @@ describe("ZkSurveyVoting", function () {
                 await semaphore.getAddress(),
                 owner.address,
                 encodeQuestions([{ qType: QType.SingleChoice, options: ["Only one"] }]),
+                0, // resultsPolicy: sealed-until-close (default)
             ]);
             await expect(
                 registry.createPoll(MODULE, "Sparse", "1 option", initData)
@@ -237,6 +240,7 @@ describe("ZkSurveyVoting", function () {
                 await semaphore.getAddress(),
                 owner.address,
                 encodeQuestions([{ qType: QType.MultiSelect, options: tooMany }]),
+                0, // resultsPolicy: sealed-until-close (default)
             ]);
             await expect(
                 registry.createPoll(MODULE, "Huge", "33 options", initData)
@@ -267,6 +271,7 @@ describe("ZkSurveyVoting", function () {
                 await semaphore.getAddress(),
                 owner.address,
                 encodeQuestions(tooMany),
+                0, // resultsPolicy: sealed-until-close (default)
             ]);
             await expect(
                 registry.createPoll(MODULE, "Overlong", "too many questions", initData)
@@ -313,6 +318,7 @@ describe("ZkSurveyVoting", function () {
                 await semaphore.getAddress(),
                 owner.address,
                 encodeQuestions([{ qType: 2, options: ["A", "B"] }]),
+                0, // resultsPolicy: sealed-until-close (default)
             ]);
             await expect(
                 registry.createPoll(MODULE, "BadEnum", "qType=2", initData)
@@ -321,7 +327,7 @@ describe("ZkSurveyVoting", function () {
 
         it("Prevents double initialization", async function () {
             await expect(
-                voting.initialize(await semaphore.getAddress(), owner.address, encodeQuestions(SURVEY))
+                voting.initialize(await semaphore.getAddress(), owner.address, encodeQuestions(SURVEY), 0)
             ).to.be.revertedWithCustomError(voting, "InvalidInitialization");
         });
     });
@@ -627,4 +633,49 @@ describe("ZkSurveyVoting", function () {
             );
         });
     });
+    // ── R4 privacy defaults: resultsPolicy ──────────────────────────
+
+    describe("resultsPolicy (R4 privacy defaults)", function () {
+        it("defaults to sealed-until-close (0) in the standard fixture", async function () {
+            expect(await voting.resultsPolicy()).to.equal(0);
+        });
+
+        /** Fresh registry + impl so the fixture's poll stays untouched. */
+        async function freshRegistry() {
+            const Impl = await ethers.getContractFactory("ZkSurveyVoting");
+            const impl = await Impl.deploy();
+            const Registry = await ethers.getContractFactory("PollRegistry");
+            const registry = await Registry.deploy();
+            await registry.registerModule(MODULE, await impl.getAddress());
+            return { registry, impl };
+        }
+
+        it("round-trips the live-public opt-in (1)", async function () {
+            const { registry, impl } = await freshRegistry();
+            const initData = impl.interface.encodeFunctionData("initialize", [
+                await semaphore.getAddress(),
+                owner.address,
+                encodeQuestions(SURVEY),
+                1, // resultsPolicy: live-public (creation-time opt-in)
+            ]);
+            await registry.createPoll(MODULE, "Live results", "", initData);
+            const addr = (await registry.getAllPolls())[0].pollAddress;
+            const live = await ethers.getContractAt("ZkSurveyVoting", addr);
+            expect(await live.resultsPolicy()).to.equal(1);
+        });
+
+        it("rejects an out-of-range policy (surfaces as registry InitFailed)", async function () {
+            const { registry, impl } = await freshRegistry();
+            const initData = impl.interface.encodeFunctionData("initialize", [
+                await semaphore.getAddress(),
+                owner.address,
+                encodeQuestions(SURVEY),
+                2, // invalid: only 0 (sealed) and 1 (live) exist
+            ]);
+            await expect(
+                registry.createPoll(MODULE, "Bad policy", "", initData)
+            ).to.be.revertedWithCustomError(registry, "InitFailed");
+        });
+    });
+
 });

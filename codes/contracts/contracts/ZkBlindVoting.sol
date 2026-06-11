@@ -25,6 +25,7 @@ error HashMismatch();
 error RevealDeadlinePassed();
 error RevealDeadlineNotPassed();
 error AlreadyFinalized();
+error InvalidResultsPolicy(uint8 resultsPolicy);
 
 /// @title ZkBlindVoting (M2)
 /// @notice Commit-reveal blind voting module implementing IZkPoll.
@@ -49,6 +50,13 @@ contract ZkBlindVoting is IZkPoll, Initializable, Ownable {
     address[] public voters;
     uint256 public participantCount;
 
+    /// @notice Results-timing policy (R4): 0 = sealed-until-close (DEFAULT),
+    ///         1 = live-public (creation-time opt-in). See {IZkPoll-resultsPolicy}
+    ///         for the v1 enforcement note: metadata honored by compliant
+    ///         clients/relayer, NOT an on-chain seal — getResults() stays open
+    ///         because ballots are public calldata anyway.
+    uint8 public override resultsPolicy;
+
     uint256 public revealDuration; // seconds after voting ends before reveal window closes
     uint256 public revealDeadline; // timestamp after which reveals are closed
     bool public resultsFinalized;
@@ -70,11 +78,15 @@ contract ZkBlindVoting is IZkPoll, Initializable, Ownable {
     /// @param _owner           Poll owner / admin
     /// @param _initialOptions  Initial set of voting options
     /// @param _revealDuration  Seconds after voting ends before reveal window closes
+    /// @param _resultsPolicy   0 = sealed-until-close (default), 1 = live-public
     function initialize(
         address _owner,
         string[] calldata _initialOptions,
-        uint256 _revealDuration
+        uint256 _revealDuration,
+        uint8 _resultsPolicy
     ) external initializer {
+        if (_resultsPolicy > 1) revert InvalidResultsPolicy(_resultsPolicy);
+        resultsPolicy = _resultsPolicy;
         _transferOwnership(_owner);
         state = PollState.Registration;
         revealDuration = _revealDuration;

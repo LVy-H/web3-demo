@@ -31,6 +31,7 @@ describe("ZkBlindVoting", function () {
             owner.address,
             initialOptions,
             revealDuration,
+            0, // resultsPolicy: sealed-until-close (default)
         ]);
 
         const tx = await registry.createPoll(
@@ -283,7 +284,7 @@ describe("ZkBlindVoting", function () {
 
         it("Prevents double initialization", async function () {
             await expect(
-                voting.initialize(owner.address, ["X", "Y"], 100)
+                voting.initialize(owner.address, ["X", "Y"], 100, 0)
             ).to.be.revertedWithCustomError(voting, "InvalidInitialization");
         });
     });
@@ -575,4 +576,48 @@ describe("ZkBlindVoting", function () {
             expect(voterList[1]).to.equal(voter2.address);
         });
     });
+    // ── R4 privacy defaults: resultsPolicy ──────────────────────────
+
+    describe("resultsPolicy (R4 privacy defaults)", function () {
+        it("defaults to sealed-until-close (0) in the standard fixture", async function () {
+            expect(await voting.resultsPolicy()).to.equal(0);
+        });
+
+        async function freshRegistry() {
+            const Impl = await ethers.getContractFactory("ZkBlindVoting");
+            const impl = await Impl.deploy();
+            const Registry = await ethers.getContractFactory("PollRegistry");
+            const registry = await Registry.deploy();
+            await registry.registerModule("zk-blind-voting", await impl.getAddress());
+            return { registry, impl };
+        }
+
+        it("round-trips the live-public opt-in (1)", async function () {
+            const { registry, impl } = await freshRegistry();
+            const initData = impl.interface.encodeFunctionData("initialize", [
+                owner.address,
+                ["Yes", "No"],
+                3600,
+                1, // resultsPolicy: live-public (creation-time opt-in)
+            ]);
+            await registry.createPoll("zk-blind-voting", "Live results", "", initData);
+            const addr = (await registry.getAllPolls())[0].pollAddress;
+            const live = await ethers.getContractAt("ZkBlindVoting", addr);
+            expect(await live.resultsPolicy()).to.equal(1);
+        });
+
+        it("rejects an out-of-range policy (surfaces as registry InitFailed)", async function () {
+            const { registry, impl } = await freshRegistry();
+            const initData = impl.interface.encodeFunctionData("initialize", [
+                owner.address,
+                ["Yes", "No"],
+                3600,
+                2, // invalid: only 0 (sealed) and 1 (live) exist
+            ]);
+            await expect(
+                registry.createPoll("zk-blind-voting", "Bad policy", "", initData)
+            ).to.be.revertedWithCustomError(registry, "InitFailed");
+        });
+    });
+
 });
