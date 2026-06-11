@@ -8,14 +8,15 @@ Use this file to answer "what should I open my laptop and work on right now?" �
 
 *One sentence. Examples: "Land the P1 contract-hardening pass." / "Truth-up every doc to the current Tessera/Flutter reality." / "Stand up a Sepolia deploy."*
 
-**Goal:** _________________________________________________
+**Goal:** Tessera Revolution — execute the ground-up redesign spec (`docs/superpowers/specs/2026-06-11-tessera-revolution-design.md`): R0 triage fixes first, then workspace/packages, journey engine, three-space IA, privacy defaults.
 
-**Why now:** _________________________________________________
+**Why now:** Owner mandate (2026-06-11): the app is a feature collection with no flow enforcement, hidden/unreachable features, no persona design, and everything globally exposed. Six code audits verified all of it.
 
-**Done when:** *(measurable exit criteria; usually 2–4 bullets)*
-- [ ] _________________________________________________
-- [ ] _________________________________________________
-- [ ] _________________________________________________
+**Done when:**
+- [ ] R0 shipped: refresh-after-cast everywhere, module-aware card tap, reveal-deadline gating, live-voter timeout, relayer ballot-log strip, 5 missing screen tests
+- [ ] R1 shipped: pub workspace + melos, `core_*`/`design_system` extracted, per-package CI green
+- [ ] R2–R3 shipped: journey state machines + router guards; VOTE/ORGANIZE/JOIN/You shell replaces the 5-tab shell
+- [ ] R4 shipped: unlisted-by-default + sealed-results-by-default with creation-time opt-ins
 
 ## Active work items
 

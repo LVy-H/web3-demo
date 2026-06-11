@@ -186,6 +186,30 @@ The **Phase 12 voting-types epic is complete**: approval (12a), ranked-choice
 Flutter — behind the existing `IZkPoll` / module-type dispatch. Each sub-module
 has its own design spec and `architecture/module-*.md`.
 
+## Phase 13: Tessera Revolution — persona IA, flow enforcement, by-design defaults — **NEXT**
+
+> Spec: `docs/superpowers/specs/2026-06-11-tessera-revolution-design.md`.
+> Owner mandate (2026-06-11). Ground-up redesign of the client product layer:
+> persona-driven IA (voter/organizer/operator), state-machined journeys with
+> router guards, private/sealed **by default**, and a pub-workspace package
+> split. Sub-phases ship serially as audited PRs:
+
+- **R0 — Triage** (independent of redesign): refresh-after-cast on all modules,
+  module-aware poll-card tap, reveal-deadline display + client gating,
+  live-voter pending timeout, relayer ballot-log strip, 5 missing screen tests.
+- **R1 — Workspace**: pub workspace + melos; extract `core_*` + `design_system`
+  packages; per-package CI. Zero behavior change.
+- **R2 — Journey engine**: `core_domain` state machines for the four journeys;
+  go_router `redirect` guards; `Capabilities` object; jargon-free copy.
+- **R3 — Three-space IA**: VOTE / ORGANIZE / JOIN / You shell; organizer
+  dashboard (phases + turnout); live-host console folded in; old tabs removed.
+- **R4 — Privacy defaults**: `visibility` + `resultsPolicy` on
+  registry/modules; unlisted-by-default; sealed-tally-by-default with
+  creation-time opt-ins; small-group warning.
+- **R5 — Cryptographic sealing** (separate spec, after R4): threshold/timelock
+  sealed ballots (Shutter-style); receipt-freeness review; merges with the
+  Phase 10 Sepolia gate.
+
 ## Out of scope (explicit)
 
 - DAO governance over the Registry — owner-only is intentional for v1
