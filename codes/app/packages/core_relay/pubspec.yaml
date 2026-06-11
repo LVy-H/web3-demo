@@ -1,0 +1,22 @@
+name: core_relay
+description: "Tessera relayer layer — relayer HTTP client and the (sponsored) poll creators. Pure Dart library; tests run under flutter test (cross-client suite uses core_crypto)."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  core_chain: any
+  core_domain: any
+  http: ^1.2.2
+  wallet: ^0.0.18
+  web3dart: ^3.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  convert: ^3.1.2 # hex helpers in survey_init_encoding_test
+  core_crypto: any # relay_cross_client_test signs tickets / derives codes
+  flutter_lints: ^6.0.0
