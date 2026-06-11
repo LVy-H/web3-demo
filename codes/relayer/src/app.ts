@@ -1,3 +1,6 @@
+// PRIVACY-BY-DESIGN (spec §5): ballots must NEVER be logged. Relay routes may
+// log the poll address, route/module name, and success/failure — never the
+// vote value, bitmask, packed ranking/allocation, answer vector, or proof.
 import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
@@ -86,7 +89,7 @@ export function createApp(): express.Express {
             }
 
             const { pollAddress, vote, proof } = validation.data;
-            console.log(`[RELAY] castVote → poll=${pollAddress} vote=${vote}`);
+            console.log(`[RELAY] castVote → poll=${pollAddress}`);
 
             const result = await relayCastVote(pollAddress, vote, proof);
             console.log(`[RELAY] ✓ txHash=${result.txHash}`);
@@ -121,7 +124,7 @@ export function createApp(): express.Express {
             }
 
             const { pollAddress, bitmask, proof } = validation.data;
-            console.log(`[RELAY] approvalVote → poll=${pollAddress} bitmask=${bitmask}`);
+            console.log(`[RELAY] approvalVote → poll=${pollAddress}`);
 
             const result = await relayApprovalVote(pollAddress, bitmask, proof);
             console.log(`[RELAY] ✓ txHash=${result.txHash}`);
@@ -157,7 +160,7 @@ export function createApp(): express.Express {
             }
 
             const { pollAddress, packedRanking, proof } = validation.data;
-            console.log(`[RELAY] rankedVote → poll=${pollAddress} packedRanking=${packedRanking}`);
+            console.log(`[RELAY] rankedVote → poll=${pollAddress}`);
 
             const result = await relayRankedVote(pollAddress, packedRanking, proof);
             console.log(`[RELAY] ✓ txHash=${result.txHash}`);
@@ -194,7 +197,7 @@ export function createApp(): express.Express {
             }
 
             const { pollAddress, packedAlloc, proof } = validation.data;
-            console.log(`[RELAY] quadraticVote → poll=${pollAddress} packedAlloc=${packedAlloc}`);
+            console.log(`[RELAY] quadraticVote → poll=${pollAddress}`);
 
             const result = await relayQuadraticVote(pollAddress, packedAlloc, proof);
             console.log(`[RELAY] ✓ txHash=${result.txHash}`);
@@ -234,7 +237,7 @@ export function createApp(): express.Express {
             }
 
             const { pollAddress, answers, proof } = validation.data;
-            console.log(`[RELAY] surveyVote → poll=${pollAddress} answers=[${answers.join(",")}]`);
+            console.log(`[RELAY] surveyVote → poll=${pollAddress}`);
 
             const result = await relaySurveyVote(pollAddress, answers, proof);
             console.log(`[RELAY] ✓ txHash=${result.txHash}`);

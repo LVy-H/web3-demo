@@ -39,7 +39,9 @@ export async function relayCastVote(
     // Pre-check: vote index must be valid
     const optionCount = await contract.getOptionCount();
     if (vote >= Number(optionCount)) {
-        throw new Error(`Invalid vote index: ${vote}. Poll has ${optionCount} options`);
+        // Privacy-by-design: the ballot value must NOT appear in this message —
+        // it is logged by the route's error path.
+        throw new Error(`Invalid vote index: out of range for a poll with ${optionCount} options`);
     }
 
     // Pre-check: nullifier not already used
@@ -75,8 +77,10 @@ export async function relayApprovalVote(
     // declared options. (The contract re-checks; this fails fast off-chain.)
     const optionCount = Number(await contract.getOptionCount());
     if (bitmask <= 0 || bitmask >= 2 ** optionCount) {
+        // Privacy-by-design: the ballot bitmask must NOT appear in this message —
+        // it is logged by the route's error path.
         throw new Error(
-            `Invalid ballot bitmask ${bitmask}: poll has ${optionCount} options (valid range 1..${2 ** optionCount - 1})`
+            `Invalid ballot bitmask: poll has ${optionCount} options (valid range 1..${2 ** optionCount - 1})`
         );
     }
 
@@ -114,8 +118,10 @@ export async function relayRankedVote(
     const optionCount = Number(await contract.getOptionCount());
     const firstChoice = packedRanking & 0xf; // slot0, value = option index + 1
     if (firstChoice < 1 || firstChoice > optionCount) {
+        // Privacy-by-design: the first-preference value must NOT appear in this
+        // message — it is logged by the route's error path.
         throw new Error(
-            `Invalid ranked ballot: first preference slot ${firstChoice} out of range for poll with ${optionCount} options`
+            `Invalid ranked ballot: first preference out of range for poll with ${optionCount} options`
         );
     }
 
@@ -156,8 +162,10 @@ export async function relayQuadraticVote(
     for (let i = optionCount; i < 8; i++) {
         const v = (packedAlloc >> (4 * i)) & 0xf;
         if (v !== 0) {
+            // Privacy-by-design: the slot index/value (ballot contents) must NOT
+            // appear in this message — it is logged by the route's error path.
             throw new Error(
-                `Invalid quadratic ballot: slot ${i} allocates ${v} to a non-existent option (poll has ${optionCount} options)`
+                `Invalid quadratic ballot: allocation to a non-existent option (poll has ${optionCount} options)`
             );
         }
     }
