@@ -61,8 +61,11 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      # Release guardrail: the canonical web build must compile.
-      - run: flutter build web --no-tree-shake-icons
+      # Release guardrail: the canonical web build must compile. Icon
+      # tree-shaking stays ON (no const-less IconData anywhere): it cuts
+      # MaterialIcons 1645KB→~13KB + CupertinoIcons 257KB→~1.5KB, both fetched
+      # before first paint on web.
+      - run: flutter build web
       # Publish the static web build as a downloadable artifact. This is the
       # site you deploy to Cloudflare Pages (or any static host) — point it at
       # your backend in-app via Settings → Network, then reload.
@@ -91,7 +94,9 @@ jobs:
       - run: flutter pub get
       - run: dart run melos run analyze
       - run: dart run melos run test
-      - run: flutter build web --no-tree-shake-icons
+      # Icon tree-shaking ON — saves ~1.84MB of icon fonts fetched before
+      # first paint (verified: the workspace has no non-const IconData).
+      - run: flutter build web
         working-directory: codes/app/apps/tessera
 
   # Android release APK. Separate from `mobile` so an Android/Gradle hiccup never
