@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Tessera mark, inverse (dark tiles on light) for light surfaces / print.
+       Tokens: chalk #F5F7FA background, ink #0A0C10 tiles, mute #7A8599,
+       segnale #FF3B5C stays segnale. Pure rects. -->
+  <rect width="512" height="512" fill="#F5F7FA"/>
+  <!-- row 0 -->
+  <rect x="64" y="64" width="112" height="112" fill="#0A0C10"/>
+  <rect x="200" y="64" width="112" height="112" fill="#0A0C10"/>
+  <rect x="346" y="50" width="112" height="112" fill="#FF3B5C" transform="rotate(8 402 106)"/>
+  <!-- row 1 -->
+  <rect x="64" y="200" width="112" height="112" fill="#0A0C10"/>
+  <rect x="200" y="200" width="112" height="112" fill="#7A8599"/>
+  <rect x="336" y="200" width="112" height="112" fill="#0A0C10"/>
+  <!-- row 2 -->
+  <rect x="64" y="336" width="112" height="112" fill="#7A8599"/>
+  <rect x="200" y="336" width="112" height="112" fill="#0A0C10"/>
+  <rect x="336" y="336" width="112" height="112" fill="#0A0C10"/>
+</svg>

@@ -1,11 +1,11 @@
 {
-    "name": "tessera",
-    "short_name": "tessera",
+    "name": "Tessera",
+    "short_name": "Tessera",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0A0C10",
+    "theme_color": "#0A0C10",
+    "description": "Tessera - private voting. Anonymous on-chain ballots, verifiable tallies.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
