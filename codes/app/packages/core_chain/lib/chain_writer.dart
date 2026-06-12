@@ -78,13 +78,44 @@ class ChainWriter {
       creds,
       Transaction.callContract(
         contract: contract,
-        function: contract.function(function),
+        function: resolveOverloadedFunction(contract, function, params.length),
         parameters: params,
       ),
       chainId: chainId,
     );
     await _awaitReceipt(hash);
     return hash;
+  }
+
+  /// Resolve [name] on [contract], disambiguating OVERLOADS by [argCount].
+  ///
+  /// R4's `PollRegistry.createPoll` is overloaded (the legacy 4-arg fragment
+  /// hard-defaults to unlisted; the 5-arg fragment takes an explicit
+  /// `uint8 visibility`) and web3dart's `DeployedContract.function(name)`
+  /// throws on any overloaded name — so every send resolves through this
+  /// instead: a unique name match wins outright; among overloads the fragment
+  /// whose parameter count equals the call's argument count wins. Throws
+  /// [ArgumentError] when nothing (or more than one fragment — overloads with
+  /// equal arity can't be told apart positionally) matches.
+  static ContractFunction resolveOverloadedFunction(
+    DeployedContract contract,
+    String name,
+    int argCount,
+  ) {
+    final candidates =
+        contract.abi.functions.where((f) => f.name == name).toList();
+    if (candidates.isEmpty) {
+      throw ArgumentError('No function named $name in ${contract.abi.name}');
+    }
+    if (candidates.length == 1) return candidates.single;
+    final byArity =
+        candidates.where((f) => f.parameters.length == argCount).toList();
+    if (byArity.length != 1) {
+      throw ArgumentError(
+          '${candidates.length} overloads of $name in ${contract.abi.name}; '
+          '${byArity.length} take $argCount args — cannot disambiguate');
+    }
+    return byArity.single;
   }
 
   Future<TransactionReceipt> _awaitReceipt(

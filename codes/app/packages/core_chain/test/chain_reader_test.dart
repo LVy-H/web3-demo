@@ -101,4 +101,34 @@ void main() {
     expect(demo.title, poll['title']);
     expect(demo.description, poll['description']);
   });
+
+  test('R4 registry surface: getListedPolls + getPollInfo (link access)',
+      () async {
+    if (!await nodeUp()) {
+      markTestSkipped('local node not reachable at $rpc');
+      return;
+    }
+    // demo-poll.ts seeds the demo polls with visibility=1 (they exist to be
+    // found by Browse — PR #108), so the demo poll is in the directory with
+    // the trailing visibility field decoding as listed.
+    final listed = await reader.getListedPolls();
+    final demo = listed.where(
+      (p) => p.pollAddress.toLowerCase() == pollAddr.toLowerCase(),
+    );
+    expect(demo, hasLength(1),
+        reason: 'the listed demo poll appears in getListedPolls');
+    expect(demo.single.visibility, 1);
+    expect(demo.single.isListed, isTrue);
+
+    // Link-access resolution by address returns the same info…
+    final info = await reader.getPollInfo(pollAddr);
+    expect(info?.title, poll['title']);
+
+    // …and an address the registry never created resolves to null
+    // (UnknownPoll revert handled).
+    expect(
+      await reader.getPollInfo('0x00000000000000000000000000000000000000aa'),
+      isNull,
+    );
+  });
 }
