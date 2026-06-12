@@ -18,21 +18,59 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Tessera — private voting. Anonymous on-chain ballots, verifiable tallies.">
+  <meta name="theme-color" content="#0A0C10">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="tessera">
+  <meta name="apple-mobile-web-app-title" content="Tessera">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>tessera</title>
+  <title>Tessera — private voting</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Ink pre-paint: the page is Db.void_ (#0A0C10) before any byte of
+       Flutter runs, so there is never a white flash. The splash shows the
+       tile mark and is removed on flutter-first-frame. -->
+  <style>
+    html, body { background: #0A0C10; margin: 0; height: 100%; }
+    #tessera-splash {
+      position: fixed; inset: 0; display: flex;
+      align-items: center; justify-content: center;
+      background: #0A0C10; z-index: 9999;
+      transition: opacity 160ms linear;
+    }
+    #tessera-splash.gone { opacity: 0; pointer-events: none; }
+    #tessera-splash svg { width: 96px; height: 96px; }
+  </style>
 </head>
 <body>
+  <div id="tessera-splash" aria-hidden="true">
+    <!-- Inline copy of branding/tessera-mark.svg (tiles only; ink behind). -->
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+      <rect x="64" y="64" width="112" height="112" fill="#F5F7FA"/>
+      <rect x="200" y="64" width="112" height="112" fill="#F5F7FA"/>
+      <rect x="346" y="50" width="112" height="112" fill="#FF3B5C" transform="rotate(8 402 106)"/>
+      <rect x="64" y="200" width="112" height="112" fill="#F5F7FA"/>
+      <rect x="200" y="200" width="112" height="112" fill="#7A8599"/>
+      <rect x="336" y="200" width="112" height="112" fill="#F5F7FA"/>
+      <rect x="64" y="336" width="112" height="112" fill="#7A8599"/>
+      <rect x="200" y="336" width="112" height="112" fill="#F5F7FA"/>
+      <rect x="336" y="336" width="112" height="112" fill="#F5F7FA"/>
+    </svg>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var s = document.getElementById('tessera-splash');
+      if (!s) return;
+      s.classList.add('gone');
+      setTimeout(function () { s.remove(); }, 240);
+    });
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
