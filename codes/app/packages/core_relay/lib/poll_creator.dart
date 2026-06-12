@@ -69,6 +69,14 @@ Uint8List encodeSurveyInitData(List<SurveyQuestion> questions) {
 /// path for local development. When [canSign] is true (DEV_PRIVATE_KEY set), the
 /// Create screen can deploy without connecting a wallet, signing directly to the
 /// host Hardhat node a phone wallet can't reach.
+///
+/// R4 (PR #108): this DIRECT-CHAIN path speaks the native R4 encodings —
+/// every module `initialize` carries the trailing `uint8 resultsPolicy`
+/// (default 0 = sealed-until-close) and `createPoll` picks the right overload
+/// for [visibility]: 0 (default) rides the legacy 4-arg fragment whose
+/// unlisted default lives IN the contract; 1 opts in via the explicit 5-arg
+/// fragment. Both defaults are the PRIVATE choices. (The sponsored/relayer
+/// path is different on purpose — see `sponsored_poll_creator.dart`.)
 class PollCreator {
   final ChainWriter writer;
   final String registryAbiJson;
@@ -88,12 +96,14 @@ class PollCreator {
   String? get signer => writer.signerAddress;
 
   /// Deploy an anon-vote poll, signed by the dev key. Mirrors the wallet path's
-  /// encoding: `ZkAnonVoting.initialize(semaphore, owner, options)` forwarded by
-  /// `PollRegistry.createPoll('anon-vote', …)`.
+  /// encoding: `ZkAnonVoting.initialize(semaphore, owner, options,
+  /// resultsPolicy)` forwarded by `PollRegistry.createPoll('anon-vote', …)`.
   Future<String> createAnonPoll({
     required String title,
     required String description,
     required List<String> options,
+    int visibility = 0,
+    int resultsPolicy = 0,
   }) {
     final owner = writer.signerAddress!;
     final anon = DeployedContract(
@@ -104,15 +114,39 @@ class PollCreator {
       EthereumAddress.fromHex(AppConfig.semaphoreAddress),
       EthereumAddress.fromHex(owner),
       options,
+      BigInt.from(resultsPolicy),
     ]);
     return writer.send(
       to: AppConfig.registryAddress,
       abiJson: registryAbiJson,
       abiName: 'PollRegistry',
       function: 'createPoll',
-      params: ['anon-vote', title, description, initData],
+      params: _createPollParams(
+          'anon-vote', title, description, visibility, initData),
     );
   }
+
+  /// The `createPoll` positional params for [visibility]: the DEFAULT 0 stays
+  /// on the legacy 4-arg overload — "unlisted by default" is the CONTRACT's
+  /// job (PR #108 design decision 1), so the private path sends no flag at
+  /// all. Only an explicit listing opt-in (1) selects the 5-arg overload.
+  /// [ChainWriter] disambiguates the overloaded fragment by this arity.
+  static List<dynamic> _createPollParams(
+    String moduleType,
+    String title,
+    String description,
+    int visibility,
+    Uint8List initData,
+  ) =>
+      visibility == 0
+          ? [moduleType, title, description, initData]
+          : [
+              moduleType,
+              title,
+              description,
+              BigInt.from(visibility),
+              initData,
+            ];
 
   /// Deploy an APPROVAL-vote poll (module `approval-vote`), signed by the dev
   /// key. `ZkApprovalVoting.initialize(semaphore, owner, options)` has the same
@@ -124,12 +158,16 @@ class PollCreator {
     required String title,
     required String description,
     required List<String> options,
+    int visibility = 0,
+    int resultsPolicy = 0,
   }) =>
       _createModulePoll(
         moduleType: 'approval-vote',
         title: title,
         description: description,
         options: options,
+        visibility: visibility,
+        resultsPolicy: resultsPolicy,
       );
 
   /// Deploy a RANKED-choice poll (module `ranked-vote`), signed by the dev key.
@@ -143,12 +181,16 @@ class PollCreator {
     required String title,
     required String description,
     required List<String> options,
+    int visibility = 0,
+    int resultsPolicy = 0,
   }) =>
       _createModulePoll(
         moduleType: 'ranked-vote',
         title: title,
         description: description,
         options: options,
+        visibility: visibility,
+        resultsPolicy: resultsPolicy,
       );
 
   /// Deploy a QUADRATIC poll (module `quadratic-vote`), signed by the dev key.
@@ -162,12 +204,16 @@ class PollCreator {
     required String title,
     required String description,
     required List<String> options,
+    int visibility = 0,
+    int resultsPolicy = 0,
   }) =>
       _createModulePoll(
         moduleType: 'quadratic-vote',
         title: title,
         description: description,
         options: options,
+        visibility: visibility,
+        resultsPolicy: resultsPolicy,
       );
 
   /// Deploy a SURVEY poll (module `survey-vote`), signed by the dev key.
@@ -190,6 +236,8 @@ class PollCreator {
     required String title,
     required String description,
     required List<SurveyQuestion> questions,
+    int visibility = 0,
+    int resultsPolicy = 0,
   }) {
     final owner = writer.signerAddress!;
     final innerBytes = encodeSurveyInitData(questions);
@@ -201,28 +249,33 @@ class PollCreator {
       EthereumAddress.fromHex(AppConfig.semaphoreAddress),
       EthereumAddress.fromHex(owner),
       innerBytes,
+      BigInt.from(resultsPolicy),
     ]);
     return writer.send(
       to: AppConfig.registryAddress,
       abiJson: registryAbiJson,
       abiName: 'PollRegistry',
       function: 'createPoll',
-      params: ['survey-vote', title, description, initData],
+      params: _createPollParams(
+          'survey-vote', title, description, visibility, initData),
     );
   }
 
   /// Shared encoder for the anon/approval/ranked/quadratic modules. They all take
-  /// the same `initialize(semaphore, owner, options)` shape, so the only thing
-  /// that varies between them is the canonical [moduleType] string forwarded to
-  /// `PollRegistry.createPoll`. The init blob is ABI-identical across modules
-  /// (`(address,address,string[])`), so reusing the approval ABI for the encode
-  /// produces the same calldata the per-module ABI would — and keeps the
-  /// dependency surface to the one ABI already wired into [PollCreator].
+  /// the same `initialize(semaphore, owner, options, resultsPolicy)` shape, so
+  /// the only thing that varies between them is the canonical [moduleType]
+  /// string forwarded to `PollRegistry.createPoll`. The init blob is
+  /// ABI-identical across modules (`(address,address,string[],uint8)`), so
+  /// reusing the approval ABI for the encode produces the same calldata the
+  /// per-module ABI would — and keeps the dependency surface to the one ABI
+  /// already wired into [PollCreator].
   Future<String> _createModulePoll({
     required String moduleType,
     required String title,
     required String description,
     required List<String> options,
+    int visibility = 0,
+    int resultsPolicy = 0,
   }) {
     final owner = writer.signerAddress!;
     final module = DeployedContract(
@@ -233,13 +286,15 @@ class PollCreator {
       EthereumAddress.fromHex(AppConfig.semaphoreAddress),
       EthereumAddress.fromHex(owner),
       options,
+      BigInt.from(resultsPolicy),
     ]);
     return writer.send(
       to: AppConfig.registryAddress,
       abiJson: registryAbiJson,
       abiName: 'PollRegistry',
       function: 'createPoll',
-      params: [moduleType, title, description, initData],
+      params: _createPollParams(
+          moduleType, title, description, visibility, initData),
     );
   }
 }

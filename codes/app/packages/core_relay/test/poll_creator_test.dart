@@ -70,9 +70,13 @@ void main() {
   // Each create* method must forward its CANONICAL module string as the first
   // positional param of PollRegistry.createPoll(moduleType, title, desc, init).
   // These strings are what Browse `?module=` / the relayer / deploy.ts use.
+  // R4: the DEFAULT path stays on the legacy 4-arg overload (no visibility
+  // arg — unlisted is the contract's default), so params has exactly 4 slots.
   void expectModule(String module, String title) {
     expect(writer.lastFunction, 'createPoll');
     expect(writer.lastParams, isNotNull);
+    expect(writer.lastParams, hasLength(4),
+        reason: 'default visibility rides the legacy 4-arg overload');
     expect(writer.lastParams![0], module, reason: 'module string');
     expect(writer.lastParams![1], title, reason: 'title');
     // init blob is non-empty calldata (initialize(...) encoded).
@@ -105,8 +109,8 @@ void main() {
   });
 
   test('createSurveyPoll forwards module "survey-vote" + wraps the inner '
-      'abi.encode((uint8,string[])[]) as initialize(address,address,bytes)',
-      () async {
+      'abi.encode((uint8,string[])[]) as initialize(address,address,bytes,'
+      'uint8)', () async {
     const questions = [
       SurveyQuestion(qType: SurveyQType.singleChoice, options: ['A', 'B', 'C']),
       SurveyQuestion(
@@ -135,6 +139,7 @@ void main() {
       EthereumAddress.fromHex(AppConfig.semaphoreAddress),
       EthereumAddress.fromHex(writer.signerAddress!),
       encodeSurveyInitData(questions),
+      BigInt.zero, // R4 trailing resultsPolicy, sealed default
     ]);
     expect(initBlob, expectedBlob,
         reason: 'outer initData = initialize(semaphore, owner, innerBytes)');
@@ -159,5 +164,49 @@ void main() {
 
     expect(rankedInit, approvalInit);
     expect(quadraticInit, approvalInit);
+  });
+
+  // ── R4 privacy opt-ins ────────────────────────────────────────────────────
+
+  test('visibility=1 switches to the explicit 5-arg createPoll overload '
+      '(uint8 visibility before initData)', () async {
+    await creator.createAnonPoll(
+        title: 'V',
+        description: 'd',
+        options: const ['Yes', 'No'],
+        visibility: 1);
+    expect(writer.lastParams, hasLength(5));
+    expect(writer.lastParams![0], 'anon-vote');
+    expect(writer.lastParams![3], BigInt.one, reason: 'uint8 visibility word');
+    expect(writer.lastParams![4], isA<List<int>>(), reason: 'initData last');
+  });
+
+  test('resultsPolicy is appended as the trailing uint8 of initialize '
+      '(R4 selector + arg, default 0)', () async {
+    final anonAbi = _abiArray('../core_chain/assets/abi/ZkAnonVoting.json');
+    final anon = DeployedContract(
+      ContractAbi.fromJson(anonAbi, 'ZkAnonVoting'),
+      EthereumAddress.fromHex('0x0000000000000000000000000000000000000000'),
+    );
+    Uint8List expectedInit(int policy) =>
+        anon.function('initialize').encodeCall([
+          EthereumAddress.fromHex(AppConfig.semaphoreAddress),
+          EthereumAddress.fromHex(writer.signerAddress!),
+          ['Yes', 'No'],
+          BigInt.from(policy),
+        ]);
+
+    await creator.createAnonPoll(
+        title: 'P', description: 'd', options: const ['Yes', 'No']);
+    expect(List<int>.from(writer.lastParams![3] as List), expectedInit(0),
+        reason: 'omitted resultsPolicy encodes the sealed default 0');
+
+    await creator.createAnonPoll(
+        title: 'P',
+        description: 'd',
+        options: const ['Yes', 'No'],
+        resultsPolicy: 1);
+    expect(List<int>.from(writer.lastParams![3] as List), expectedInit(1),
+        reason: 'resultsPolicy=1 rides the trailing initialize arg');
   });
 }
