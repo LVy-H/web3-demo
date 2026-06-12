@@ -279,7 +279,8 @@ void main() {
   });
 
   group('createPoll', () {
-    test('POSTs {moduleType,title,description,initData} → poll address',
+    test('POSTs {moduleType,title,description,initData} + the R4 policy '
+        'fields with explicit private defaults (0/0) → poll address',
         () async {
       late http.Request req;
       final c = RelayClient(
@@ -304,10 +305,40 @@ void main() {
         'title': 'T',
         'description': 'D',
         'initData': '0xabcd',
+        // R4: always sent explicitly; 0/0 are the private defaults the
+        // relayer would also apply when the fields are omitted.
+        'visibility': 0,
+        'resultsPolicy': 0,
       });
       expect(res.ok, isTrue);
       expect(res.pollAddress, '0xpoll');
       expect(res.txHash, '0xtx');
+    });
+
+    test('R4 opt-ins ride the top-level JSON fields (initData untouched)',
+        () async {
+      late http.Request req;
+      final c = RelayClient(
+        baseUrl: base,
+        client: MockClient((r) async {
+          req = r;
+          return http.Response(
+              jsonEncode({'success': true, 'pollAddress': '0xpoll'}), 200);
+        }),
+      );
+      await c.createPoll(
+          moduleType: 'anon-vote',
+          title: 'T',
+          description: 'D',
+          initDataHex: '0xabcd',
+          visibility: 1,
+          resultsPolicy: 1);
+      final body = jsonDecode(req.body) as Map<String, dynamic>;
+      expect(body['visibility'], 1);
+      expect(body['resultsPolicy'], 1);
+      expect(body['initData'], '0xabcd',
+          reason: 'policies must NOT be re-encoded into initData — the '
+              'relayer appends resultsPolicy server-side (PR #108 shim)');
     });
 
     test('surfaces the relayer error on non-2xx (ok:false)', () async {

@@ -3,8 +3,9 @@ import path from "path";
 
 /**
  * Reads compiled Hardhat artifacts and extracts ABI arrays
- * into every consumer's src/abi/ directory (the relayer; the Flutter app keeps
- * its own committed copies under codes/mobile/assets/abi/).
+ * into every consumer's abi directory (the relayer + the Flutter workspace's
+ * core_chain package assets; the legacy mobile app keeps its own committed
+ * copies under codes/mobile/assets/abi/).
  *
  * Usage:  npx ts-node scripts/copyAbis.ts
  */
@@ -12,10 +13,26 @@ import path from "path";
 const ARTIFACTS_ROOT = path.resolve(__dirname, "../artifacts/contracts");
 
 // Consumers that need contract ABIs. Skipped silently if the directory
-// doesn't exist. (The Flutter app keeps its own committed copies under
-// codes/mobile/assets/abi/; the React frontend is deprecated/removed.)
-const ABI_TARGETS: { name: string; dir: string }[] = [
+// doesn't exist. An `only` list restricts which CONTRACTS entries a consumer
+// receives (core_chain doesn't ship ZkAirdrop). (The legacy mobile app keeps
+// its own committed copies under codes/mobile/assets/abi/; the React frontend
+// is deprecated/removed.)
+const ABI_TARGETS: { name: string; dir: string; only?: string[] }[] = [
     { name: "relayer", dir: path.resolve(__dirname, "../../relayer/src/abi") },
+    {
+        name: "core_chain",
+        dir: path.resolve(__dirname, "../../app/packages/core_chain/assets/abi"),
+        only: [
+            "IZkPoll.json",
+            "PollRegistry.json",
+            "ZkAnonVoting.json",
+            "ZkApprovalVoting.json",
+            "ZkRankedVoting.json",
+            "ZkQuadraticVoting.json",
+            "ZkSurveyVoting.json",
+            "ZkBlindVoting.json",
+        ],
+    },
 ];
 
 // Map: output file name -> artifact path (relative to ARTIFACTS_ROOT)
@@ -73,13 +90,16 @@ function main() {
         const abiOnly = { abi: artifact.abi };
         const serialized = JSON.stringify(abiOnly, null, 2) + "\n";
 
-        for (const target of presentTargets) {
+        const receivers = presentTargets.filter(
+            (t) => !t.only || t.only.includes(outName)
+        );
+        for (const target of receivers) {
             const outPath = path.join(target.dir, outName);
             fs.writeFileSync(outPath, serialized);
         }
 
         console.log(
-            `Wrote ${outName} (${artifact.abi.length} entries) → ${presentTargets
+            `Wrote ${outName} (${artifact.abi.length} entries) → ${receivers
                 .map((t) => t.name)
                 .join(", ")}`
         );

@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'package:wallet/wallet.dart' show EthereumAddress; // web3dart 3.x moved it here
+import 'package:web3dart/json_rpc.dart' show RPCError;
 import 'package:web3dart/web3dart.dart';
 
 import 'package:core_domain/models/poll_info.dart';
@@ -95,6 +96,18 @@ class ChainReader {
     final r = await _read(
         _pollAbi, EthereumAddress.fromHex(pollAddress), 'getParticipantCount');
     return r.first as BigInt;
+  }
+
+  /// The poll's R4 results policy (`IZkPoll.resultsPolicy()`): 0 =
+  /// sealed-until-close (the default), 1 = live-public (creation-time
+  /// opt-in). Metadata compliant clients honor — `getResults()` itself is
+  /// deliberately not gated on-chain (PR #108 design decision 2). Reverts on
+  /// pre-R4 polls (no such function); callers that must tolerate them catch
+  /// and pick their own fallback.
+  Future<int> getResultsPolicy(String pollAddress) async {
+    final r = await _read(
+        _pollAbi, EthereumAddress.fromHex(pollAddress), 'resultsPolicy');
+    return (r.first as BigInt).toInt();
   }
 
   /// Public receipt check: has this nullifier (decimal string) voted in the
@@ -220,10 +233,35 @@ class ChainReader {
 
   // ── PollRegistry ──────────────────────────────────────────────────────────
 
+  /// EVERY poll the registry knows, listed or not. Owner/ops surface — R4's
+  /// privacy default means public directories must use [getListedPolls]
+  /// instead (the registry NatSpec says the same).
   Future<List<PollInfo>> getAllPolls() async {
     final r = await _read(_registryAbi, _registryAddress, 'getAllPolls');
     final rows = r.first as List;
     return rows.map((row) => PollInfo.fromTuple(row as List)).toList();
+  }
+
+  /// The public directory: only polls whose creator explicitly opted in to
+  /// listing (`visibility = 1`) at creation time (R4 `getListedPolls()`).
+  Future<List<PollInfo>> getListedPolls() async {
+    final r = await _read(_registryAbi, _registryAddress, 'getListedPolls');
+    final rows = r.first as List;
+    return rows.map((row) => PollInfo.fromTuple(row as List)).toList();
+  }
+
+  /// Link-access resolution (R4 `getPollInfo(address)`): an UNLISTED poll's
+  /// info stays fetchable by whoever holds its address — the link IS the
+  /// capability. Returns null when the address isn't a registered poll
+  /// (the contract reverts `UnknownPoll`).
+  Future<PollInfo?> getPollInfo(String pollAddress) async {
+    try {
+      final r = await _read(_registryAbi, _registryAddress, 'getPollInfo',
+          [EthereumAddress.fromHex(pollAddress)]);
+      return PollInfo.fromTuple(r.first as List);
+    } on RPCError {
+      return null; // UnknownPoll revert: not registered here
+    }
   }
 
   void dispose() => client.dispose();

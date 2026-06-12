@@ -35,12 +35,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # Module ABIs are bundled from core_chain's package assets
-  # (packages/core_chain/assets/abi/). assets/abi/ holds ONLY the R4
-  # PollRegistry ABI, kept app-side until R3 refreshes the core_chain set
-  # (see di/app_dependencies.dart).
-  assets:
-    - assets/abi/
+  # All contract ABIs are bundled from core_chain's package assets
+  # (packages/core_chain/assets/abi/ — the canonical R4 set). The app ships
+  # no local ABI copies since the R4 client migration.
 
   fonts:
     - family: Inter

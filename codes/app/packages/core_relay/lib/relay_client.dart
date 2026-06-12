@@ -352,14 +352,21 @@ class RelayClient {
 
   /// Wallet-free, sponsored poll creation: the relayer clones + initializes the
   /// poll via `PollRegistry.createPoll`, paying gas, and returns the new poll
-  /// address. [initDataHex] is the module's `initialize(...)` calldata with the
-  /// RELAYER as `owner` (see [getRelayerInfo]). On failure, [CreatePollResult.ok]
-  /// is false and `error` carries the relayer's client-facing message.
+  /// address. [initDataHex] is the module's PRE-R4 `initialize(...)` calldata
+  /// with the RELAYER as `owner` (see [getRelayerInfo]); the R4 privacy
+  /// choices travel as the TOP-LEVEL [visibility] / [resultsPolicy] fields
+  /// (0|1, both default 0 — unlisted + sealed-until-close) because the
+  /// relayer appends `resultsPolicy` to the initData server-side (PR #108's
+  /// shim — see `sponsored_poll_creator.dart` for the full wire contract).
+  /// On failure, [CreatePollResult.ok] is false and `error` carries the
+  /// relayer's client-facing message.
   Future<CreatePollResult> createPoll({
     required String moduleType,
     required String title,
     required String description,
     required String initDataHex,
+    int visibility = 0,
+    int resultsPolicy = 0,
   }) async {
     try {
       final r = await _postJson(
@@ -369,6 +376,10 @@ class RelayClient {
           'title': title,
           'description': description,
           'initData': initDataHex,
+          // Always sent explicitly so the JSON mirrors what the chain will
+          // store — the relayer treats omitted and 0 identically.
+          'visibility': visibility,
+          'resultsPolicy': resultsPolicy,
         },
         timeout: voteTimeout, // create includes an on-chain tx submission
       );
