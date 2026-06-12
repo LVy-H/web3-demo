@@ -39,8 +39,14 @@ export const config: {
     rateLimitWindowMs: Number(process.env.RELAY_RATE_LIMIT_WINDOW_MS) || 60_000,
     rateLimitMax: Number(process.env.RELAY_RATE_LIMIT_MAX) || 20,
     registryAddress: process.env.REGISTRY_ADDRESS,
-    createDailyMax: Number(process.env.CREATE_DAILY_MAX) || 5,
-    registerPerPollMax: Number(process.env.REGISTER_PER_POLL_MAX) || 50,
+    // Sponsored-lifecycle daily caps. Production defaults UNCHANGED (5 creates
+    // /day/IP, 50 registers/day/IP/poll); RELAY_* overrides exist so a local
+    // demo/dev stack isn't bricked for a day after a handful of test creates.
+    // The unprefixed legacy names are kept as a fallback.
+    createDailyMax:
+        Number(process.env.RELAY_CREATE_DAILY_MAX || process.env.CREATE_DAILY_MAX) || 5,
+    registerPerPollMax:
+        Number(process.env.RELAY_REGISTER_PER_POLL_MAX || process.env.REGISTER_PER_POLL_MAX) || 50,
 };
 
 /** Live reads of the sponsored-lifecycle settings (NOT the frozen `config`
@@ -53,11 +59,11 @@ export function getRegistryAddress(): string | undefined {
 }
 
 export function getCreateDailyMax(): number {
-    return Number(process.env.CREATE_DAILY_MAX) || 5;
+    return Number(process.env.RELAY_CREATE_DAILY_MAX || process.env.CREATE_DAILY_MAX) || 5;
 }
 
 export function getRegisterPerPollMax(): number {
-    return Number(process.env.REGISTER_PER_POLL_MAX) || 50;
+    return Number(process.env.RELAY_REGISTER_PER_POLL_MAX || process.env.REGISTER_PER_POLL_MAX) || 50;
 }
 
 /** Read the optional create shared-secret at REQUEST time, not import time.

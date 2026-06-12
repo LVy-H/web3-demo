@@ -98,8 +98,10 @@ up() {
     ( cd "$RELAYER" && RPC_URL=http://127.0.0.1:8545 RELAYER_PRIVATE_KEY="$key" PORT=3001 \
         REGISTRY_ADDRESS="$(registry_address)" \
         RELAY_RATE_LIMIT_MAX="${RELAY_RATE_LIMIT_MAX:-600}" \
+        RELAY_CREATE_DAILY_MAX="${RELAY_CREATE_DAILY_MAX:-1000}" \
         setsid npm run start >"$RELAYER_LOG" 2>&1 </dev/null & echo $! >"$RELAYER_PID" )
     # ^ RELAY_RATE_LIMIT_MAX=600: e2e/cross-client bursts trip the 20/min prod default with 429s.
+    # ^ RELAY_CREATE_DAILY_MAX=1000: the 5/day prod cap bricks local poll-creation demos for a day.
     echo -n "    waiting for relayer"
     for _ in $(seq 1 20); do grep -q "running on port" "$RELAYER_LOG" 2>/dev/null && break; echo -n "."; sleep 1; done; echo
     grep -q "running on port" "$RELAYER_LOG" 2>/dev/null \
