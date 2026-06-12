@@ -33,8 +33,11 @@ export const config: {
     privateKey,
     port: Number(process.env.PORT) || 3001,
     maxGasLimit: 5_000_000n,
-    rateLimitWindowMs: 60_000,
-    rateLimitMax: 20,
+    // Global per-IP limiter for /api/relay. Production defaults UNCHANGED
+    // (20 req / 60 s); the env overrides exist so local dev / e2e bursts
+    // (cross-client suites fire many requests per second) don't trip 429s.
+    rateLimitWindowMs: Number(process.env.RELAY_RATE_LIMIT_WINDOW_MS) || 60_000,
+    rateLimitMax: Number(process.env.RELAY_RATE_LIMIT_MAX) || 20,
     registryAddress: process.env.REGISTRY_ADDRESS,
     createDailyMax: Number(process.env.CREATE_DAILY_MAX) || 5,
     registerPerPollMax: Number(process.env.REGISTER_PER_POLL_MAX) || 50,

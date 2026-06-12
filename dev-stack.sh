@@ -97,7 +97,9 @@ up() {
     # can't deploy wallet-free. Read it from the freshly-deployed addresses.
     ( cd "$RELAYER" && RPC_URL=http://127.0.0.1:8545 RELAYER_PRIVATE_KEY="$key" PORT=3001 \
         REGISTRY_ADDRESS="$(registry_address)" \
+        RELAY_RATE_LIMIT_MAX="${RELAY_RATE_LIMIT_MAX:-600}" \
         setsid npm run start >"$RELAYER_LOG" 2>&1 </dev/null & echo $! >"$RELAYER_PID" )
+    # ^ RELAY_RATE_LIMIT_MAX=600: e2e/cross-client bursts trip the 20/min prod default with 429s.
     echo -n "    waiting for relayer"
     for _ in $(seq 1 20); do grep -q "running on port" "$RELAYER_LOG" 2>/dev/null && break; echo -n "."; sleep 1; done; echo
     grep -q "running on port" "$RELAYER_LOG" 2>/dev/null \

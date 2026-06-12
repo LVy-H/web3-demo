@@ -192,7 +192,13 @@ curl http://localhost:3001/api/relay/status
 | `RPC_URL`               | `http://127.0.0.1:8545`          | Ethereum JSON-RPC endpoint                    |
 | `RELAYER_PRIVATE_KEY`   | Hardhat account #0               | Hot wallet that signs and pays gas            |
 | `PORT`                  | `3001`                           | HTTP listen port                              |
-| `RATE_LIMIT_PER_MINUTE` | `20`                             | Per-IP request cap                            |
+| `RELAY_RATE_LIMIT_MAX`  | `20`                             | Per-IP request cap per window (global `/api/relay` limiter) |
+| `RELAY_RATE_LIMIT_WINDOW_MS` | `60000`                     | Rate-limit window in milliseconds             |
+
+The rate-limit defaults (20 req / 60 s per IP) are production values. Local
+e2e / cross-client test bursts exceed them quickly, so `dev-stack.sh` launches
+the relayer with `RELAY_RATE_LIMIT_MAX=600` (override by exporting your own
+value before `./dev-stack.sh up`).
 
 The Tessera client (`codes/mobile/`) reads the relayer host from its
 `AppConfig` (default `http://localhost:3001`); when the host is unreachable the
