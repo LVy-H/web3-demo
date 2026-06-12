@@ -194,11 +194,20 @@ curl http://localhost:3001/api/relay/status
 | `PORT`                  | `3001`                           | HTTP listen port                              |
 | `RELAY_RATE_LIMIT_MAX`  | `20`                             | Per-IP request cap per window (global `/api/relay` limiter) |
 | `RELAY_RATE_LIMIT_WINDOW_MS` | `60000`                     | Rate-limit window in milliseconds             |
+| `RELAY_CREATE_DAILY_MAX` | `5`                             | Per-IP daily cap on sponsored create-poll     |
+| `RELAY_REGISTER_PER_POLL_MAX` | `50`                       | Per-(IP, poll) daily cap on sponsored register-voter |
 
 The rate-limit defaults (20 req / 60 s per IP) are production values. Local
 e2e / cross-client test bursts exceed them quickly, so `dev-stack.sh` launches
 the relayer with `RELAY_RATE_LIMIT_MAX=600` (override by exporting your own
 value before `./dev-stack.sh up`).
+
+Likewise the sponsored daily caps (5 creates/day/IP, 50 registers/day/IP/poll)
+are production values — a local demo hits 5 creates in minutes and is then
+blocked for 24 h, so `dev-stack.sh` launches the relayer with
+`RELAY_CREATE_DAILY_MAX=1000` (again, export your own value to override). The
+legacy unprefixed names `CREATE_DAILY_MAX` / `REGISTER_PER_POLL_MAX` are still
+honored as fallbacks.
 
 The Tessera client (`codes/mobile/`) reads the relayer host from its
 `AppConfig` (default `http://localhost:3001`); when the host is unreachable the
