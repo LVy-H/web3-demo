@@ -46,6 +46,45 @@ required** for the default local flow — the app signs with a dev signer or
 routes through the sponsored relayer. The full manual 4-terminal walkthrough is
 in [`codes/README.md`](codes/README.md).
 
+### Run with Docker
+
+The same stack runs containerized (`docker-compose.yml`, dev-only: loopback
+ports, hardhat dev keys, ephemeral chain — every `up` is a fresh deterministic
+deploy):
+
+```bash
+# Backend: chain (hardhat node -> deploy -> demo seed) + relayer
+docker compose --profile dev up --build
+
+# Whole product: backend + the Flutter web app + block explorer
+docker compose --profile full up --build
+# (or: ./dev-stack.sh compose --profile full up --build)
+
+docker compose --profile full down
+```
+
+| Service  | URL                     | Profile   | Notes |
+|----------|-------------------------|-----------|-------|
+| chain    | `http://localhost:8545` | dev, full | Hardhat, chainId 31337; healthcheck on `eth_chainId` |
+| relayer  | `http://localhost:3001` | dev, full | healthcheck on `/api/relay/info` |
+| web      | `http://localhost:8080` | full      | Flutter web release via nginx (precompressed, SPA fallback) |
+| explorer | `http://localhost:3728` | full      | alethio lite explorer |
+
+Env knobs (all optional; set in the shell or a `.env` next to the compose
+file):
+
+- `SEED_DEMO` (default `1`) — seed the demo poll + demo survey after deploy.
+- `USE_REAL_VERIFIER` (default off) — `true` deploys the real Groth16
+  `SemaphoreVerifier` instead of the always-true mock.
+- `RELAYER_PRIVATE_KEY` (default hardhat #0), `REGISTRY_ADDRESS` (default =
+  the deterministic local deploy), `RELAY_RATE_LIMIT_MAX` (default `600`),
+  `RELAY_CREATE_DAILY_MAX` (default `1000`) — relayer config (see
+  `codes/relayer/src/config.ts`).
+- `WEB_RPC_URL` / `WEB_RELAYER_URL` — **build-time** dart-defines for the web
+  image; browser-facing URLs (default `http://127.0.0.1:8545` /
+  `http://localhost:3001`). The hosted app can also be re-pointed at runtime
+  via Settings → Network.
+
 ## Testing
 
 ```bash

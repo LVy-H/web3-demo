@@ -43,6 +43,23 @@ jobs:
       - run: npm run build
       - run: npm test
 
+  # Container stack gate: the compose file must parse with every profile and
+  # the backend images must build. The Flutter web image (codes/app/
+  # Dockerfile.web) is intentionally NOT built here: it recompiles the whole
+  # app inside a multi-GB Flutter toolchain image on every run (10+ min with
+  # no layer cache), and the `app` job above already gates the exact same
+  # `flutter build web` — the docker layer adds packaging, not compile risk.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate compose config (all profiles)
+        run: docker compose --profile full config --quiet
+      - name: Build relayer image
+        run: docker build -t tessera-relayer:ci codes/relayer
+      - name: Build chain image
+        run: docker build -t tessera-chain:ci codes/contracts
+
   # Flutter recurring-member app (codes/mobile). Runs the VM test suite
   # (browser-only ZK test is @TestOn('browser') → skipped here; the on-chain
   # integration test self-skips with no local node).
