@@ -4,8 +4,7 @@ import path from "path";
 /**
  * Reads compiled Hardhat artifacts and extracts ABI arrays
  * into every consumer's abi directory (the relayer + the Flutter workspace's
- * core_chain package assets; the legacy mobile app keeps its own committed
- * copies under codes/mobile/assets/abi/).
+ * core_chain package assets — the canonical committed copies).
  *
  * Usage:  npx ts-node scripts/copyAbis.ts
  */
@@ -14,9 +13,7 @@ const ARTIFACTS_ROOT = path.resolve(__dirname, "../artifacts/contracts");
 
 // Consumers that need contract ABIs. Skipped silently if the directory
 // doesn't exist. An `only` list restricts which CONTRACTS entries a consumer
-// receives (core_chain doesn't ship ZkAirdrop). (The legacy mobile app keeps
-// its own committed copies under codes/mobile/assets/abi/; the React frontend
-// is deprecated/removed.)
+// receives (core_chain doesn't ship ZkAirdrop).
 const ABI_TARGETS: { name: string; dir: string; only?: string[] }[] = [
     { name: "relayer", dir: path.resolve(__dirname, "../../relayer/src/abi") },
     {

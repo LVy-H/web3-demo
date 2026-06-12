@@ -2,7 +2,7 @@
  * Server-side ticket verification (S1.2).
  *
  * Byte layout MUST stay identical to the client's canonical ticket impl,
- * codes/mobile/lib/core/crypto/ticket.dart (byte-for-byte golden-tested) — it is
+ * codes/app/packages/core_crypto/lib/crypto/ticket.dart (byte-for-byte golden-tested) — it is
  * the cross-client contract (spec §2.5). Wire form is
  * base64url-nopad( preimage(32) ‖ ed25519 sig(64) ), preimage being
  * [ pollId 20 ][ nonce 8 ][ expiresAt uint32 BE 4 ]. We use Node's Buffer

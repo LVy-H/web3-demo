@@ -69,9 +69,11 @@ function encodeSurveyInit(
 // Resolve relative to this script so the in-repo fixture is refreshed (the old
 // hardcoded absolute path pointed at a worktree that no longer exists, leaving
 // the committed fixture stale → chain_reader_test read a dead poll address).
+// Consumed by core_chain's chain_reader/chain_writer tests (and core_relay's
+// live test via a relative hop) in the codes/app workspace.
 const FIXTURE = path.resolve(
   __dirname,
-  "../../mobile/test/fixtures/local_chain.json",
+  "../../app/packages/core_chain/test/fixtures/local_chain.json",
 );
 
 async function main() {

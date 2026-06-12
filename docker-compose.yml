@@ -15,7 +15,7 @@ services:
       start_period: 10s
 
   # (The React frontend service was removed — the frontend is deleted; the
-  # canonical client is the Flutter app `codes/mobile` (run with `flutter run`,
+  # canonical client is the Flutter app `codes/app` (run with `flutter run`,
   # not docker). The local stack is `./dev-stack.sh up`.)
 
   # T-D: relayer service wiring. The image is built from codes/relayer/.

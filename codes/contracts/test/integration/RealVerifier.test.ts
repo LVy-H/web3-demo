@@ -9,7 +9,7 @@ import * as path from "path";
 /**
  * Real Groth16 verifier integration (P4-23). Deploys the REAL `SemaphoreVerifier`
  * (not the accept-anything Mock), generates a REAL Semaphore proof with the
- * bundled depth-16 artifacts (NO CDN fetch — `codes/mobile/assets/zk`), and
+ * bundled depth-16 artifacts (NO CDN fetch — `codes/app/packages/core_crypto/assets/zk`), and
  * asserts the on-chain verifier ACCEPTS a valid vote and REJECTS a tampered one.
  *
  * This is the behaviour the MockSemaphoreVerifier cannot exercise. It runs
@@ -19,8 +19,8 @@ import * as path from "path";
 const run = process.env.RUN_REAL_VERIFIER === "1";
 const CONTRACTS_ROOT = path.resolve(__dirname, "../..");
 const ARTIFACTS = {
-    wasm: path.join(CONTRACTS_ROOT, "../mobile/assets/zk/semaphore-16.wasm"),
-    zkey: path.join(CONTRACTS_ROOT, "../mobile/assets/zk/semaphore-16.zkey"),
+    wasm: path.join(CONTRACTS_ROOT, "../app/packages/core_crypto/assets/zk/semaphore-16.wasm"),
+    zkey: path.join(CONTRACTS_ROOT, "../app/packages/core_crypto/assets/zk/semaphore-16.zkey"),
 };
 const DEPTH = 16; // matches the bundled artifacts; LeanIMT root is member-derived
 

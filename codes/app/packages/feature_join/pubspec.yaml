@@ -19,8 +19,7 @@ dependencies:
   core_domain: any # LiveVoter journey machine + Capabilities
   core_relay: any # relayer client (announce / queue / vote relay)
   design_system: any
-  # Pinned to the same major as codes/mobile (mobile_scanner ^7.2.0) so the
-  # workspace carries ONE scanner version across the cutover.
+  # The proven scanner major carried over from the legacy app (^7.2.0).
   mobile_scanner: ^7.2.0
 
 dev_dependencies:
