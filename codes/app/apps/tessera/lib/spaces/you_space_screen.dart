@@ -11,6 +11,7 @@ import 'package:feature_you/feature_you.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../build_info.dart';
 import '../routing/safe_navigation.dart';
 import '../state/app_state.dart';
 
@@ -60,6 +61,9 @@ class YouSpaceScreen extends StatelessWidget {
       },
       checkRelayer: () async => await relay.getRelayerInfo() != null,
       canProve: appState.capabilities.canProve,
+      // Release builds stamp the git tag here (see build_info.dart); the
+      // About screen hides the row when null (local/dev builds).
+      appVersion: tesseraBuildVersion,
     );
   }
 }
