@@ -83,8 +83,9 @@ void main() {
 
       // --- Open the poll -> /poll/:address. The poll screen resolves the
       //     module type from the chain and hosts the voter journey; the
-      //     journey screen appearing proves the per-poll on-chain resolve. ---
-      await tester.tap(demoPoll);
+      //     journey screen appearing proves the per-poll on-chain resolve.
+      //     (.first: a long-running dev chain may carry several seeds.) ---
+      await tester.tap(demoPoll.first);
       await tester.pump(const Duration(seconds: 1));
       expect(
         await pumpUntilFound(tester, find.byType(PollJourneyScreen)),
