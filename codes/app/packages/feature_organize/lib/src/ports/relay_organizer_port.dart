@@ -66,8 +66,7 @@ class RelayOrganizerPort implements OrganizerConsolePort {
     this.writerAbiJson,
     int Function()? nowSeconds,
   }) : nowSeconds =
-           nowSeconds ??
-           (() => DateTime.now().millisecondsSinceEpoch ~/ 1000);
+           nowSeconds ?? (() => DateTime.now().millisecondsSinceEpoch ~/ 1000);
 
   static const _writerAbiName = 'ZkApprovalVoting';
 
@@ -162,9 +161,7 @@ class RelayOrganizerPort implements OrganizerConsolePort {
       final results = await reader.getSurveyResults(pollAddress);
       if (results.isEmpty) return 0;
       // Every respondent answers question 0, so its counts sum to ballots.
-      return results.first
-          .fold<BigInt>(BigInt.zero, (a, b) => a + b)
-          .toInt();
+      return results.first.fold<BigInt>(BigInt.zero, (a, b) => a + b).toInt();
     }
     // Flat modules: the per-option counts sum to ballots for pick-one /
     // rank-them / sealed; for approve-any and split-points it counts marks
@@ -192,8 +189,8 @@ class RelayOrganizerPort implements OrganizerConsolePort {
     final counts = await reader.getResults(pollAddress);
     return OrganizerResults({
       for (var i = 0; i < counts.length; i++)
-        (i < options.length ? options[i] : 'option ${i + 1}'):
-            counts[i].toInt(),
+        (i < options.length ? options[i] : 'option ${i + 1}'): counts[i]
+            .toInt(),
     });
   }
 

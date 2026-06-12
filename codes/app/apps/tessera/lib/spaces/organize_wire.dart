@@ -11,7 +11,8 @@ import 'dart:convert';
 
 import 'package:core_chain/chain_reader.dart';
 import 'package:core_chain/config.dart' show AppConfig;
-import 'package:core_relay/relay_client.dart' show CreatePollResult, RelayClient;
+import 'package:core_relay/relay_client.dart'
+    show CreatePollResult, RelayClient;
 import 'package:core_storage/created_polls_store.dart';
 import 'package:feature_organize/feature_organize.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -49,14 +50,18 @@ class HttpOrganizeRelayGateway implements OrganizeRelayGateway {
     required int visibility,
     required int resultsPolicy,
   }) async {
-    final data = await _post('/api/relay/create-poll', {
-      'moduleType': moduleType,
-      'title': title,
-      'description': description,
-      'initData': initDataHex,
-      'visibility': visibility,
-      'resultsPolicy': resultsPolicy,
-    }, failure: 'The poll could not be created. Try again.');
+    final data = await _post(
+      '/api/relay/create-poll',
+      {
+        'moduleType': moduleType,
+        'title': title,
+        'description': description,
+        'initData': initDataHex,
+        'visibility': visibility,
+        'resultsPolicy': resultsPolicy,
+      },
+      failure: 'The poll could not be created. Try again.',
+    );
     final pollAddress = data['pollAddress'];
     if (pollAddress is! String || pollAddress.isEmpty) {
       throw const OrganizeWireException(
@@ -71,9 +76,11 @@ class HttpOrganizeRelayGateway implements OrganizeRelayGateway {
 
   @override
   Future<void> startVoting(String pollAddress) async {
-    await _post('/api/relay/start-voting', {
-      'pollAddress': pollAddress,
-    }, failure: 'Voting could not be started. Try again.');
+    await _post(
+      '/api/relay/start-voting',
+      {'pollAddress': pollAddress},
+      failure: 'Voting could not be started. Try again.',
+    );
   }
 
   @override
@@ -119,9 +126,7 @@ class HttpOrganizeRelayGateway implements OrganizeRelayGateway {
       // copy); surface it when present, fall back to our own copy.
       final serverError = data['error'];
       throw OrganizeWireException(
-        serverError is String && serverError.isNotEmpty
-            ? serverError
-            : failure,
+        serverError is String && serverError.isNotEmpty ? serverError : failure,
       );
     }
     return data;

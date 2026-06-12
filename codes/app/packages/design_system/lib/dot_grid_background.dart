@@ -9,10 +9,8 @@ class DotGridBackground extends StatelessWidget {
   const DotGridBackground({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context) => CustomPaint(
-        painter: _DotGridPainter(),
-        child: child,
-      );
+  Widget build(BuildContext context) =>
+      CustomPaint(painter: _DotGridPainter(), child: child);
 }
 
 class _DotGridPainter extends CustomPainter {

@@ -47,8 +47,10 @@ void main() {
       },
     );
     addTearDown(
-      () => tester.binding.defaultBinaryMessenger
-          .setMockMethodCallHandler(SystemChannels.platform, null),
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
     );
 
     await _pump(tester, nfcAvailable: false);
@@ -57,10 +59,7 @@ void main() {
 
     final setData = calls.where((c) => c.method == 'Clipboard.setData');
     expect(setData, hasLength(1));
-    expect(
-      (setData.single.arguments as Map)['text'],
-      _link,
-    );
+    expect((setData.single.arguments as Map)['text'], _link);
     expect(find.text('Link copied'), findsOneWidget);
   });
 

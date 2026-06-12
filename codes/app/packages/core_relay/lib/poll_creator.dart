@@ -122,7 +122,12 @@ class PollCreator {
       abiName: 'PollRegistry',
       function: 'createPoll',
       params: _createPollParams(
-          'anon-vote', title, description, visibility, initData),
+        'anon-vote',
+        title,
+        description,
+        visibility,
+        initData,
+      ),
     );
   }
 
@@ -137,16 +142,9 @@ class PollCreator {
     String description,
     int visibility,
     Uint8List initData,
-  ) =>
-      visibility == 0
-          ? [moduleType, title, description, initData]
-          : [
-              moduleType,
-              title,
-              description,
-              BigInt.from(visibility),
-              initData,
-            ];
+  ) => visibility == 0
+      ? [moduleType, title, description, initData]
+      : [moduleType, title, description, BigInt.from(visibility), initData];
 
   /// Deploy an APPROVAL-vote poll (module `approval-vote`), signed by the dev
   /// key. `ZkApprovalVoting.initialize(semaphore, owner, options)` has the same
@@ -160,15 +158,14 @@ class PollCreator {
     required List<String> options,
     int visibility = 0,
     int resultsPolicy = 0,
-  }) =>
-      _createModulePoll(
-        moduleType: 'approval-vote',
-        title: title,
-        description: description,
-        options: options,
-        visibility: visibility,
-        resultsPolicy: resultsPolicy,
-      );
+  }) => _createModulePoll(
+    moduleType: 'approval-vote',
+    title: title,
+    description: description,
+    options: options,
+    visibility: visibility,
+    resultsPolicy: resultsPolicy,
+  );
 
   /// Deploy a RANKED-choice poll (module `ranked-vote`), signed by the dev key.
   /// `ZkRankedVoting.initialize(semaphore, owner, options)` is byte-identical in
@@ -183,15 +180,14 @@ class PollCreator {
     required List<String> options,
     int visibility = 0,
     int resultsPolicy = 0,
-  }) =>
-      _createModulePoll(
-        moduleType: 'ranked-vote',
-        title: title,
-        description: description,
-        options: options,
-        visibility: visibility,
-        resultsPolicy: resultsPolicy,
-      );
+  }) => _createModulePoll(
+    moduleType: 'ranked-vote',
+    title: title,
+    description: description,
+    options: options,
+    visibility: visibility,
+    resultsPolicy: resultsPolicy,
+  );
 
   /// Deploy a QUADRATIC poll (module `quadratic-vote`), signed by the dev key.
   /// `ZkQuadraticVoting.initialize(semaphore, owner, options)` is byte-identical
@@ -206,15 +202,14 @@ class PollCreator {
     required List<String> options,
     int visibility = 0,
     int resultsPolicy = 0,
-  }) =>
-      _createModulePoll(
-        moduleType: 'quadratic-vote',
-        title: title,
-        description: description,
-        options: options,
-        visibility: visibility,
-        resultsPolicy: resultsPolicy,
-      );
+  }) => _createModulePoll(
+    moduleType: 'quadratic-vote',
+    title: title,
+    description: description,
+    options: options,
+    visibility: visibility,
+    resultsPolicy: resultsPolicy,
+  );
 
   /// Deploy a SURVEY poll (module `survey-vote`), signed by the dev key.
   ///
@@ -257,7 +252,12 @@ class PollCreator {
       abiName: 'PollRegistry',
       function: 'createPoll',
       params: _createPollParams(
-          'survey-vote', title, description, visibility, initData),
+        'survey-vote',
+        title,
+        description,
+        visibility,
+        initData,
+      ),
     );
   }
 
@@ -294,7 +294,12 @@ class PollCreator {
       abiName: 'PollRegistry',
       function: 'createPoll',
       params: _createPollParams(
-          moduleType, title, description, visibility, initData),
+        moduleType,
+        title,
+        description,
+        visibility,
+        initData,
+      ),
     );
   }
 }

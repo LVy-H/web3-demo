@@ -101,8 +101,10 @@ class WebViewProverHost {
       onTimeout: () => false,
     );
     if (!ready) {
-      throw StateError('WebView prover host never reached readiness (zkprover.js '
-          'failed to load / expose globals)');
+      throw StateError(
+        'WebView prover host never reached readiness (zkprover.js '
+        'failed to load / expose globals)',
+      );
     }
   }
 
@@ -161,16 +163,27 @@ class WebViewProverHost {
     // JSON-encode → a quoted JS string literal, so it is NOT lossily coerced to
     // a JS number on the Dart→JS string bridge.
     return _runProof(
-        'runProofWide', jsonEncode(message), seed, members, scope, delivery);
+      'runProofWide',
+      jsonEncode(message),
+      seed,
+      members,
+      scope,
+      delivery,
+    );
   }
 
   /// Shared driver for [generateProof]/[generateProofWide]. [jsFn] is the host
   /// page function to call (`runProof` or `runProofWide`); [messageLiteral] is
   /// the already-encoded JS literal for `message` (a bare number for the int
   /// path, a quoted string for the wide path).
-  Future<Map<String, dynamic>> _runProof(String jsFn, String messageLiteral,
-      String seed, List<String> members, String scope,
-      ArtifactDelivery delivery) async {
+  Future<Map<String, dynamic>> _runProof(
+    String jsFn,
+    String messageLiteral,
+    String seed,
+    List<String> members,
+    String scope,
+    ArtifactDelivery delivery,
+  ) async {
     final id = _nextId++;
     final c = Completer<Map<String, dynamic>>();
     _pending[id] = c;
@@ -195,10 +208,13 @@ class WebViewProverHost {
       );
     }
 
-    final res = await c.future.timeout(timeout, onTimeout: () {
-      _pending.remove(id);
-      throw TimeoutException('WebView prover timed out after $timeout');
-    });
+    final res = await c.future.timeout(
+      timeout,
+      onTimeout: () {
+        _pending.remove(id);
+        throw TimeoutException('WebView prover timed out after $timeout');
+      },
+    );
     if (res['ok'] != true) {
       throw Exception('WebView prover failed: ${res['error']}');
     }
@@ -214,8 +230,9 @@ class WebViewProverHost {
   /// backslash-escaped), so the result is JSON-decoded back to the raw decimal.
   Future<String> deriveCommitment(String seed) async {
     final seedJs = jsonEncode(seed);
-    final raw = await controller
-        .runJavaScriptReturningResult('window.zkCommitment($seedJs)');
+    final raw = await controller.runJavaScriptReturningResult(
+      'window.zkCommitment($seedJs)',
+    );
     return _unwrapJsString(raw);
   }
 

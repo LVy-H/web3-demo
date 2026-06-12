@@ -199,8 +199,7 @@ class _LiveHostConsoleState extends State<LiveHostConsole> {
             shape: const RoundedRectangleBorder(),
             padding: const EdgeInsets.symmetric(vertical: 16),
           ),
-          onPressed:
-              (starting || confirmingCode != null || !action.enabled)
+          onPressed: (starting || confirmingCode != null || !action.enabled)
               ? null
               : () => _machine.advance(const LiveHostStartVotingRequested()),
           child: starting

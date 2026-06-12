@@ -59,6 +59,5 @@ class _QrPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_QrPainter oldDelegate) =>
-      oldDelegate.matrix != matrix;
+  bool shouldRepaint(_QrPainter oldDelegate) => oldDelegate.matrix != matrix;
 }

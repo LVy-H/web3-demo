@@ -26,10 +26,11 @@ class SecureIdentityStore implements IdentityStore {
   static const _key = 'tessera.identity.seed';
   final FlutterSecureStorage _s;
   SecureIdentityStore([FlutterSecureStorage? storage])
-      : _s = storage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            );
+    : _s =
+          storage ??
+          const FlutterSecureStorage(
+            aOptions: AndroidOptions(encryptedSharedPreferences: true),
+          );
 
   @override
   Future<String?> read() => _s.read(key: _key);

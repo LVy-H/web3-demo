@@ -57,8 +57,7 @@ class RelayLiveHostPort implements LiveHostPort {
     this.writerAbiJson,
     int Function()? nowSeconds,
   }) : nowSeconds =
-           nowSeconds ??
-           (() => DateTime.now().millisecondsSinceEpoch ~/ 1000);
+           nowSeconds ?? (() => DateTime.now().millisecondsSinceEpoch ~/ 1000);
 
   static const _writerAbiName = 'ZkApprovalVoting';
 
@@ -116,9 +115,7 @@ class RelayLiveHostPort implements LiveHostPort {
     }
     try {
       final results = await reader.getResults(pollAddress);
-      _lastTurnout = results
-          .fold<BigInt>(BigInt.zero, (a, b) => a + b)
-          .toInt();
+      _lastTurnout = results.fold<BigInt>(BigInt.zero, (a, b) => a + b).toInt();
     } catch (_) {
       // Keep the last turnout over failing the whole heartbeat.
     }

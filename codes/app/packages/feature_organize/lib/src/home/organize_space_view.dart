@@ -121,10 +121,7 @@ class _OrganizeSpaceViewState extends State<OrganizeSpaceView> {
             child: SizedBox(
               width: 22,
               height: 22,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Db.mute,
-              ),
+              child: CircularProgressIndicator(strokeWidth: 2, color: Db.mute),
             ),
           ),
         ),

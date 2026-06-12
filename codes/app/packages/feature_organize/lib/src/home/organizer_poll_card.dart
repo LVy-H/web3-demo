@@ -180,10 +180,7 @@ class OrganizerPollCard extends StatelessWidget {
           _turnoutText(state.spec.module, turnout, rosterCount),
         ));
       case OrganizerPublished(:final turnout):
-        rows.add((
-          'turnout',
-          _turnoutText(state.spec.module, turnout, null),
-        ));
+        rows.add(('turnout', _turnoutText(state.spec.module, turnout, null)));
       default:
         break;
     }
@@ -259,13 +256,11 @@ class OrganizerPollCard extends StatelessWidget {
   ({String label, Color color}) _phaseLabel(OrganizerDeployedState state) =>
       switch (state) {
         OrganizerCreated() => (label: 'CREATED', color: Db.oltremare),
-        OrganizerRegistrationOpen() ||
-        OrganizerStartVotingInProgress() => (
+        OrganizerRegistrationOpen() || OrganizerStartVotingInProgress() => (
           label: 'REGISTRATION',
           color: Db.oltremare,
         ),
-        OrganizerVotingOpen() ||
-        OrganizerEndVotingInProgress() => (
+        OrganizerVotingOpen() || OrganizerEndVotingInProgress() => (
           label: 'VOTING OPEN',
           color: Db.success,
         ),

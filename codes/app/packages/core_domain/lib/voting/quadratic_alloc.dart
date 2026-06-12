@@ -56,7 +56,9 @@ int packAlloc(List<int> votes) {
   for (var i = 0; i < votes.length; i++) {
     final v = votes[i];
     if (v < 0 || v > kMaxSlotVotes) {
-      throw ArgumentError('vote $v out of range [0, $kMaxSlotVotes] at slot $i');
+      throw ArgumentError(
+        'vote $v out of range [0, $kMaxSlotVotes] at slot $i',
+      );
     }
     packed |= (v & 0xF) << (4 * i);
   }

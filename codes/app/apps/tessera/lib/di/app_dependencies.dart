@@ -98,14 +98,19 @@ class AppDependencies {
     // One parallel batch, not five sequential awaits: on web every
     // rootBundle.loadString is an HTTP fetch and runApp() waits on this, so
     // sequential loads put five round-trips on the startup critical path.
-    final [izkPollAbi, registryAbi, anonAbi, blindAbi, surveyAbi] =
-        await Future.wait([
-          rootBundle.loadString('$pkgAbi/IZkPoll.json'),
-          rootBundle.loadString('$pkgAbi/PollRegistry.json'),
-          rootBundle.loadString('$pkgAbi/ZkAnonVoting.json'),
-          rootBundle.loadString('$pkgAbi/ZkBlindVoting.json'),
-          rootBundle.loadString('$pkgAbi/ZkSurveyVoting.json'),
-        ]);
+    final [
+      izkPollAbi,
+      registryAbi,
+      anonAbi,
+      blindAbi,
+      surveyAbi,
+    ] = await Future.wait([
+      rootBundle.loadString('$pkgAbi/IZkPoll.json'),
+      rootBundle.loadString('$pkgAbi/PollRegistry.json'),
+      rootBundle.loadString('$pkgAbi/ZkAnonVoting.json'),
+      rootBundle.loadString('$pkgAbi/ZkBlindVoting.json'),
+      rootBundle.loadString('$pkgAbi/ZkSurveyVoting.json'),
+    ]);
     final chainReader = ChainReader(
       rpcUrl: AppConfig.rpcUrl,
       izkPollAbiJson: _abiArray(izkPollAbi),

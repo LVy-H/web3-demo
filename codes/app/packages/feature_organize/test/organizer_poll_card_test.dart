@@ -105,10 +105,7 @@ void main() {
     expect(find.text('3 of 4 voted'), findsOneWidget);
     expect(find.text('CLOSE VOTING'), findsOneWidget);
     expect(find.byKey(OrganizerPollCard.smallGroupChipKey), findsOneWidget);
-    expect(
-      find.textContaining('results can identify people'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('results can identify people'), findsOneWidget);
   });
 
   testWidgets('closed (non-blind): PUBLISH RESULTS enabled', (tester) async {
@@ -159,10 +156,7 @@ void main() {
       find.byKey(OrganizerPollCard.nextActionKey),
     );
     expect(button.onPressed, isNull);
-    expect(
-      find.textContaining('reveal window is still open'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('reveal window is still open'), findsOneWidget);
   });
 
   testWidgets('published: results bars, no further action', (tester) async {

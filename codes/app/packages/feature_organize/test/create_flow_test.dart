@@ -138,9 +138,7 @@ void main() {
 
     // Both §5 opt-ins render OFF before anyone touches anything.
     expect(
-      tester
-          .widget<Switch>(find.byKey(CreateFlowView.listedToggleKey))
-          .value,
+      tester.widget<Switch>(find.byKey(CreateFlowView.listedToggleKey)).value,
       isFalse,
     );
     expect(
@@ -196,10 +194,7 @@ void main() {
       find.byKey(CreateFlowView.deployButtonKey),
     );
     expect(button.onPressed, isNull);
-    expect(
-      find.byKey(CreateFlowView.disabledReasonKey),
-      findsOneWidget,
-    );
+    expect(find.byKey(CreateFlowView.disabledReasonKey), findsOneWidget);
     expect(
       find.textContaining('needs the sponsoring service or a signing key'),
       findsOneWidget,

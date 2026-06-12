@@ -48,7 +48,9 @@ int packRanking(List<int> ranking) {
   for (var i = 0; i < ranking.length; i++) {
     final option = ranking[i];
     if (option < 0 || option >= kMaxRankedOptions) {
-      throw ArgumentError('option index $option out of range [0, $kMaxRankedOptions)');
+      throw ArgumentError(
+        'option index $option out of range [0, $kMaxRankedOptions)',
+      );
     }
     // slot value = option index + 1 (option 0 → 1).
     packed |= (option + 1) << (4 * i);
@@ -68,7 +70,8 @@ List<int> unpackRanking(int packed) {
   final ranking = <int>[];
   for (var i = 0; i < kMaxRankedOptions; i++) {
     final slot = (packed >> (4 * i)) & 0xF;
-    if (slot == 0) break; // contiguous prefix — first empty slot ends the ballot
+    if (slot == 0)
+      break; // contiguous prefix — first empty slot ends the ballot
     ranking.add(slot - 1);
   }
   return ranking;
@@ -176,11 +179,13 @@ IrvResult runIrv(List<List<int>> ballots, int optionCount) {
     // `2 * votes > C` — strict majority of continuing ballots. NEVER `>=`.
     for (final option in continuing) {
       if (2 * counts[option] > continuingBallots) {
-        rounds.add(IrvRound(
-          counts: counts,
-          continuingBallots: continuingBallots,
-          winner: option,
-        ));
+        rounds.add(
+          IrvRound(
+            counts: counts,
+            continuingBallots: continuingBallots,
+            winner: option,
+          ),
+        );
         return IrvResult(winner: option, rounds: rounds);
       }
     }
@@ -190,11 +195,13 @@ IrvResult runIrv(List<List<int>> ballots, int optionCount) {
     // infinite loop.
     if (continuing.length == 1) {
       final option = continuing.first;
-      rounds.add(IrvRound(
-        counts: counts,
-        continuingBallots: continuingBallots,
-        winner: option,
-      ));
+      rounds.add(
+        IrvRound(
+          counts: counts,
+          continuingBallots: continuingBallots,
+          winner: option,
+        ),
+      );
       return IrvResult(winner: option, rounds: rounds);
     }
 
@@ -213,10 +220,12 @@ IrvResult runIrv(List<List<int>> ballots, int optionCount) {
     }
     eliminated.add(loser!);
     continuing.remove(loser);
-    rounds.add(IrvRound(
-      counts: counts,
-      continuingBallots: continuingBallots,
-      eliminated: loser,
-    ));
+    rounds.add(
+      IrvRound(
+        counts: counts,
+        continuingBallots: continuingBallots,
+        eliminated: loser,
+      ),
+    );
   }
 }

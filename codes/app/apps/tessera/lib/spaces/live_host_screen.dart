@@ -38,8 +38,6 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => LiveHostConsole(
-    port: _port!,
-    onExit: () => context.go('/organize'),
-  );
+  Widget build(BuildContext context) =>
+      LiveHostConsole(port: _port!, onExit: () => context.go('/organize'));
 }

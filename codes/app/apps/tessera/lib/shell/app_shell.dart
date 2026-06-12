@@ -33,9 +33,7 @@ class AppShellScaffold extends StatelessWidget {
     // their scrollables (bottom: 96 >= bar 64 + droplet overhang 28).
     extendBody: true,
     body: shell,
-    floatingActionButton: _JoinDroplet(
-      onPressed: () => context.push('/join'),
-    ),
+    floatingActionButton: _JoinDroplet(onPressed: () => context.push('/join')),
     floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     bottomNavigationBar: BottomAppBar(
       color: Db.slate3,
