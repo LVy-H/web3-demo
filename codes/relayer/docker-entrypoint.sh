@@ -1,21 +1,26 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
-echo "Waiting for Hardhat node to be ready..."
-# Bounded wait: up to 60 attempts × 1s = 60s. After that, fail loudly
-# rather than hanging forever (unbounded waits hide real misconfigurations
-# like wrong service hostnames or compose network issues).
-for i in $(seq 1 60); do
-  if curl -s --max-time 2 --request POST \
-       --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
-       http://contracts:8545 > /dev/null 2>&1; then
-    echo "Hardhat node is ready (attempt ${i})."
+# Belt-and-suspenders next to compose's `depends_on: service_healthy`: wait for
+# the chain RPC named by RPC_URL (the same env config.ts reads) so a bare
+# `docker run` also comes up cleanly. Bounded: 60 × 1s, then fail loudly rather
+# than hanging forever (unbounded waits hide real misconfigurations like wrong
+# service hostnames or compose network issues).
+RPC="${RPC_URL:-http://chain:8545}"
+echo "Waiting for chain RPC at ${RPC}..."
+i=1
+while [ "$i" -le 60 ]; do
+  if wget -q -O /dev/null --header 'Content-Type: application/json' \
+       --post-data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
+       "$RPC" 2>/dev/null; then
+    echo "Chain RPC is ready (attempt ${i})."
     break
   fi
-  if [ "${i}" -eq 60 ]; then
-    echo "hardhat unreachable after 60s" >&2
+  if [ "$i" -eq 60 ]; then
+    echo "chain RPC unreachable after 60s: ${RPC}" >&2
     exit 1
   fi
+  i=$((i + 1))
   sleep 1
 done
 

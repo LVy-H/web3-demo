@@ -1,0 +1,9 @@
+node_modules
+dist
+test
+coverage
+.env
+.env.*
+*.log
+README.md
+vitest.config.ts
