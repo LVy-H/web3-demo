@@ -55,13 +55,15 @@ class ResultsBars extends StatelessWidget {
     final denom = total ?? sum;
 
     if (denom <= BigInt.zero) {
-      return Row(children: [
-        const Icon(Icons.inbox_outlined, size: 16, color: Db.mute),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(emptyLabel, style: dbMono(12, Db.mute, height: 1.5)),
-        ),
-      ]);
+      return Row(
+        children: [
+          const Icon(Icons.inbox_outlined, size: 16, color: Db.mute),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(emptyLabel, style: dbMono(12, Db.mute, height: 1.5)),
+          ),
+        ],
+      );
     }
 
     // Strict single leader by exact BigInt comparison (never via the float %),
@@ -135,25 +137,37 @@ class _Bar extends StatelessWidget {
           textBaseline: TextBaseline.alphabetic,
           children: [
             if (isLeader) ...[
-              Icon(Icons.emoji_events, key: ResultsBars.winnerKey,
-                  size: 13, color: color),
+              Icon(
+                Icons.emoji_events,
+                key: ResultsBars.winnerKey,
+                size: 13,
+                color: color,
+              ),
               const SizedBox(width: 6),
             ],
             Expanded(
-              child: Text(label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: dbSans(14, isLeader ? 800 : 700, Db.chalk,
-                      letterSpacing: 0.3)),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: dbSans(
+                  14,
+                  isLeader ? 800 : 700,
+                  Db.chalk,
+                  letterSpacing: 0.3,
+                ),
+              ),
             ),
             // Flexible + ellipsis so a huge BigInt count string shrinks instead
             // of overflowing the row (78-digit values have no wrap points).
             Flexible(
-              child: Text('$count',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: dbMono(20, Db.chalk, wght: 700, letterSpacing: -0.4)),
+              child: Text(
+                '$count',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: dbMono(20, Db.chalk, wght: 700, letterSpacing: -0.4),
+              ),
             ),
             const SizedBox(width: 8),
             Text('${pct.toStringAsFixed(1)}%', style: dbMono(11, Db.mute)),
@@ -162,14 +176,16 @@ class _Bar extends StatelessWidget {
         const SizedBox(height: 8),
         SizedBox(
           height: 8,
-          child: Stack(children: [
-            const Positioned.fill(child: ColoredBox(color: Db.rule)),
-            FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: frac,
-              child: ColoredBox(color: color),
-            ),
-          ]),
+          child: Stack(
+            children: [
+              const Positioned.fill(child: ColoredBox(color: Db.rule)),
+              FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: frac,
+                child: ColoredBox(color: color),
+              ),
+            ],
+          ),
         ),
       ],
     );

@@ -20,9 +20,11 @@ const pollA = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const pollB = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
 void main() {
-  final fixture = jsonDecode(
-    File('test/fixtures/cross_client_vectors.json').readAsStringSync(),
-  ) as Map<String, dynamic>;
+  final fixture =
+      jsonDecode(
+            File('test/fixtures/cross_client_vectors.json').readAsStringSync(),
+          )
+          as Map<String, dynamic>;
   final ed = fixture['ed25519'] as Map<String, dynamic>;
 
   group('orgKeypair', () {

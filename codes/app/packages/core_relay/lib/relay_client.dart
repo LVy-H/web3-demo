@@ -142,7 +142,10 @@ class RelayClient {
         'proof': proof.toJson(),
       }, timeout: voteTimeout);
       if (!r.ok) {
-        return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
+        return RelayResult(
+          success: false,
+          error: _err(r.data, 'HTTP ${r.status}'),
+        );
       }
       return RelayResult(
         success: true,
@@ -150,7 +153,9 @@ class RelayClient {
       );
     } on TimeoutException {
       return const RelayResult(
-          success: false, error: 'Relayer did not respond in time. Try again.');
+        success: false,
+        error: 'Relayer did not respond in time. Try again.',
+      );
     } catch (e) {
       return RelayResult(success: false, error: e.toString());
     }
@@ -174,7 +179,10 @@ class RelayClient {
         'proof': proof.toJson(),
       }, timeout: voteTimeout);
       if (!r.ok) {
-        return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
+        return RelayResult(
+          success: false,
+          error: _err(r.data, 'HTTP ${r.status}'),
+        );
       }
       return RelayResult(
         success: true,
@@ -182,7 +190,9 @@ class RelayClient {
       );
     } on TimeoutException {
       return const RelayResult(
-          success: false, error: 'Relayer did not respond in time. Try again.');
+        success: false,
+        error: 'Relayer did not respond in time. Try again.',
+      );
     } catch (e) {
       return RelayResult(success: false, error: e.toString());
     }
@@ -209,7 +219,10 @@ class RelayClient {
         'proof': proof.toJson(),
       }, timeout: voteTimeout);
       if (!r.ok) {
-        return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
+        return RelayResult(
+          success: false,
+          error: _err(r.data, 'HTTP ${r.status}'),
+        );
       }
       return RelayResult(
         success: true,
@@ -217,7 +230,9 @@ class RelayClient {
       );
     } on TimeoutException {
       return const RelayResult(
-          success: false, error: 'Relayer did not respond in time. Try again.');
+        success: false,
+        error: 'Relayer did not respond in time. Try again.',
+      );
     } catch (e) {
       return RelayResult(success: false, error: e.toString());
     }
@@ -246,7 +261,10 @@ class RelayClient {
         'proof': proof.toJson(),
       }, timeout: voteTimeout);
       if (!r.ok) {
-        return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
+        return RelayResult(
+          success: false,
+          error: _err(r.data, 'HTTP ${r.status}'),
+        );
       }
       return RelayResult(
         success: true,
@@ -254,7 +272,9 @@ class RelayClient {
       );
     } on TimeoutException {
       return const RelayResult(
-          success: false, error: 'Relayer did not respond in time. Try again.');
+        success: false,
+        error: 'Relayer did not respond in time. Try again.',
+      );
     } catch (e) {
       return RelayResult(success: false, error: e.toString());
     }
@@ -294,7 +314,10 @@ class RelayClient {
         'proof': proof.toJson(),
       }, timeout: voteTimeout);
       if (!r.ok) {
-        return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
+        return RelayResult(
+          success: false,
+          error: _err(r.data, 'HTTP ${r.status}'),
+        );
       }
       return RelayResult(
         success: true,
@@ -302,7 +325,9 @@ class RelayClient {
       );
     } on TimeoutException {
       return const RelayResult(
-          success: false, error: 'Relayer did not respond in time. Try again.');
+        success: false,
+        error: 'Relayer did not respond in time. Try again.',
+      );
     } catch (e) {
       return RelayResult(success: false, error: e.toString());
     }
@@ -386,10 +411,14 @@ class RelayClient {
       if (r.ok && r.data['pollAddress'] is String) {
         return CreatePollResult(
           pollAddress: r.data['pollAddress'] as String,
-          txHash: r.data['txHash'] is String ? r.data['txHash'] as String : null,
+          txHash: r.data['txHash'] is String
+              ? r.data['txHash'] as String
+              : null,
         );
       }
-      return CreatePollResult(error: _err(r.data, 'Could not create the poll.'));
+      return CreatePollResult(
+        error: _err(r.data, 'Could not create the poll.'),
+      );
     } on TimeoutException {
       return const CreatePollResult(error: 'The relayer timed out. Try again.');
     } catch (e) {
@@ -414,7 +443,9 @@ class RelayClient {
       if (r.ok && r.data['success'] == true) {
         return RegisterResult(
           ok: true,
-          txHash: r.data['txHash'] is String ? r.data['txHash'] as String : null,
+          txHash: r.data['txHash'] is String
+              ? r.data['txHash'] as String
+              : null,
           alreadyRegistered: r.data['alreadyRegistered'] == true,
         );
       }

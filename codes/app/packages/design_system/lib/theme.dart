@@ -13,7 +13,9 @@ abstract class Db {
   static const chalk = Color(0xFFF5F7FA); // primary text
   static const chalkDim = Color(0xFFC9D0DB); // secondary text
   static const mute = Color(0xFF7A8599); // mono labels / meta
-  static const muteDim = Color(0xFF727C90); // tertiary (>= WCAG AA 4.5:1 on void_)
+  static const muteDim = Color(
+    0xFF727C90,
+  ); // tertiary (>= WCAG AA 4.5:1 on void_)
   static const rule = Color(0xFF2A3140); // hairline border
   static const ruleSoft = Color(0xFF1F2433); // inner divider
   static const segnale = Color(0xFFFF3B5C); // primary signal (active/CTA)
@@ -37,14 +39,22 @@ abstract class Db {
 
   // ── categories ──
   static const categoryLabels = ['Governance', 'Treasury', 'Tech', 'Social'];
-  static const _categoryColors = [catGovernance, catTreasury, catTech, catSocial];
+  static const _categoryColors = [
+    catGovernance,
+    catTreasury,
+    catTech,
+    catSocial,
+  ];
   static Color categoryColor(int i) => _categoryColors[((i % 4) + 4) % 4];
 
   /// Derive a stable category index from a poll address (last hex digit mod 4),
   /// matching the web client's `deriveCategory`.
   static int categoryFor(String pollAddress) {
     if (pollAddress.isEmpty) return 2; // tech
-    final n = int.tryParse(pollAddress.substring(pollAddress.length - 1), radix: 16);
+    final n = int.tryParse(
+      pollAddress.substring(pollAddress.length - 1),
+      radix: 16,
+    );
     return n == null ? 2 : n % 4;
   }
 }
@@ -57,16 +67,15 @@ TextStyle dbSans(
   Color color, {
   double? height,
   double? letterSpacing,
-}) =>
-    TextStyle(
-      fontFamily: Db.fontSans,
-      fontSize: size,
-      color: color,
-      height: height,
-      letterSpacing: letterSpacing,
-      fontWeight: FontWeight.values[(wght ~/ 100 - 1).clamp(0, 8)],
-      fontVariations: [FontVariation('wght', wght.toDouble())],
-    );
+}) => TextStyle(
+  fontFamily: Db.fontSans,
+  fontSize: size,
+  color: color,
+  height: height,
+  letterSpacing: letterSpacing,
+  fontWeight: FontWeight.values[(wght ~/ 100 - 1).clamp(0, 8)],
+  fontVariations: [FontVariation('wght', wght.toDouble())],
+);
 
 /// Variable-weight JetBrains Mono text.
 TextStyle dbMono(
@@ -75,16 +84,15 @@ TextStyle dbMono(
   int wght = 400,
   double? letterSpacing,
   double? height,
-}) =>
-    TextStyle(
-      fontFamily: Db.fontMono,
-      fontSize: size,
-      color: color,
-      height: height,
-      letterSpacing: letterSpacing,
-      fontWeight: FontWeight.values[(wght ~/ 100 - 1).clamp(0, 8)],
-      fontVariations: [FontVariation('wght', wght.toDouble())],
-    );
+}) => TextStyle(
+  fontFamily: Db.fontMono,
+  fontSize: size,
+  color: color,
+  height: height,
+  letterSpacing: letterSpacing,
+  fontWeight: FontWeight.values[(wght ~/ 100 - 1).clamp(0, 8)],
+  fontVariations: [FontVariation('wght', wght.toDouble())],
+);
 
 /// Wide-tracked uppercase mono label (the "stamped" Bauhaus label).
 TextStyle dbLabel({
@@ -92,8 +100,7 @@ TextStyle dbLabel({
   Color color = Db.mute,
   double tracking = 0.18,
   int wght = 500,
-}) =>
-    dbMono(size, color, wght: wght, letterSpacing: size * tracking);
+}) => dbMono(size, color, wght: wght, letterSpacing: size * tracking);
 
 /// Big extrabold hero display (caller passes a clamped size).
 TextStyle dbHero(double size) =>
@@ -134,6 +141,9 @@ ThemeData buildDarkBauhausTheme() {
       centerTitle: false,
     ),
     dividerColor: Db.rule,
-    textTheme: base.textTheme.apply(bodyColor: Db.chalk, displayColor: Db.chalk),
+    textTheme: base.textTheme.apply(
+      bodyColor: Db.chalk,
+      displayColor: Db.chalk,
+    ),
   );
 }

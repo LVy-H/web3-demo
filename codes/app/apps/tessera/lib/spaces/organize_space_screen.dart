@@ -61,8 +61,7 @@ class _OrganizeSpaceScreenState extends State<OrganizeSpaceScreen> {
           port: port,
           nfcAvailable: capabilities.hasNfc,
           onCreate: () => context.go('/organize/create'),
-          onRunEvent: (pollAddress) =>
-              context.push('/live/$pollAddress/host'),
+          onRunEvent: (pollAddress) => context.push('/live/$pollAddress/host'),
         );
       },
     );

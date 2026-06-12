@@ -50,20 +50,21 @@ class ProofServiceDesktop implements ProofService {
     _proc = p;
     // If the sidecar dies, drop the handle (so the next call re-spawns) and fail
     // any in-flight requests instead of letting their Completers hang to timeout.
-    unawaited(p.exitCode.then((_) {
-      _proc = null;
-      final inflight = List.of(_pending.values);
-      _pending.clear();
-      for (final c in inflight) {
-        if (!c.isCompleted) {
-          c.completeError(Exception('desktop prover process exited'));
+    unawaited(
+      p.exitCode.then((_) {
+        _proc = null;
+        final inflight = List.of(_pending.values);
+        _pending.clear();
+        for (final c in inflight) {
+          if (!c.isCompleted) {
+            c.completeError(Exception('desktop prover process exited'));
+          }
         }
-      }
-    }));
-    p.stdout
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen((line) {
+      }),
+    );
+    p.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((
+      line,
+    ) {
       final t = line.trim();
       if (t.isEmpty) return;
       Map<String, dynamic> msg;
@@ -90,10 +91,13 @@ class ProofServiceDesktop implements ProofService {
     final c = Completer<Map<String, dynamic>>();
     _pending[id] = c;
     proc.stdin.writeln(jsonEncode(req));
-    return c.future.timeout(timeout, onTimeout: () {
-      _pending.remove(id);
-      throw TimeoutException('desktop prover timed out after $timeout');
-    });
+    return c.future.timeout(
+      timeout,
+      onTimeout: () {
+        _pending.remove(id);
+        throw TimeoutException('desktop prover timed out after $timeout');
+      },
+    );
   }
 
   @override

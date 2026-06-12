@@ -51,9 +51,7 @@ void main() {
   });
 
   test('phase 2 non-blind → closed, already "finalized", publish is next', () {
-    final state = synthesizeOrganizerState(
-      _snapshot(phase: 2, turnout: 10),
-    );
+    final state = synthesizeOrganizerState(_snapshot(phase: 2, turnout: 10));
     expect(state, isA<OrganizerClosed>());
     final closed = state as OrganizerClosed;
     expect(closed.finalized, isTrue);

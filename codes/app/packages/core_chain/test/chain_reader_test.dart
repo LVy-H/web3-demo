@@ -18,12 +18,15 @@ void main() {
   final chainFixturePath = File('test/fixtures/local_chain.json');
   if (!chainFixturePath.existsSync()) {
     test('on-chain reads (no local_chain.json fixture)', () {
-      markTestSkipped('run codes/contracts demo-poll.ts to generate the fixture');
+      markTestSkipped(
+        'run codes/contracts demo-poll.ts to generate the fixture',
+      );
     }, skip: true);
     return;
   }
 
-  final fixture = jsonDecode(chainFixturePath.readAsStringSync()) as Map<String, dynamic>;
+  final fixture =
+      jsonDecode(chainFixturePath.readAsStringSync()) as Map<String, dynamic>;
   final rpc = fixture['rpcUrl'] as String;
   final poll = fixture['demoPoll'] as Map<String, dynamic>;
   final pollAddr = poll['address'] as String;
@@ -46,9 +49,11 @@ void main() {
   Future<bool> nodeUp() async {
     try {
       final res = await http
-          .post(Uri.parse(rpc),
-              headers: {'content-type': 'application/json'},
-              body: '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}')
+          .post(
+            Uri.parse(rpc),
+            headers: {'content-type': 'application/json'},
+            body: '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}',
+          )
           .timeout(const Duration(seconds: 3));
       return res.statusCode == 200;
     } catch (_) {
@@ -62,10 +67,15 @@ void main() {
       return;
     }
     expect(await reader.getState(pollAddr), poll['expectedState']);
-    expect(await reader.getOptions(pollAddr), (poll['options'] as List).cast<String>());
+    expect(
+      await reader.getOptions(pollAddr),
+      (poll['options'] as List).cast<String>(),
+    );
     expect(
       await reader.getResults(pollAddr),
-      (poll['expectedResults'] as List).map((e) => BigInt.from(e as int)).toList(),
+      (poll['expectedResults'] as List)
+          .map((e) => BigInt.from(e as int))
+          .toList(),
     );
     expect(
       (await reader.getOwner(pollAddr)).toLowerCase(),
@@ -77,15 +87,20 @@ void main() {
     );
   });
 
-  test('getRegisteredCommitments reconstructs the group from event logs',
-      () async {
-    if (!await nodeUp()) {
-      markTestSkipped('local node not reachable at $rpc');
-      return;
-    }
-    final commitments = await reader.getRegisteredCommitments(pollAddr);
-    expect(commitments, (poll['registeredCommitments'] as List).cast<String>());
-  });
+  test(
+    'getRegisteredCommitments reconstructs the group from event logs',
+    () async {
+      if (!await nodeUp()) {
+        markTestSkipped('local node not reachable at $rpc');
+        return;
+      }
+      final commitments = await reader.getRegisteredCommitments(pollAddr);
+      expect(
+        commitments,
+        (poll['registeredCommitments'] as List).cast<String>(),
+      );
+    },
+  );
 
   test('getAllPolls decodes the registry struct array', () async {
     if (!await nodeUp()) {
@@ -102,33 +117,38 @@ void main() {
     expect(demo.description, poll['description']);
   });
 
-  test('R4 registry surface: getListedPolls + getPollInfo (link access)',
-      () async {
-    if (!await nodeUp()) {
-      markTestSkipped('local node not reachable at $rpc');
-      return;
-    }
-    // demo-poll.ts seeds the demo polls with visibility=1 (they exist to be
-    // found by Browse — PR #108), so the demo poll is in the directory with
-    // the trailing visibility field decoding as listed.
-    final listed = await reader.getListedPolls();
-    final demo = listed.where(
-      (p) => p.pollAddress.toLowerCase() == pollAddr.toLowerCase(),
-    );
-    expect(demo, hasLength(1),
-        reason: 'the listed demo poll appears in getListedPolls');
-    expect(demo.single.visibility, 1);
-    expect(demo.single.isListed, isTrue);
+  test(
+    'R4 registry surface: getListedPolls + getPollInfo (link access)',
+    () async {
+      if (!await nodeUp()) {
+        markTestSkipped('local node not reachable at $rpc');
+        return;
+      }
+      // demo-poll.ts seeds the demo polls with visibility=1 (they exist to be
+      // found by Browse — PR #108), so the demo poll is in the directory with
+      // the trailing visibility field decoding as listed.
+      final listed = await reader.getListedPolls();
+      final demo = listed.where(
+        (p) => p.pollAddress.toLowerCase() == pollAddr.toLowerCase(),
+      );
+      expect(
+        demo,
+        hasLength(1),
+        reason: 'the listed demo poll appears in getListedPolls',
+      );
+      expect(demo.single.visibility, 1);
+      expect(demo.single.isListed, isTrue);
 
-    // Link-access resolution by address returns the same info…
-    final info = await reader.getPollInfo(pollAddr);
-    expect(info?.title, poll['title']);
+      // Link-access resolution by address returns the same info…
+      final info = await reader.getPollInfo(pollAddr);
+      expect(info?.title, poll['title']);
 
-    // …and an address the registry never created resolves to null
-    // (UnknownPoll revert handled).
-    expect(
-      await reader.getPollInfo('0x00000000000000000000000000000000000000aa'),
-      isNull,
-    );
-  });
+      // …and an address the registry never created resolves to null
+      // (UnknownPoll revert handled).
+      expect(
+        await reader.getPollInfo('0x00000000000000000000000000000000000000aa'),
+        isNull,
+      );
+    },
+  );
 }

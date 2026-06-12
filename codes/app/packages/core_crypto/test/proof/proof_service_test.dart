@@ -10,19 +10,19 @@ import 'package:core_crypto/proof/proof_service.dart';
 /// that the [ProofService] seam returns it unchanged. Locks the output shape
 /// the web/mobile JS implementations must reproduce.
 void main() {
-  final vector = jsonDecode(
-    File('test/fixtures/zk_proof_vector.json').readAsStringSync(),
-  ) as Map<String, dynamic>;
+  final vector =
+      jsonDecode(File('test/fixtures/zk_proof_vector.json').readAsStringSync())
+          as Map<String, dynamic>;
   final pv = vector['proof'] as Map<String, dynamic>;
 
   RelayProof goldenProof() => RelayProof(
-        merkleTreeDepth: (pv['merkleTreeDepth'] as num).toInt(),
-        merkleTreeRoot: pv['merkleTreeRoot'] as String,
-        nullifier: pv['nullifier'] as String,
-        message: pv['message'] as String,
-        scope: pv['scope'] as String,
-        points: (pv['points'] as List).cast<String>(),
-      );
+    merkleTreeDepth: (pv['merkleTreeDepth'] as num).toInt(),
+    merkleTreeRoot: pv['merkleTreeRoot'] as String,
+    nullifier: pv['nullifier'] as String,
+    message: pv['message'] as String,
+    scope: pv['scope'] as String,
+    points: (pv['points'] as List).cast<String>(),
+  );
 
   test('the spike proof verified against the real vkey', () {
     expect(vector['verifyProof'], isTrue);
@@ -37,24 +37,29 @@ void main() {
     expect(BigInt.tryParse(p.scope), isNotNull);
   });
 
-  test('toJson emits the relayer body shape (number depth, string elements)', () {
-    final j = goldenProof().toJson();
-    expect(j['merkleTreeDepth'], isA<int>());
-    expect(j['merkleTreeRoot'], isA<String>());
-    expect(j['points'], isA<List<String>>());
-    expect((j['points'] as List), hasLength(8));
-  });
+  test(
+    'toJson emits the relayer body shape (number depth, string elements)',
+    () {
+      final j = goldenProof().toJson();
+      expect(j['merkleTreeDepth'], isA<int>());
+      expect(j['merkleTreeRoot'], isA<String>());
+      expect(j['points'], isA<List<String>>());
+      expect((j['points'] as List), hasLength(8));
+    },
+  );
 
-  test('FakeProofService returns the configured proof regardless of inputs',
-      () async {
-    final svc = FakeProofService(goldenProof());
-    final out = await svc.generateVoteProof(
-      identitySeed: 'ignored',
-      memberCommitments: const ['1', '2'],
-      message: 0,
-      scope: '0xdead',
-    );
-    expect(out.nullifier, goldenProof().nullifier);
-    expect(out.points, goldenProof().points);
-  });
+  test(
+    'FakeProofService returns the configured proof regardless of inputs',
+    () async {
+      final svc = FakeProofService(goldenProof());
+      final out = await svc.generateVoteProof(
+        identitySeed: 'ignored',
+        memberCommitments: const ['1', '2'],
+        message: 0,
+        scope: '0xdead',
+      );
+      expect(out.nullifier, goldenProof().nullifier);
+      expect(out.points, goldenProof().points);
+    },
+  );
 }

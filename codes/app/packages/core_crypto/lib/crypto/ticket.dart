@@ -59,9 +59,7 @@ class VerifyResult {
   final TicketInvalidReason? reason;
   final Ticket? ticket;
 
-  const VerifyResult.valid(this.ticket)
-      : valid = true,
-        reason = null;
+  const VerifyResult.valid(this.ticket) : valid = true, reason = null;
 
   const VerifyResult.invalid(this.reason, [this.ticket]) : valid = false;
 }
@@ -85,12 +83,16 @@ Uint8List _b64UrlDecode(String s) => base64Url.decode(base64Url.normalize(s));
 
 /// Build a fresh (unsigned) ticket payload for a poll. `now` is injected (unix
 /// seconds) so callers/tests stay deterministic.
-Ticket createTicketPayload(String pollId, int now,
-    {int ttlSeconds = ticketTtlSeconds}) {
+Ticket createTicketPayload(
+  String pollId,
+  int now, {
+  int ttlSeconds = ticketTtlSeconds,
+}) {
   final addr = _stripHex(pollId).toLowerCase();
   if (addr.length != _addrBytes * 2 || !RegExp(r'^[0-9a-f]+$').hasMatch(addr)) {
     throw ArgumentError(
-        'invalid pollId: expected 20-byte hex address, got $pollId');
+      'invalid pollId: expected 20-byte hex address, got $pollId',
+    );
   }
   final rng = Random.secure();
   final nonce = Uint8List(_nonceBytes);
@@ -111,8 +113,11 @@ Uint8List ticketPreimage(Ticket t) {
   final out = Uint8List(_preimageBytes);
   out.setRange(0, _addrBytes, addr);
   out.setRange(_addrBytes, _addrBytes + _nonceBytes, nonce);
-  ByteData.sublistView(out, _addrBytes + _nonceBytes, _preimageBytes)
-      .setUint32(0, t.e, Endian.big);
+  ByteData.sublistView(
+    out,
+    _addrBytes + _nonceBytes,
+    _preimageBytes,
+  ).setUint32(0, t.e, Endian.big);
   return out;
 }
 
@@ -135,12 +140,16 @@ Ticket decodeTicket(String encoded) {
   final wire = _b64UrlDecode(encoded);
   if (wire.length != _wireBytes) {
     throw ArgumentError(
-        'malformed ticket: expected $_wireBytes bytes, got ${wire.length}');
+      'malformed ticket: expected $_wireBytes bytes, got ${wire.length}',
+    );
   }
   final addr = wire.sublist(0, _addrBytes);
   final nonce = wire.sublist(_addrBytes, _addrBytes + _nonceBytes);
-  final e = ByteData.sublistView(wire, _addrBytes + _nonceBytes, _preimageBytes)
-      .getUint32(0, Endian.big);
+  final e = ByteData.sublistView(
+    wire,
+    _addrBytes + _nonceBytes,
+    _preimageBytes,
+  ).getUint32(0, Endian.big);
   return Ticket(p: '0x${hex.encode(addr)}', n: hex.encode(nonce), e: e);
 }
 

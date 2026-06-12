@@ -17,13 +17,13 @@ String moduleDisplayName(OrganizerModule module) => switch (module) {
 /// One line under the picker label: what voters will do.
 String moduleBlurb(OrganizerModule module) => switch (module) {
   OrganizerModule.anonVote => 'Each voter picks exactly one option.',
-  OrganizerModule.approvalVote => 'Voters approve as many options as they like.',
+  OrganizerModule.approvalVote =>
+    'Voters approve as many options as they like.',
   OrganizerModule.rankedVote =>
     'Voters order the options from favorite down (up to 8 options).',
   OrganizerModule.quadraticVote =>
     'Voters split a 100-point budget across options (up to 8).',
-  OrganizerModule.surveyVote =>
-    'Several questions, each with its own options.',
+  OrganizerModule.surveyVote => 'Several questions, each with its own options.',
   OrganizerModule.blindVote =>
     'Choices stay hidden until everyone reveals after voting closes.',
 };

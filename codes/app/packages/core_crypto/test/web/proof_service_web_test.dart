@@ -33,7 +33,9 @@ Future<void> _ensureBundleLoaded() async {
   final script = web.HTMLScriptElement()
     ..src = 'http://localhost:8099/zkprover.js';
   script.onLoad.listen((_) => completer.complete());
-  script.onError.listen((_) => completer.completeError('zkprover.js failed to load'));
+  script.onError.listen(
+    (_) => completer.completeError('zkprover.js failed to load'),
+  );
   web.document.head!.appendChild(script);
   await completer.future.timeout(const Duration(seconds: 30));
 }
@@ -45,29 +47,37 @@ void main() {
     '22222222222222222222',
   ];
 
-  test('ProofServiceWeb proof round-trips and verifies in-browser', () async {
-    try {
-      await _ensureBundleLoaded();
-    } catch (e) {
-      markTestSkipped(
-        'zkprover bundle not served — run `python3 -m http.server 8099 '
-        '--directory web` first. ($e)',
+  test(
+    'ProofServiceWeb proof round-trips and verifies in-browser',
+    () async {
+      try {
+        await _ensureBundleLoaded();
+      } catch (e) {
+        markTestSkipped(
+          'zkprover bundle not served — run `python3 -m http.server 8099 '
+          '--directory web` first. ($e)',
+        );
+        return;
+      }
+
+      const svc = ProofServiceWeb();
+      final proof = await svc.generateVoteProof(
+        identitySeed: seed,
+        memberCommitments: members,
+        message: 1,
+        scope: '0x1111111111111111111111111111111111111111',
       );
-      return;
-    }
 
-    const svc = ProofServiceWeb();
-    final proof = await svc.generateVoteProof(
-      identitySeed: seed,
-      memberCommitments: members,
-      message: 1,
-      scope: '0x1111111111111111111111111111111111111111',
-    );
+      expect(proof.points, hasLength(8));
+      expect(proof.merkleTreeDepth, isA<int>());
 
-    expect(proof.points, hasLength(8));
-    expect(proof.merkleTreeDepth, isA<int>());
-
-    final ok = await _zkVerifyProof(jsonEncode(proof.toJson()).toJS).toDart;
-    expect(ok.toDart, isTrue, reason: 'proof from ProofServiceWeb must verify');
-  }, timeout: const Timeout(Duration(minutes: 2)));
+      final ok = await _zkVerifyProof(jsonEncode(proof.toJson()).toJS).toDart;
+      expect(
+        ok.toDart,
+        isTrue,
+        reason: 'proof from ProofServiceWeb must verify',
+      );
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
 }

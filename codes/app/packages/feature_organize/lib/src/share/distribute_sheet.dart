@@ -38,10 +38,8 @@ class DistributeSheet extends StatelessWidget {
     backgroundColor: Db.slate,
     shape: const RoundedRectangleBorder(),
     isScrollControlled: true,
-    builder: (context) => DistributeSheet(
-      shareLink: shareLink,
-      nfcAvailable: nfcAvailable,
-    ),
+    builder: (context) =>
+        DistributeSheet(shareLink: shareLink, nfcAvailable: nfcAvailable),
   );
 
   @override
@@ -61,11 +59,7 @@ class DistributeSheet extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Center(
-            child: QrView(
-              key: qrKey,
-              data: shareLink,
-              dimension: 220,
-            ),
+            child: QrView(key: qrKey, data: shareLink, dimension: 220),
           ),
           const SizedBox(height: 20),
           Container(

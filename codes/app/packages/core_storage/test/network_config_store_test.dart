@@ -39,14 +39,19 @@ void main() {
       expect(NetworkConfig.fromJson(_valid.toJson()), _valid);
     });
 
-    test('fromJson tolerates missing/garbage fields (falls back to defaults)', () {
-      final d = AppConfig.defaults;
-      final c = NetworkConfig.fromJson({'rpcUrl': 'https://only-rpc.example'});
-      expect(c.rpcUrl, 'https://only-rpc.example');
-      expect(c.relayerUrl, d.relayerUrl);
-      expect(c.registryAddress, d.registryAddress);
-      expect(c.chainId, d.chainId);
-    });
+    test(
+      'fromJson tolerates missing/garbage fields (falls back to defaults)',
+      () {
+        final d = AppConfig.defaults;
+        final c = NetworkConfig.fromJson({
+          'rpcUrl': 'https://only-rpc.example',
+        });
+        expect(c.rpcUrl, 'https://only-rpc.example');
+        expect(c.relayerUrl, d.relayerUrl);
+        expect(c.registryAddress, d.registryAddress);
+        expect(c.chainId, d.chainId);
+      },
+    );
 
     test('fromJson accepts a stringified chainId', () {
       expect(NetworkConfig.fromJson({'chainId': '42'}).chainId, 42);
@@ -79,8 +84,14 @@ void main() {
     });
 
     test('isAddress / isHttpUrl edge cases', () {
-      expect(NetworkConfig.isAddress(' 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9 '), isTrue);
-      expect(NetworkConfig.isAddress('0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc'), isFalse);
+      expect(
+        NetworkConfig.isAddress(' 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9 '),
+        isTrue,
+      );
+      expect(
+        NetworkConfig.isAddress('0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc'),
+        isFalse,
+      );
       expect(NetworkConfig.isHttpUrl('http://localhost:8545'), isTrue);
       expect(NetworkConfig.isHttpUrl('https://x.io/path'), isTrue);
       expect(NetworkConfig.isHttpUrl('://nohost'), isFalse);

@@ -38,8 +38,11 @@ void main() {
       ];
       for (final r in rankings) {
         final packed = packRanking(r);
-        expect(packed, lessThan(kPackedRankingBound),
-            reason: 'packed value must fit in 32 bits');
+        expect(
+          packed,
+          lessThan(kPackedRankingBound),
+          reason: 'packed value must fit in 32 bits',
+        );
         expect(unpackRanking(packed), r, reason: 'round-trip $r');
       }
     });
@@ -52,40 +55,49 @@ void main() {
 
   group('runIrv — canonical rule', () {
     // ── (a) NORMAL TRANSFER — elimination changes the leader ─────────────────
-    test('(a) a transfer changes the leader (first-pref leader is NOT winner)',
-        () {
-      // 3 options A(0) B(1) C(2). 5 ballots.
-      //   A         (first-pref A)
-      //   A         (first-pref A)
-      //   B > C     (first-pref B)
-      //   C > B     (first-pref C)
-      //   C > B     (first-pref C)
-      // Round 1: C=5, A=2, B=1, C=2. No strict majority (need 2*v>5 ⇒ v≥3).
-      //   Eliminate fewest: B (1 vote). Lowest-index tie not needed (B alone).
-      // Round 2: B's ballot (B>C) transfers to C. A=2, C=3. 2*3>5 ⇒ C wins.
-      // First-pref leader is a TIE (A=2,C=2); the IRV winner is C. The point:
-      // round-1 first-prefs do NOT name the winner.
-      final ballots = [
-        [0],
-        [0],
-        [1, 2],
-        [2, 1],
-        [2, 1],
-      ];
-      final r = runIrv(ballots, 3);
-      expect(r.winner, 2, reason: 'C wins after B is eliminated and transfers');
+    test(
+      '(a) a transfer changes the leader (first-pref leader is NOT winner)',
+      () {
+        // 3 options A(0) B(1) C(2). 5 ballots.
+        //   A         (first-pref A)
+        //   A         (first-pref A)
+        //   B > C     (first-pref B)
+        //   C > B     (first-pref C)
+        //   C > B     (first-pref C)
+        // Round 1: C=5, A=2, B=1, C=2. No strict majority (need 2*v>5 ⇒ v≥3).
+        //   Eliminate fewest: B (1 vote). Lowest-index tie not needed (B alone).
+        // Round 2: B's ballot (B>C) transfers to C. A=2, C=3. 2*3>5 ⇒ C wins.
+        // First-pref leader is a TIE (A=2,C=2); the IRV winner is C. The point:
+        // round-1 first-prefs do NOT name the winner.
+        final ballots = [
+          [0],
+          [0],
+          [1, 2],
+          [2, 1],
+          [2, 1],
+        ];
+        final r = runIrv(ballots, 3);
+        expect(
+          r.winner,
+          2,
+          reason: 'C wins after B is eliminated and transfers',
+        );
 
-      // Round-1 first-prefs: A and C both 2 — NOT a clean leader equal to winner.
-      expect(r.rounds.first.counts, [2, 1, 2]);
-      expect(r.rounds.first.winner, isNull,
-          reason: 'no strict majority in round 1');
-      expect(r.rounds.first.eliminated, 1, reason: 'B eliminated round 1');
+        // Round-1 first-prefs: A and C both 2 — NOT a clean leader equal to winner.
+        expect(r.rounds.first.counts, [2, 1, 2]);
+        expect(
+          r.rounds.first.winner,
+          isNull,
+          reason: 'no strict majority in round 1',
+        );
+        expect(r.rounds.first.eliminated, 1, reason: 'B eliminated round 1');
 
-      // The transfer happened: round 2 counts show C gained B\'s ballot.
-      expect(r.rounds.length, 2);
-      expect(r.rounds[1].counts[2], 3, reason: 'C transferred up to 3');
-      expect(r.rounds[1].winner, 2);
-    });
+        // The transfer happened: round 2 counts show C gained B\'s ballot.
+        expect(r.rounds.length, 2);
+        expect(r.rounds[1].counts[2], 3, reason: 'C transferred up to 3');
+        expect(r.rounds[1].winner, 2);
+      },
+    );
 
     // ── (b) ELIMINATION TIE — resolved by LOWEST option index ────────────────
     test('(b) elimination tie broken by lowest option index', () {
@@ -111,16 +123,18 @@ void main() {
       expect(r.rounds.first.counts, [2, 1, 1]);
       expect(r.rounds.first.continuingBallots, 4);
       expect(r.rounds.first.winner, isNull);
-      expect(r.rounds.first.eliminated, 1,
-          reason: 'B(1) and C(2) tied at 1 vote; lowest index B is eliminated');
+      expect(
+        r.rounds.first.eliminated,
+        1,
+        reason: 'B(1) and C(2) tied at 1 vote; lowest index B is eliminated',
+      );
       // After B out: [1,2]→C. A=2, C=2 still tied, C=4. No winner.
       //   Fewest: A(2) and C(2) tied → eliminate A(0). Then C alone wins.
       expect(r.winner, 2);
     });
 
     // ── (c) EXHAUSTED BALLOT — C shrinks, threshold recomputed ───────────────
-    test('(c) an exhausted ballot drops out; C shrinks; threshold vs smaller C',
-        () {
+    test('(c) an exhausted ballot drops out; C shrinks; threshold vs smaller C', () {
       // 4 options A(0) B(1) C(2) D(3). 5 ballots.
       //   A          (bullet vote — only ranks A)
       //   A
@@ -151,10 +165,16 @@ void main() {
       expect(r.rounds.first.continuingBallots, 5);
       expect(r.rounds.first.eliminated, 1, reason: 'B(1) fewest, eliminated');
       // Round 2: C shrank to 4 because B\'s ballot exhausted.
-      expect(r.rounds[1].continuingBallots, 4,
-          reason: 'B\'s bullet ballot exhausted; C went 5 → 4');
-      expect(r.rounds[1].winner, isNull,
-          reason: 'A=2,C=2 vs the SMALLER C=4 ⇒ no strict majority (2*2>4 false)');
+      expect(
+        r.rounds[1].continuingBallots,
+        4,
+        reason: 'B\'s bullet ballot exhausted; C went 5 → 4',
+      );
+      expect(
+        r.rounds[1].winner,
+        isNull,
+        reason: 'A=2,C=2 vs the SMALLER C=4 ⇒ no strict majority (2*2>4 false)',
+      );
       expect(r.winner, 2, reason: 'C wins after A eliminated');
       // Sanity: C genuinely shrank below the ballot count across the trace.
       expect(r.rounds.last.continuingBallots, lessThan(ballots.length));
@@ -179,14 +199,22 @@ void main() {
       final r = runIrv(ballots, 3);
 
       // The win must NOT land in round 1 — exactly-half is not a majority.
-      expect(r.rounds.first.continuingBallots, 4,
-          reason: 'C must be EVEN so C/2 is exact');
-      expect(r.rounds.first.counts[0], 2,
-          reason: 'A is at exactly C/2 = 2');
-      expect(r.rounds.first.winner, isNull,
-          reason: 'EXACTLY C/2 must NOT win — strict `2*votes > C`, never `>=`');
-      expect(r.rounds.first.eliminated, 1,
-          reason: 'B(1),C(2) tied at fewest → lowest index B eliminated');
+      expect(
+        r.rounds.first.continuingBallots,
+        4,
+        reason: 'C must be EVEN so C/2 is exact',
+      );
+      expect(r.rounds.first.counts[0], 2, reason: 'A is at exactly C/2 = 2');
+      expect(
+        r.rounds.first.winner,
+        isNull,
+        reason: 'EXACTLY C/2 must NOT win — strict `2*votes > C`, never `>=`',
+      );
+      expect(
+        r.rounds.first.eliminated,
+        1,
+        reason: 'B(1),C(2) tied at fewest → lowest index B eliminated',
+      );
 
       // The win lands in round 2 at C/2 + 1 — strict majority DOES win.
       expect(r.rounds.length, 2);
@@ -211,24 +239,28 @@ void main() {
 
     test('empty ballots / zero options → null winner (degenerate)', () {
       expect(runIrv(const [], 3).winner, isNull);
-      expect(runIrv([
-        [0],
-      ], 0).winner, isNull);
+      expect(
+        runIrv([
+          [0],
+        ], 0).winner,
+        isNull,
+      );
     });
 
-    test('all ballots exhaust to one remaining candidate → that candidate wins',
-        () {
-      // 3 options; everyone bullet-votes A. A wins trivially with strict majority.
-      final r = runIrv([
-        [0],
-        [0],
-      ], 3);
-      expect(r.winner, 0);
-    });
+    test(
+      'all ballots exhaust to one remaining candidate → that candidate wins',
+      () {
+        // 3 options; everyone bullet-votes A. A wins trivially with strict majority.
+        final r = runIrv([
+          [0],
+          [0],
+        ], 3);
+        expect(r.winner, 0);
+      },
+    );
 
     // ── (e) LATER-ROUND EXACTLY-C/2 BOUNDARY — threshold recomputed correctly ─
-    test(
-        '(e) later-round exactly-C/2 boundary: no win declared; correct '
+    test('(e) later-round exactly-C/2 boundary: no win declared; correct '
         'candidate eliminated', () {
       // 3 options A(0) B(1) C(2). 7 ballots:
       //   [A], [A], [A]   — bullet A
@@ -259,22 +291,32 @@ void main() {
       final r = runIrv(ballots, 3);
 
       // Round 1: C eliminated (fewest).
-      expect(r.rounds[0].counts, [3, 3, 1],
-          reason: 'A=3, B=3, C=1 in round 1');
+      expect(r.rounds[0].counts, [3, 3, 1], reason: 'A=3, B=3, C=1 in round 1');
       expect(r.rounds[0].continuingBallots, 7);
-      expect(r.rounds[0].winner, isNull,
-          reason: '2*3 > 7 is false — no round-1 winner');
+      expect(
+        r.rounds[0].winner,
+        isNull,
+        reason: '2*3 > 7 is false — no round-1 winner',
+      );
       expect(r.rounds[0].eliminated, 2, reason: 'C(2) fewest; eliminated');
 
       // Round 2: C shrinks to 6 (C's bullet exhausted); A at exactly C/2 = 3.
-      expect(r.rounds[1].continuingBallots, 6,
-          reason: 'C\'s bullet ballot exhausted; continuing 7 → 6');
-      expect(r.rounds[1].counts[0], 3,
-          reason: 'A is at exactly C/2 = 3');
-      expect(r.rounds[1].winner, isNull,
-          reason: 'EXACTLY C/2 must NOT win — strict 2*votes > C, never >=');
-      expect(r.rounds[1].eliminated, 0,
-          reason: 'A(0) and B(1) tied at 3; lowest index A(0) eliminated');
+      expect(
+        r.rounds[1].continuingBallots,
+        6,
+        reason: 'C\'s bullet ballot exhausted; continuing 7 → 6',
+      );
+      expect(r.rounds[1].counts[0], 3, reason: 'A is at exactly C/2 = 3');
+      expect(
+        r.rounds[1].winner,
+        isNull,
+        reason: 'EXACTLY C/2 must NOT win — strict 2*votes > C, never >=',
+      );
+      expect(
+        r.rounds[1].eliminated,
+        0,
+        reason: 'A(0) and B(1) tied at 3; lowest index A(0) eliminated',
+      );
 
       // Final winner: B (A's bullets exhausted in round 3; B alone remains).
       expect(r.winner, 1, reason: 'B wins after A eliminated');
@@ -282,8 +324,7 @@ void main() {
     });
 
     // ── (f) OUT-OF-RANGE OPTION IGNORED — runIrv is total on malformed input ──
-    test(
-        '(f) out-of-range option index in a ballot is silently skipped; '
+    test('(f) out-of-range option index in a ballot is silently skipped; '
         'runIrv returns normally without throwing', () {
       // 2 options A(0) B(1). 4 ballots:
       //   [A]        → counts for A
@@ -304,12 +345,21 @@ void main() {
       // Must not throw:
       final r = runIrv(ballots, 2);
 
-      expect(r.winner, 0, reason: 'A wins; out-of-range entries contribute to nobody');
+      expect(
+        r.winner,
+        0,
+        reason: 'A wins; out-of-range entries contribute to nobody',
+      );
       expect(r.rounds, hasLength(1), reason: 'A wins outright in round 1');
-      expect(r.rounds.first.continuingBallots, 3,
-          reason: 'the [5]-only ballot exhausts; only 3 ballots continue');
-      expect(r.rounds.first.counts, [2, 1],
-          reason: 'A=2, B=1; option 5 counted for nobody');
+      expect(
+        r.rounds.first.continuingBallots,
+        3,
+        reason: 'the [5]-only ballot exhausts; only 3 ballots continue',
+      );
+      expect(r.rounds.first.counts, [
+        2,
+        1,
+      ], reason: 'A=2, B=1; option 5 counted for nobody');
     });
   });
 }

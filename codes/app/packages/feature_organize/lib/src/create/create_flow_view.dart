@@ -227,10 +227,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
                   )
                 : Text(
                     organizeCopy(action.labelKey),
-                    style: dbMono(
-                      13,
-                      action.enabled ? Db.void_ : Db.mute,
-                    ),
+                    style: dbMono(13, action.enabled ? Db.void_ : Db.mute),
                   ),
           ),
         if (!deploying && action?.disabledReasonKey != null) ...[
@@ -259,14 +256,9 @@ class _CreateFlowViewState extends State<CreateFlowView> {
           key: Key('module-${module.wireName}'),
           style: OutlinedButton.styleFrom(
             shape: const RoundedRectangleBorder(),
-            side: BorderSide(
-              color: module == _module ? Db.segnale : Db.rule,
-            ),
+            side: BorderSide(color: module == _module ? Db.segnale : Db.rule),
             backgroundColor: module == _module ? Db.slate2 : null,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           ),
           onPressed: () {
             _module = module;
@@ -277,10 +269,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
           },
           child: Text(
             moduleDisplayName(module),
-            style: dbMono(
-              12,
-              module == _module ? Db.chalk : Db.chalkDim,
-            ),
+            style: dbMono(12, module == _module ? Db.chalk : Db.chalkDim),
           ),
         ),
     ],
@@ -301,10 +290,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
             child: Text('15 minutes'),
           ),
           DropdownMenuItem(value: Duration(hours: 1), child: Text('1 hour')),
-          DropdownMenuItem(
-            value: Duration(hours: 24),
-            child: Text('24 hours'),
-          ),
+          DropdownMenuItem(value: Duration(hours: 24), child: Text('24 hours')),
         ],
         onChanged: (value) {
           if (value != null) {
@@ -324,8 +310,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
   );
 
   Widget _optionsBuilder() {
-    final capped =
-        _module.capsOptionsAtEight && _options.length >= 8;
+    final capped = _module.capsOptionsAtEight && _options.length >= 8;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -389,9 +374,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
             children: [
               Row(
                 children: [
-                  Expanded(
-                    child: Text('QUESTION ${q + 1}', style: dbLabel()),
-                  ),
+                  Expanded(child: Text('QUESTION ${q + 1}', style: dbLabel())),
                   if (_questions.length > 1)
                     IconButton(
                       key: Key('remove-question-$q'),
@@ -399,11 +382,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
                         _questions.removeAt(q).dispose();
                         _sync();
                       },
-                      icon: const Icon(
-                        Icons.close,
-                        size: 16,
-                        color: Db.mute,
-                      ),
+                      icon: const Icon(Icons.close, size: 16, color: Db.mute),
                     ),
                 ],
               ),
@@ -430,11 +409,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
                           _questions[q].options.removeAt(i).dispose();
                           _sync();
                         },
-                        icon: const Icon(
-                          Icons.close,
-                          size: 16,
-                          color: Db.mute,
-                        ),
+                        icon: const Icon(Icons.close, size: 16, color: Db.mute),
                       ),
                   ],
                 ),
@@ -522,10 +497,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
             const SizedBox(height: 10),
             Text(title, style: dbSans(13, 600, Db.chalk)),
             const SizedBox(height: 3),
-            Text(
-              explanation,
-              style: dbSans(11, 400, Db.chalkDim, height: 1.4),
-            ),
+            Text(explanation, style: dbSans(11, 400, Db.chalkDim, height: 1.4)),
           ],
         ),
       ),
@@ -653,10 +625,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
       hintStyle: dbSans(13, 400, Db.mute),
       filled: true,
       fillColor: Db.slate3,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 12,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       enabledBorder: const OutlineInputBorder(
         borderRadius: BorderRadius.zero,
         borderSide: BorderSide(color: Db.rule),

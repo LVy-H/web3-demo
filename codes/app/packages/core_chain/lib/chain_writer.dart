@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
-import 'package:wallet/wallet.dart' show EthereumAddress; // web3dart 3.x moved it here
+import 'package:wallet/wallet.dart'
+    show EthereumAddress; // web3dart 3.x moved it here
 import 'package:web3dart/web3dart.dart';
 
 /// Signs and broadcasts write transactions with a local private key.
@@ -21,10 +22,10 @@ class ChainWriter {
     required this.chainId,
     String privateKey = '',
     http.Client? httpClient,
-  })  : _client = Web3Client(rpcUrl, httpClient ?? http.Client()),
-        _creds = privateKey.isEmpty
-            ? null
-            : EthPrivateKey.fromHex(_strip0x(privateKey));
+  }) : _client = Web3Client(rpcUrl, httpClient ?? http.Client()),
+       _creds = privateKey.isEmpty
+           ? null
+           : EthPrivateKey.fromHex(_strip0x(privateKey));
 
   static String _strip0x(String s) => s.startsWith('0x') ? s.substring(2) : s;
 
@@ -48,12 +49,15 @@ class ChainWriter {
     final completer = Completer<String>();
     _queue = _queue.then((_) async {
       try {
-        completer.complete(await _doSend(
+        completer.complete(
+          await _doSend(
             to: to,
             abiJson: abiJson,
             abiName: abiName,
             function: function,
-            params: params));
+            params: params,
+          ),
+        );
       } catch (e, st) {
         completer.completeError(e, st);
       }
@@ -73,7 +77,9 @@ class ChainWriter {
       throw StateError('No dev signer configured (set DEV_PRIVATE_KEY).');
     }
     final contract = DeployedContract(
-        ContractAbi.fromJson(abiJson, abiName), EthereumAddress.fromHex(to));
+      ContractAbi.fromJson(abiJson, abiName),
+      EthereumAddress.fromHex(to),
+    );
     final hash = await _client.sendTransaction(
       creds,
       Transaction.callContract(
@@ -102,18 +108,21 @@ class ChainWriter {
     String name,
     int argCount,
   ) {
-    final candidates =
-        contract.abi.functions.where((f) => f.name == name).toList();
+    final candidates = contract.abi.functions
+        .where((f) => f.name == name)
+        .toList();
     if (candidates.isEmpty) {
       throw ArgumentError('No function named $name in ${contract.abi.name}');
     }
     if (candidates.length == 1) return candidates.single;
-    final byArity =
-        candidates.where((f) => f.parameters.length == argCount).toList();
+    final byArity = candidates
+        .where((f) => f.parameters.length == argCount)
+        .toList();
     if (byArity.length != 1) {
       throw ArgumentError(
-          '${candidates.length} overloads of $name in ${contract.abi.name}; '
-          '${byArity.length} take $argCount args — cannot disambiguate');
+        '${candidates.length} overloads of $name in ${contract.abi.name}; '
+        '${byArity.length} take $argCount args — cannot disambiguate',
+      );
     }
     return byArity.single;
   }

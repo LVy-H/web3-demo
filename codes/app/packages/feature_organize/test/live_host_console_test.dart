@@ -20,9 +20,7 @@ class _ScriptedHostPort implements LiveHostPort {
   final List<String> log = [];
 
   AdmitQueue queue = const AdmitQueue(
-    pending: [
-      PendingLiveVoter(commitment: '0xc1', confirmationCode: 'KK7P4Q'),
-    ],
+    pending: [PendingLiveVoter(commitment: '0xc1', confirmationCode: 'KK7P4Q')],
     admitted: 0,
   );
 
