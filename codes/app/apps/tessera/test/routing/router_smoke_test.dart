@@ -24,7 +24,7 @@ void main() {
   });
 
   testWidgets(
-    'deep link to /poll/:address renders the placeholder with the module '
+    'deep link to /poll/:address renders the journey surface with the module '
     'resolved ON-CHAIN (no ?module= in the location)',
     (tester) async {
       final deps = await buildTestDependencies(
@@ -38,8 +38,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(PollScreen), findsOneWidget);
-      expect(find.text('ranked-vote'), findsOneWidget);
+      // R3: voters see the jargon-free kind label, never the raw module id.
+      expect(find.text('RANK THEM'), findsOneWidget);
+      expect(find.text('ranked-vote'), findsNothing);
       expect(find.text('Board ranking'), findsOneWidget);
+      // The bare test host has no chain: the journey lands in its typed
+      // load-error state with a way out — never a crash.
+      expect(
+        find.text('Could not load this vote. Check your connection.'),
+        findsOneWidget,
+      );
     },
   );
 
