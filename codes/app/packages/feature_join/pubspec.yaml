@@ -1,17 +1,29 @@
 name: feature_join
-description: "Tessera JOIN — the universal-entry grammar: deep links, pasted/typed values, and short join-codes parsed into typed JoinTargets. Pure Dart: no Flutter, no UI."
+description: "Tessera JOIN — universal entry: the pure-Dart deep-link/code grammar (lib/feature_join.dart) plus the JOIN surface and live-voter flow widgets (lib/ui.dart)."
 publish_to: none
-version: 0.1.0
+version: 0.2.0
 resolution: workspace
 
 environment:
   sdk: ^3.11.0
 
-# Intentionally dependency-free. The spec's dependency rule allows
-# feature_* → core_* + design_system, and this package may depend on
-# core_domain only — today the grammar needs nothing from it, so the
-# dependency list stays empty until a real need appears.
+# Library split (R3): the grammar export `package:feature_join/feature_join.dart`
+# stays importable without Flutter (its files have no Flutter imports and its
+# tests run under plain `dart test`); the widgets live behind the separate
+# `package:feature_join/ui.dart` export. Dependency rule (spec §6):
+# feature_* → core_* + design_system only.
+dependencies:
+  flutter:
+    sdk: flutter
+  core_crypto: any # ephemeral identity seed + ticket decode + confirmation code
+  core_domain: any # LiveVoter journey machine + Capabilities
+  core_relay: any # relayer client (announce / queue / vote relay)
+  design_system: any
+  # Pinned to the same major as codes/mobile (mobile_scanner ^7.2.0) so the
+  # workspace carries ONE scanner version across the cutover.
+  mobile_scanner: ^7.2.0
 
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
+  http: ^1.2.0 # MockClient for the relay-port adapter tests
