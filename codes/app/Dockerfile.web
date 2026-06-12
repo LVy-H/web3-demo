@@ -1,0 +1,59 @@
+# Tessera web image: Flutter web release build → static nginx serve.
+# Build context = codes/app (the pub workspace root — apps/tessera resolves
+# the workspace packages/* as path deps, so the whole workspace must be in
+# the context).
+#
+#   docker build -f Dockerfile.web -t tessera-web .
+#   docker run -p 8080:80 tessera-web
+#
+# ── Stage 1: Flutter build ────────────────────────────────────────────────
+# Pinned to the repo toolchain (CI: Flutter 3.41.2 / Dart 3.11). There is no
+# Google-official Flutter image (the official `dart` image can't build
+# Flutter web); ghcr.io/cirruslabs/flutter is the de-facto standard
+# containerized Flutter distribution.
+FROM ghcr.io/cirruslabs/flutter:3.41.2 AS build
+WORKDIR /src
+COPY . .
+
+# Compile-time backend pointers (dart-defines, see packages/core_chain/lib/
+# config.dart). Defaults target the compose stack on the SAME host: the
+# BROWSER talks to the published loopback ports (8545/3001), not the docker-
+# network hostnames — chain/relayer are unreachable as `chain:`/`relayer:`
+# from outside the compose network. A hosted build can also be re-pointed at
+# runtime via Settings → Network (no rebuild needed).
+ARG RPC_URL=http://127.0.0.1:8545
+ARG RELAYER_URL=http://localhost:3001
+# Deterministic local-deploy addresses (hardhat account #0, fresh chain):
+# PollRegistry = nonce 3, Semaphore = nonce 2 — match scripts/deploy.ts order.
+ARG REGISTRY_ADDRESS=0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
+ARG SEMAPHORE_ADDRESS=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+ARG CHAIN_ID=31337
+
+WORKDIR /src/apps/tessera
+RUN flutter pub get
+# Icon tree-shaking stays ON (default) — same release shape as CI.
+RUN flutter build web --release \
+      --dart-define=RPC_URL=${RPC_URL} \
+      --dart-define=RELAYER_URL=${RELAYER_URL} \
+      --dart-define=REGISTRY_ADDRESS=${REGISTRY_ADDRESS} \
+      --dart-define=SEMAPHORE_ADDRESS=${SEMAPHORE_ADDRESS} \
+      --dart-define=CHAIN_ID=${CHAIN_ID}
+
+# Precompress the heavyweights (main.dart.js, canvaskit, fonts — ≈3.5 MB
+# gzipped total): nginx `gzip_static on` serves the sibling .gz with ZERO
+# per-request CPU. Brotli is skipped — stock nginx:alpine ships no brotli
+# module (revisit with nginx-mod-http-brotli if it matters).
+RUN cd build/web && \
+    find . -type f \( -name '*.js' -o -name '*.wasm' -o -name '*.json' \
+        -o -name '*.otf' -o -name '*.ttf' -o -name '*.css' -o -name '*.html' \
+        -o -name '*.map' \) -size +1k -exec gzip -9 -k {} +
+
+# ── Stage 2: nginx runtime ────────────────────────────────────────────────
+# Pinned stable-line tag (1.30.x). Static files only — no app process.
+FROM nginx:1.30.2-alpine AS runtime
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /src/apps/tessera/build/web /usr/share/nginx/html
+
+EXPOSE 80
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget -q -O /dev/null http://127.0.0.1/healthz || exit 1

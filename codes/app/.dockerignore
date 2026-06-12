@@ -1,0 +1,11 @@
+# Keep the Docker build context lean: only sources + workspace metadata are
+# needed for `flutter build web` (Dockerfile.web).
+**/build
+**/.dart_tool
+**/.flutter-plugins*
+**/android
+**/linux
+**/*.iml
+**/.idea
+.out
+*.log
