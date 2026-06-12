@@ -2,6 +2,7 @@ import 'package:core_storage/identity_store.dart';
 import 'package:core_storage/network_config_store.dart';
 import 'package:design_system/dot_grid_background.dart';
 import 'package:design_system/theme.dart';
+import 'package:design_system/widgets/tessera_mark.dart';
 import 'package:flutter/material.dart';
 
 import 'pass/voting_pass_controller.dart';
@@ -87,6 +88,20 @@ class _YouSpaceViewState extends State<YouSpaceView> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 96),
               children: [
+                // Brand header: the tile mark + wordmark label. YOU doubles
+                // as the app's about surface (version, network, identity),
+                // so the identity lives here rather than in a drawer.
+                Row(
+                  children: [
+                    const TesseraMark(size: 32),
+                    const SizedBox(width: 12),
+                    Text(
+                      'TESSERA',
+                      style: dbLabel(size: 11, color: Db.chalkDim, wght: 700),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
                 Text('YOU', style: dbHero(48)),
                 const SizedBox(height: 10),
                 Text(
