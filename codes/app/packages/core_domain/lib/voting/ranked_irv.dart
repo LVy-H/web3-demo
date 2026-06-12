@@ -70,8 +70,9 @@ List<int> unpackRanking(int packed) {
   final ranking = <int>[];
   for (var i = 0; i < kMaxRankedOptions; i++) {
     final slot = (packed >> (4 * i)) & 0xF;
-    if (slot == 0)
+    if (slot == 0) {
       break; // contiguous prefix — first empty slot ends the ballot
+    }
     ranking.add(slot - 1);
   }
   return ranking;
