@@ -292,11 +292,19 @@ async function main() {
       expectedParticipantCount: 1,
     },
   };
-  fs.mkdirSync(path.dirname(FIXTURE), { recursive: true });
-  fs.writeFileSync(FIXTURE, JSON.stringify(fixture, null, 2));
   console.log(`\nDemo poll created at ${pollAddress}`);
   console.log(`Demo survey created at ${surveyAddress}`);
-  console.log(`Fixture written: ${FIXTURE}`);
+  // Best-effort: the fixture is a host-dev test artifact. Inside the chain
+  // container the path resolves outside the image's writable tree, so a
+  // failed write must not abort the seed (the on-chain state IS the product).
+  try {
+    fs.mkdirSync(path.dirname(FIXTURE), { recursive: true });
+    fs.writeFileSync(FIXTURE, JSON.stringify(fixture, null, 2));
+    console.log(`Fixture written: ${FIXTURE}`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`Fixture NOT written (${msg}) — continuing; seed succeeded.`);
+  }
 }
 
 main().catch((e) => {
