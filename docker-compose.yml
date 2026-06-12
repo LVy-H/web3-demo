@@ -1,44 +1,102 @@
-# DEV ONLY — not for production. Ports bound to loopback only.
+# Tessera containerized stack — DEV ONLY (hardhat dev keys, mock verifier by
+# default). Ports are bound to loopback only.
+#
+#   docker compose --profile dev up --build     # chain + relayer
+#   docker compose --profile full up --build    # + web app (:8080) + explorer (:3728)
+#   ./dev-stack.sh compose --profile dev up     # same, via the dev launcher
+#
+# Profiles:
+#   dev   chain (hardhat node + deterministic deploy + demo seed) + relayer
+#   full  dev + the Flutter web app served by nginx + the block explorer
+#
+# The chain is EPHEMERAL by design (no volumes): every `up` is a fresh chain
+# with the same deterministic addresses, so the relayer's REGISTRY_ADDRESS and
+# the web build's baked defaults always match.
+
+name: tessera
 
 services:
-  contracts:
+  # Hardhat dev chain: node → deploy.ts (deterministic addresses) → optional
+  # demo-poll seed (SEED_DEMO=1, default on for a browsable stack).
+  chain:
     build:
       context: ./codes/contracts
+    profiles: [dev, full]
+    environment:
+      - SEED_DEMO=${SEED_DEMO:-1}
+      # USE_REAL_VERIFIER=true deploys the real Groth16 SemaphoreVerifier
+      # instead of the always-true mock.
+      - USE_REAL_VERIFIER=${USE_REAL_VERIFIER:-}
     ports:
       - "127.0.0.1:8545:8545"
+    networks: [tessera]
+    # JSON-RPC readiness — `relayer` waits on this via `service_healthy`.
+    # (Also baked into the image as a HEALTHCHECK; kept here so compose
+    # behavior is explicit and tunable without an image rebuild.)
     healthcheck:
-      # JSON-RPC readiness — `relayer` waits on this via `service_healthy`.
       test: ["CMD-SHELL", "curl -sf -X POST -H 'content-type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}' http://127.0.0.1:8545 > /dev/null || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 30
       start_period: 10s
 
-  # (The React frontend service was removed — the frontend is deleted; the
-  # canonical client is the Flutter app `codes/mobile` (run with `flutter run`,
-  # not docker). The local stack is `./dev-stack.sh up`.)
-
-  # T-D: relayer service wiring. The image is built from codes/relayer/.
-  # Defaults mirror codes/relayer/src/config.ts (port 3001, hardhat dev key).
+  # Gasless relay + sponsored poll lifecycle. Env mirrors codes/relayer/src/
+  # config.ts; REGISTRY_ADDRESS defaults to the deterministic local deploy
+  # (PollRegistry = hardhat account #0, nonce 3).
   relayer:
     build:
       context: ./codes/relayer
-    ports:
-      - "127.0.0.1:3001:3001"
+    profiles: [dev, full]
     environment:
-      - RPC_URL=http://contracts:8545
+      - RPC_URL=http://chain:8545
       # Hardhat #0 default; override for any non-dev deploy.
       - RELAYER_PRIVATE_KEY=${RELAYER_PRIVATE_KEY:-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80}
       - PORT=3001
+      - REGISTRY_ADDRESS=${REGISTRY_ADDRESS:-0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9}
+      # Dev-friendly limits (prod defaults are 20/min + 5 creates/day, which
+      # brick local demo bursts) — same overrides dev-stack.sh up uses.
+      - RELAY_RATE_LIMIT_MAX=${RELAY_RATE_LIMIT_MAX:-600}
+      - RELAY_CREATE_DAILY_MAX=${RELAY_CREATE_DAILY_MAX:-1000}
+    ports:
+      - "127.0.0.1:3001:3001"
+    networks: [tessera]
     depends_on:
-      contracts:
+      chain:
         condition: service_healthy
 
+  # Flutter web release served by nginx (precompressed, SPA fallback). The
+  # dart-define build args are BROWSER-facing: they point at the published
+  # loopback ports, not the in-network hostnames. Re-pointable at runtime via
+  # Settings → Network.
+  web:
+    build:
+      context: ./codes/app
+      dockerfile: Dockerfile.web
+      args:
+        RPC_URL: ${WEB_RPC_URL:-http://127.0.0.1:8545}
+        RELAYER_URL: ${WEB_RELAYER_URL:-http://localhost:3001}
+        REGISTRY_ADDRESS: ${REGISTRY_ADDRESS:-0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9}
+    profiles: [full]
+    ports:
+      - "127.0.0.1:8080:80"
+    networks: [tessera]
+    depends_on:
+      relayer:
+        condition: service_healthy
+
+  # Block explorer for the dev chain. APP_NODE_URL is browser-facing (the
+  # explorer is a static SPA), hence localhost:8545.
   explorer:
     image: alethio/ethereum-lite-explorer
+    profiles: [full]
     ports:
-      - "3728:80"
+      - "127.0.0.1:3728:80"
     environment:
       - APP_NODE_URL=http://localhost:8545
+    networks: [tessera]
     depends_on:
-      - contracts
+      chain:
+        condition: service_healthy
+
+networks:
+  tessera:

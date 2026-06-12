@@ -17,6 +17,15 @@
 # devShell; the script re-execs itself there if those tools aren't on PATH.
 set -euo pipefail
 
+# ── Containerized stack passthrough (needs docker only, not the devShell) ───
+#   ./dev-stack.sh compose --profile dev up      chain + relayer in docker
+#   ./dev-stack.sh compose --profile full up     + web app (:8080) + explorer
+#   ./dev-stack.sh compose down                  stop the containerized stack
+if [ "${1:-}" = "compose" ]; then
+  shift
+  exec docker compose -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/docker-compose.yml" "$@"
+fi
+
 # ── Re-exec inside the Nix devShell if the Android/Flutter toolchain is absent ──
 if [ -z "${ZK_IN_DEVSHELL:-}" ] && ! command -v flutter >/dev/null 2>&1; then
   if command -v nix >/dev/null 2>&1 && [ -f "$(dirname "${BASH_SOURCE[0]}")/flake.nix" ]; then
@@ -289,5 +298,5 @@ case "${1:-}" in
   emu) emu ;;
   emu-kill) emu_kill ;;
   e2e) e2e ;;
-  *) echo "usage: $0 {up|down|status|emu|emu-kill|e2e}" >&2; exit 2 ;;
+  *) echo "usage: $0 {up|down|status|emu|emu-kill|e2e|compose <docker-compose args>}" >&2; exit 2 ;;
 esac
