@@ -1,32 +1,70 @@
-// R3 replaces this file with the real ORGANIZE space (dashboard of the polls
-// you run: phase, turnout, next action; CREATE lives here). The router does
-// not change when it does — only this file.
+// R3: the real ORGANIZE space. Thin glue only — builds the relayer-backed
+// organizer port from the DI graph, then delegates everything to
+// feature_organize's [OrganizeSpaceView]. The router did not change; only
+// this file did (R2f contract).
+import 'package:core_chain/chain_reader.dart';
+import 'package:core_relay/relay_client.dart';
+import 'package:core_storage/created_polls_store.dart';
 import 'package:design_system/theme.dart';
+import 'package:feature_organize/feature_organize.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
-import 'space_placeholder.dart';
+import '../state/app_state.dart';
+import 'organize_wire.dart';
 
-class OrganizeSpaceScreen extends StatelessWidget {
+class OrganizeSpaceScreen extends StatefulWidget {
   const OrganizeSpaceScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => SpacePlaceholder(
-    title: 'ORGANIZE',
-    caption: 'Organizer home — R3 placeholder',
-    children: [
-      Text(
-        'Your polls and events, each with a dashboard card, land here in R3.',
-        style: dbSans(13, 400, Db.chalkDim),
-      ),
-      const SizedBox(height: 16),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: OutlinedButton(
-          onPressed: () => context.go('/organize/create'),
-          child: const Text('CREATE'),
-        ),
-      ),
-    ],
-  );
+  State<OrganizeSpaceScreen> createState() => _OrganizeSpaceScreenState();
+}
+
+class _OrganizeSpaceScreenState extends State<OrganizeSpaceScreen> {
+  Future<RelayOrganizerPort>? _port;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _port ??= buildOrganizerPort(
+      relay: context.read<RelayClient>(),
+      reader: context.read<ChainReader>(),
+      createdPolls: context.read<CreatedPollsStore>(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final capabilities = context.watch<AppState>().capabilities;
+    return FutureBuilder<RelayOrganizerPort>(
+      future: _port,
+      builder: (context, snapshot) {
+        final port = snapshot.data;
+        if (port == null) {
+          // One quiet frame while the bundled module ABIs load (they can
+          // only be missing in a broken build).
+          return const Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Db.mute,
+                ),
+              ),
+            ),
+          );
+        }
+        return OrganizeSpaceView(
+          port: port,
+          nfcAvailable: capabilities.hasNfc,
+          onCreate: () => context.go('/organize/create'),
+          onRunEvent: (pollAddress) =>
+              context.push('/live/$pollAddress/host'),
+        );
+      },
+    );
+  }
 }

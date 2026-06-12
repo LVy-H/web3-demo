@@ -1,50 +1,73 @@
-// R3 replaces this file with the real create flow (sponsored creation as THE
-// path when no signer; spec §4.3). The router does not change when it does —
-// only this file.
-import 'package:core_domain/journeys/capabilities.dart';
+// R3: the real create flow. Thin glue only — builds the relayer-backed
+// organizer port, then delegates to feature_organize's [CreateFlowView]
+// (sponsored creation as THE path; spec §4.3). The router did not change;
+// only this file did (R2f contract).
+//
+// Guard policy: this route stays a PASS-THROUGH even when no signer path
+// exists — the journey machine renders the disabled deploy with the honest
+// why-not (`reason.organizer.noSignerPath`), instead of the router hiding
+// the flow.
+import 'package:core_chain/chain_reader.dart';
+import 'package:core_relay/relay_client.dart';
+import 'package:core_storage/created_polls_store.dart';
 import 'package:design_system/theme.dart';
+import 'package:feature_organize/feature_organize.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
-import 'space_placeholder.dart';
+import 'organize_wire.dart';
 
-/// Guard policy: this route is a PASS-THROUGH even when no signer path
-/// exists (no dev signer, relayer unreachable) — the screen renders the
-/// disabled state with the honest why-not, instead of the router hiding it.
-class OrganizeCreateScreen extends StatelessWidget {
+class OrganizeCreateScreen extends StatefulWidget {
   const OrganizeCreateScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final capabilities = context.watch<AppState>().capabilities;
-    final hasSignerPath = capabilities.canSign || capabilities.relayerAvailable;
-    final whyNot =
-        capabilities.reasonFor(Capability.relayer) ??
-        capabilities.reasonFor(Capability.sign) ??
-        'reason.sign.noSigner';
+  State<OrganizeCreateScreen> createState() => _OrganizeCreateScreenState();
+}
 
-    return SpacePlaceholder(
-      title: 'CREATE',
-      caption: 'Create a poll — R3 placeholder',
-      showBack: true,
-      children: [
-        if (hasSignerPath)
-          Text(
-            'Creation is available on this device. The real create flow '
-            'lands in R3.',
-            style: dbSans(13, 400, Db.chalkDim),
-          )
-        else ...[
-          Text(
-            'Creating a poll needs a connection this device does not have '
-            'right now.',
-            style: dbSans(13, 400, Db.chalkDim),
-          ),
-          const SizedBox(height: 12),
-          PlaceholderRow(label: 'why', value: whyNot),
-        ],
-      ],
+class _OrganizeCreateScreenState extends State<OrganizeCreateScreen> {
+  Future<RelayOrganizerPort>? _port;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _port ??= buildOrganizerPort(
+      relay: context.read<RelayClient>(),
+      reader: context.read<ChainReader>(),
+      createdPolls: context.read<CreatedPollsStore>(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // read, not watch: the machine captures capabilities at creation; a
+    // mid-flow probe change must not rebuild (and reset) the whole form.
+    final capabilities = context.read<AppState>().capabilities;
+    return FutureBuilder<RelayOrganizerPort>(
+      future: _port,
+      builder: (context, snapshot) {
+        final port = snapshot.data;
+        if (port == null) {
+          return const Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Db.mute,
+                ),
+              ),
+            ),
+          );
+        }
+        return CreateFlowView(
+          port: port,
+          capabilities: capabilities,
+          onDone: (_) => context.go('/organize'),
+        );
+      },
     );
   }
 }
