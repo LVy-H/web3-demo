@@ -92,6 +92,7 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      - run: dart run melos run format:check
       - run: dart run melos run analyze
       - run: dart run melos run test
       # Icon tree-shaking ON — saves ~1.84MB of icon fonts fetched before
