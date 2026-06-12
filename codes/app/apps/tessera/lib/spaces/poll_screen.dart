@@ -20,6 +20,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../routing/poll_module_resolver.dart';
+import '../routing/safe_navigation.dart';
 import '../state/app_state.dart';
 import 'space_placeholder.dart';
 
@@ -139,7 +140,7 @@ class _PollScreenState extends State<PollScreen> {
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton(
-              onPressed: () => context.push('/live/${widget.address}/vote'),
+              onPressed: () => context.pushOnce('/live/${widget.address}/vote'),
               child: const Text('OPEN THE LIVE VOTE'),
             ),
           ),
@@ -261,9 +262,16 @@ class _VoterPollHostState extends State<_VoterPollHost> {
       loadSurveyResults: surveyReader == null
           ? null
           : () => surveyReader.load(withResults: true),
-      onVerifyReceipt: (code) =>
-          context.push('/you/verify?poll=${widget.address}&nullifier=$code'),
-      onOpenIdentity: () => context.push('/you'),
+      // /you/verify renders on the ROOT navigator (router.dart), so this
+      // push layers the focused verify page over the poll — pushing a page
+      // INSIDE the shell from here would clone a second shell and trip
+      // Navigator's duplicate page-key assertion.
+      onVerifyReceipt: (code) => context.pushOnce(
+        '/you/verify?poll=${widget.address}&nullifier=$code',
+      ),
+      // The YOU space itself is a shell branch — switching to it is a tab
+      // switch (`go`), never a push (same duplicate-shell crash).
+      onOpenIdentity: () => context.go('/you'),
     );
   }
 }

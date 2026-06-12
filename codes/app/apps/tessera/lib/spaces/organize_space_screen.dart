@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../routing/safe_navigation.dart';
 import '../state/app_state.dart';
 import 'organize_wire.dart';
 
@@ -62,7 +63,7 @@ class _OrganizeSpaceScreenState extends State<OrganizeSpaceScreen> {
           nfcAvailable: capabilities.hasNfc,
           onCreate: () => context.go('/organize/create'),
           onRunEvent: (pollAddress) =>
-              context.push('/live/$pollAddress/host'),
+              context.pushOnce('/live/$pollAddress/host'),
         );
       },
     );
