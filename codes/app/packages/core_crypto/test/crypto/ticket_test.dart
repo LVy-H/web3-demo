@@ -10,9 +10,11 @@ import 'package:core_crypto/crypto/ticket.dart';
 /// layout). A pass proves a Dart-signed ticket verifies on the relayer and a
 /// relayer/web-signed ticket verifies here.
 void main() {
-  final fixture = jsonDecode(
-    File('test/fixtures/cross_client_vectors.json').readAsStringSync(),
-  ) as Map<String, dynamic>;
+  final fixture =
+      jsonDecode(
+            File('test/fixtures/cross_client_vectors.json').readAsStringSync(),
+          )
+          as Map<String, dynamic>;
   final ed = fixture['ed25519'] as Map<String, dynamic>;
   final tv = fixture['ticket'] as Map<String, dynamic>;
   final seedHex = ed['seedHex'] as String;
@@ -22,10 +24,10 @@ void main() {
   final goldenWire = tv['wire'] as String;
 
   Ticket goldenTicket() => Ticket(
-        p: fields['p'] as String,
-        n: fields['n'] as String,
-        e: fields['e'] as int,
-      );
+    p: fields['p'] as String,
+    n: fields['n'] as String,
+    e: fields['e'] as int,
+  );
 
   group('ticket — golden cross-client vectors', () {
     test('ticketPreimage matches the 32-byte TS preimage', () {
@@ -60,7 +62,11 @@ void main() {
     test('badSig for a different public key', () {
       const otherPub =
           '0000000000000000000000000000000000000000000000000000000000000001';
-      final r = verifyTicket(goldenWire, otherPub, now: (fields['e'] as int) - 1);
+      final r = verifyTicket(
+        goldenWire,
+        otherPub,
+        now: (fields['e'] as int) - 1,
+      );
       expect(r.valid, isFalse);
       expect(r.reason, TicketInvalidReason.badSig);
     });
@@ -76,10 +82,14 @@ void main() {
     });
 
     test('malformed input does not throw', () {
-      expect(verifyTicket('AAAA', pubKey, now: 1).reason,
-          TicketInvalidReason.malformed);
-      expect(verifyTicket('not valid base64 @@@', pubKey, now: 1).reason,
-          TicketInvalidReason.malformed);
+      expect(
+        verifyTicket('AAAA', pubKey, now: 1).reason,
+        TicketInvalidReason.malformed,
+      );
+      expect(
+        verifyTicket('not valid base64 @@@', pubKey, now: 1).reason,
+        TicketInvalidReason.malformed,
+      );
     });
   });
 

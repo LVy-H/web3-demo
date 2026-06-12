@@ -10,10 +10,11 @@ abstract class OrgKeyStore {
 class SecureOrgKeyStore implements OrgKeyStore {
   final FlutterSecureStorage _s;
   SecureOrgKeyStore([FlutterSecureStorage? storage])
-      : _s = storage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            );
+    : _s =
+          storage ??
+          const FlutterSecureStorage(
+            aOptions: AndroidOptions(encryptedSharedPreferences: true),
+          );
 
   String _key(String poll) => 'tessera.orgkey.${poll.toLowerCase()}';
 

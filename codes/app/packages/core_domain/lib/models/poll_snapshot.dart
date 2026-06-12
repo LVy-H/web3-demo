@@ -18,12 +18,11 @@ class PollSnapshot {
   });
 
   String get phaseLabel => switch (state) {
-        0 => 'Registration',
-        1 => 'Voting',
-        2 => 'Ended',
-        _ => 'Unknown',
-      };
+    0 => 'Registration',
+    1 => 'Voting',
+    2 => 'Ended',
+    _ => 'Unknown',
+  };
 
-  BigInt get totalVotes =>
-      results.fold(BigInt.zero, (sum, v) => sum + v);
+  BigInt get totalVotes => results.fold(BigInt.zero, (sum, v) => sum + v);
 }

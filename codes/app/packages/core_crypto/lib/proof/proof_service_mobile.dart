@@ -26,19 +26,19 @@ class ProofServiceMobile implements ProofService {
   bool _ready = false;
 
   ProofServiceMobile({WebViewProverHost? host})
-      : _host = host ?? WebViewProverHost();
+    : _host = host ?? WebViewProverHost();
 
   /// The offstage host WebView the app shell must mount (once) so on-device JS
   /// can execute. Touching [WebViewProverHost.controller] eagerly builds the
   /// controller, so this is safe to call before [_ensureReady].
   Widget get hostView => Offstage(
-        offstage: true,
-        child: SizedBox(
-          width: 1,
-          height: 1,
-          child: WebViewWidget(controller: _host.controller),
-        ),
-      );
+    offstage: true,
+    child: SizedBox(
+      width: 1,
+      height: 1,
+      child: WebViewWidget(controller: _host.controller),
+    ),
+  );
 
   /// Single-flight: the first caller drives the loopback server + page load +
   /// readiness handshake; concurrent callers await the same future. By the time

@@ -1,6 +1,137 @@
 {
   "abi": [
     {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "AlreadyRegistered",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "AlreadyVoted",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "BatchTooLarge",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CanOnlyStartFromRegistration",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "DuplicateInBatch",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "EmptyBatch",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidInitialization",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidOptionIndex",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidProof",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint8",
+          "name": "resultsPolicy",
+          "type": "uint8"
+        }
+      ],
+      "name": "InvalidResultsPolicy",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidScope",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NeedAtLeastOneVoter",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NeedAtLeastTwoOptions",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotInRegistration",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotInVoting",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotInitializing",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnableInvalidOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "OwnableUnauthorizedAccount",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TamperedVoteSignal",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "version",
+          "type": "uint64"
+        }
+      ],
+      "name": "Initialized",
+      "type": "event"
+    },
+    {
       "anonymous": false,
       "inputs": [
         {
@@ -11,6 +142,25 @@
         }
       ],
       "name": "OptionAdded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "previousOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
       "type": "event"
     },
     {
@@ -222,6 +372,11 @@
           "internalType": "string[]",
           "name": "_initialOptions",
           "type": "string[]"
+        },
+        {
+          "internalType": "uint8",
+          "name": "_resultsPolicy",
+          "type": "uint8"
         }
       ],
       "name": "initialize",
@@ -340,6 +495,26 @@
     },
     {
       "inputs": [],
+      "name": "renounceOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "resultsPolicy",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
       "name": "semaphore",
       "outputs": [
         {
@@ -369,6 +544,19 @@
         }
       ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {

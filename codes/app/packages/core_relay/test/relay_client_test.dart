@@ -44,7 +44,8 @@ void main() {
       final c = RelayClient(
         baseUrl: base,
         client: MockClient(
-          (r) async => http.Response(jsonEncode({'error': 'Invalid pollId'}), 400),
+          (r) async =>
+              http.Response(jsonEncode({'error': 'Invalid pollId'}), 400),
         ),
       );
       expect(
@@ -62,7 +63,11 @@ void main() {
         client: MockClient((r) async {
           req = r;
           return http.Response(
-            jsonEncode({'success': true, 'status': 'pending', 'confirmationCode': '4861'}),
+            jsonEncode({
+              'success': true,
+              'status': 'pending',
+              'confirmationCode': '4861',
+            }),
             200,
           );
         }),
@@ -83,7 +88,10 @@ void main() {
       final c = RelayClient(
         baseUrl: base,
         client: MockClient(
-          (r) async => http.Response(jsonEncode({'error': 'Ticket already redeemed'}), 409),
+          (r) async => http.Response(
+            jsonEncode({'error': 'Ticket already redeemed'}),
+            409,
+          ),
         ),
       );
       final res = await c.postPending(pollId, 'wire', '1', '0001');
@@ -111,7 +119,7 @@ void main() {
                   'confirmationCode': '4861',
                   'status': 'pending',
                   'createdAt': 1700000000,
-                }
+                },
               ],
             }),
             200,
@@ -140,23 +148,25 @@ void main() {
       // Regression for the review fix: one bad element must not kill the fetch.
       final c = RelayClient(
         baseUrl: base,
-        client: MockClient((r) async => http.Response(
-              jsonEncode({
-                'voters': [
-                  {
-                    'ticketNonce': 'aabbccddeeff0011',
-                    'ticket': 'wire',
-                    'ephemeralIdentityCommitment': '12345',
-                    'confirmationCode': '4861',
-                    'status': 'pending',
-                    'createdAt': 1700000000,
-                  },
-                  null,
-                  'garbage',
-                ],
-              }),
-              200,
-            )),
+        client: MockClient(
+          (r) async => http.Response(
+            jsonEncode({
+              'voters': [
+                {
+                  'ticketNonce': 'aabbccddeeff0011',
+                  'ticket': 'wire',
+                  'ephemeralIdentityCommitment': '12345',
+                  'confirmationCode': '4861',
+                  'status': 'pending',
+                  'createdAt': 1700000000,
+                },
+                null,
+                'garbage',
+              ],
+            }),
+            200,
+          ),
+        ),
       );
       final voters = await c.fetchQueue(pollId);
       expect(voters, hasLength(1));
@@ -165,33 +175,42 @@ void main() {
   });
 
   group('relayVote', () {
-    test('POSTs {pollAddress, vote, proof} with the snarkjs field shape', () async {
-      late http.Request req;
-      final c = RelayClient(
-        baseUrl: base,
-        client: MockClient((r) async {
-          req = r;
-          return http.Response(jsonEncode({'success': true, 'txHash': '0xabc'}), 200);
-        }),
-      );
-      final res = await c.relayVote(pollId, 2, _proof);
-      expect(req.url.path, '/api/relay/vote');
-      final body = jsonDecode(req.body) as Map<String, dynamic>;
-      expect(body['pollAddress'], pollId);
-      expect(body['vote'], 2);
-      final p = body['proof'] as Map<String, dynamic>;
-      expect(p['merkleTreeDepth'], 10); // number, not string
-      expect(p['merkleTreeRoot'], '111'); // decimal string
-      expect(p['points'], ['1', '2', '3', '4', '5', '6', '7', '8']);
-      expect(res.success, isTrue);
-      expect(res.txHash, '0xabc');
-    });
+    test(
+      'POSTs {pollAddress, vote, proof} with the snarkjs field shape',
+      () async {
+        late http.Request req;
+        final c = RelayClient(
+          baseUrl: base,
+          client: MockClient((r) async {
+            req = r;
+            return http.Response(
+              jsonEncode({'success': true, 'txHash': '0xabc'}),
+              200,
+            );
+          }),
+        );
+        final res = await c.relayVote(pollId, 2, _proof);
+        expect(req.url.path, '/api/relay/vote');
+        final body = jsonDecode(req.body) as Map<String, dynamic>;
+        expect(body['pollAddress'], pollId);
+        expect(body['vote'], 2);
+        final p = body['proof'] as Map<String, dynamic>;
+        expect(p['merkleTreeDepth'], 10); // number, not string
+        expect(p['merkleTreeRoot'], '111'); // decimal string
+        expect(p['points'], ['1', '2', '3', '4', '5', '6', '7', '8']);
+        expect(res.success, isTrue);
+        expect(res.txHash, '0xabc');
+      },
+    );
 
     test('returns success:false + error on non-2xx (no throw)', () async {
       final c = RelayClient(
         baseUrl: base,
         client: MockClient(
-          (r) async => http.Response(jsonEncode({'error': 'Poll is not in voting phase'}), 500),
+          (r) async => http.Response(
+            jsonEncode({'error': 'Poll is not in voting phase'}),
+            500,
+          ),
         ),
       );
       final res = await c.relayVote(pollId, 0, _proof);
@@ -206,7 +225,11 @@ void main() {
         baseUrl: base,
         client: MockClient(
           (r) async => http.Response(
-            jsonEncode({'relayer': '0xdead', 'balance': '1.5', 'rateLimitPerMinute': 60}),
+            jsonEncode({
+              'relayer': '0xdead',
+              'balance': '1.5',
+              'rateLimitPerMinute': 60,
+            }),
             200,
           ),
         ),
@@ -228,23 +251,25 @@ void main() {
 
   group('timeouts', () {
     RelayClient slow() => RelayClient(
-          baseUrl: base,
-          timeout: const Duration(milliseconds: 50),
-          client: MockClient((r) async {
-            await Future<void>.delayed(const Duration(milliseconds: 300));
-            return http.Response(jsonEncode({'voters': []}), 200);
-          }),
-        );
+      baseUrl: base,
+      timeout: const Duration(milliseconds: 50),
+      client: MockClient((r) async {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        return http.Response(jsonEncode({'voters': []}), 200);
+      }),
+    );
 
     test('fetchQueue throws TimeoutException when the relayer hangs', () async {
       expect(() => slow().fetchQueue(pollId), throwsA(isA<TimeoutException>()));
     });
 
-    test('postPending returns ok:false on timeout (never hangs the caller)',
-        () async {
-      final res = await slow().postPending(pollId, 'wire', '1', '0001');
-      expect(res.ok, isFalse);
-    });
+    test(
+      'postPending returns ok:false on timeout (never hangs the caller)',
+      () async {
+        final res = await slow().postPending(pollId, 'wire', '1', '0001');
+        expect(res.ok, isFalse);
+      },
+    );
 
     test('fetchStatus returns null on timeout', () async {
       expect(await slow().fetchStatus(), isNull);
@@ -259,7 +284,9 @@ void main() {
         client: MockClient((r) async {
           req = r;
           return http.Response(
-              jsonEncode({'relayer': '0xrelayer', 'registry': '0xreg'}), 200);
+            jsonEncode({'relayer': '0xrelayer', 'registry': '0xreg'}),
+            200,
+          );
         }),
       );
       final info = await c.getRelayerInfo();
@@ -279,24 +306,29 @@ void main() {
   });
 
   group('createPoll', () {
-    test('POSTs {moduleType,title,description,initData} → poll address',
-        () async {
+    test('POSTs {moduleType,title,description,initData} + the R4 policy '
+        'fields with explicit private defaults (0/0) → poll address', () async {
       late http.Request req;
       final c = RelayClient(
         baseUrl: base,
         client: MockClient((r) async {
           req = r;
           return http.Response(
-              jsonEncode(
-                  {'success': true, 'pollAddress': '0xpoll', 'txHash': '0xtx'}),
-              200);
+            jsonEncode({
+              'success': true,
+              'pollAddress': '0xpoll',
+              'txHash': '0xtx',
+            }),
+            200,
+          );
         }),
       );
       final res = await c.createPoll(
-          moduleType: 'anon-vote',
-          title: 'T',
-          description: 'D',
-          initDataHex: '0xabcd');
+        moduleType: 'anon-vote',
+        title: 'T',
+        description: 'D',
+        initDataHex: '0xabcd',
+      );
       expect(req.method, 'POST');
       expect(req.url.path, '/api/relay/create-poll');
       expect(jsonDecode(req.body), {
@@ -304,62 +336,122 @@ void main() {
         'title': 'T',
         'description': 'D',
         'initData': '0xabcd',
+        // R4: always sent explicitly; 0/0 are the private defaults the
+        // relayer would also apply when the fields are omitted.
+        'visibility': 0,
+        'resultsPolicy': 0,
       });
       expect(res.ok, isTrue);
       expect(res.pollAddress, '0xpoll');
       expect(res.txHash, '0xtx');
     });
 
+    test(
+      'R4 opt-ins ride the top-level JSON fields (initData untouched)',
+      () async {
+        late http.Request req;
+        final c = RelayClient(
+          baseUrl: base,
+          client: MockClient((r) async {
+            req = r;
+            return http.Response(
+              jsonEncode({'success': true, 'pollAddress': '0xpoll'}),
+              200,
+            );
+          }),
+        );
+        await c.createPoll(
+          moduleType: 'anon-vote',
+          title: 'T',
+          description: 'D',
+          initDataHex: '0xabcd',
+          visibility: 1,
+          resultsPolicy: 1,
+        );
+        final body = jsonDecode(req.body) as Map<String, dynamic>;
+        expect(body['visibility'], 1);
+        expect(body['resultsPolicy'], 1);
+        expect(
+          body['initData'],
+          '0xabcd',
+          reason:
+              'policies must NOT be re-encoded into initData — the '
+              'relayer appends resultsPolicy server-side (PR #108 shim)',
+        );
+      },
+    );
+
     test('surfaces the relayer error on non-2xx (ok:false)', () async {
       final c = RelayClient(
         baseUrl: base,
-        client: MockClient((_) async => http.Response(
-            jsonEncode({'error': 'Daily sponsored-poll creation limit reached.'}),
-            429)),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'error': 'Daily sponsored-poll creation limit reached.',
+            }),
+            429,
+          ),
+        ),
       );
       final res = await c.createPoll(
-          moduleType: 'anon-vote',
-          title: 'T',
-          description: '',
-          initDataHex: '0x');
+        moduleType: 'anon-vote',
+        title: 'T',
+        description: '',
+        initDataHex: '0x',
+      );
       expect(res.ok, isFalse);
       expect(res.error, contains('Daily'));
     });
   });
 
   group('registerVoter', () {
-    test('POSTs {pollAddress, identityCommitment} + parses ok/alreadyRegistered',
-        () async {
-      late http.Request req;
-      final c = RelayClient(
-        baseUrl: base,
-        client: MockClient((r) async {
-          req = r;
-          return http.Response(
-              jsonEncode(
-                  {'success': true, 'txHash': '0xtx', 'alreadyRegistered': true}),
-              200);
-        }),
-      );
-      final res = await c.registerVoter(pollId, '12345');
-      expect(req.method, 'POST');
-      expect(req.url.path, '/api/relay/register-voter');
-      expect(jsonDecode(req.body),
-          {'pollAddress': pollId, 'identityCommitment': '12345'});
-      expect(res.ok, isTrue);
-      expect(res.txHash, '0xtx');
-      expect(res.alreadyRegistered, isTrue);
-    });
+    test(
+      'POSTs {pollAddress, identityCommitment} + parses ok/alreadyRegistered',
+      () async {
+        late http.Request req;
+        final c = RelayClient(
+          baseUrl: base,
+          client: MockClient((r) async {
+            req = r;
+            return http.Response(
+              jsonEncode({
+                'success': true,
+                'txHash': '0xtx',
+                'alreadyRegistered': true,
+              }),
+              200,
+            );
+          }),
+        );
+        final res = await c.registerVoter(pollId, '12345');
+        expect(req.method, 'POST');
+        expect(req.url.path, '/api/relay/register-voter');
+        expect(jsonDecode(req.body), {
+          'pollAddress': pollId,
+          'identityCommitment': '12345',
+        });
+        expect(res.ok, isTrue);
+        expect(res.txHash, '0xtx');
+        expect(res.alreadyRegistered, isTrue);
+      },
+    );
 
-    test('surfaces the relayer error on non-2xx (e.g. joining closed)', () async {
-      final c = RelayClient(
-        baseUrl: base,
-        client: MockClient((_) async => http.Response(
-            jsonEncode({'error': 'Joining is closed for this poll.'}), 400)),
-      );
-      final res = await c.registerVoter(pollId, '12345');
-      expect(res.ok, isFalse);
-      expect(res.error, contains('Joining is closed'));
-    });
+    test(
+      'surfaces the relayer error on non-2xx (e.g. joining closed)',
+      () async {
+        final c = RelayClient(
+          baseUrl: base,
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({'error': 'Joining is closed for this poll.'}),
+              400,
+            ),
+          ),
+        );
+        final res = await c.registerVoter(pollId, '12345');
+        expect(res.ok, isFalse);
+        expect(res.error, contains('Joining is closed'));
+      },
+    );
   });
 }

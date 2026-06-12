@@ -24,10 +24,11 @@ abstract class BlindCommitStore {
 class SecureBlindCommitStore implements BlindCommitStore {
   final FlutterSecureStorage _s;
   SecureBlindCommitStore([FlutterSecureStorage? storage])
-      : _s = storage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            );
+    : _s =
+          storage ??
+          const FlutterSecureStorage(
+            aOptions: AndroidOptions(encryptedSharedPreferences: true),
+          );
 
   String _key(String poll) => 'tessera.blindcommit.${poll.toLowerCase()}';
 

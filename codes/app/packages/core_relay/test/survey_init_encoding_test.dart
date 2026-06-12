@@ -28,8 +28,7 @@ import 'package:core_relay/poll_creator.dart';
 void main() {
   String enc(List<SurveyQuestion> qs) => hex.encode(encodeSurveyInitData(qs));
 
-  group('encodeSurveyInitData matches ethers abi.encode((uint8,string[])[])',
-      () {
+  group('encodeSurveyInitData matches ethers abi.encode((uint8,string[])[])', () {
     test('sample 1 — mixed: [SingleChoice(A,B,C), MultiSelect(X,Y,Z,W)]', () {
       // node -e 'const {ethers}=require("ethers");console.log(
       //   ethers.AbiCoder.defaultAbiCoder().encode(["tuple(uint8,string[])[]"],
@@ -72,19 +71,24 @@ void main() {
 
       final actual = enc(const [
         SurveyQuestion(
-            qType: SurveyQType.singleChoice, options: ['A', 'B', 'C']),
+          qType: SurveyQType.singleChoice,
+          options: ['A', 'B', 'C'],
+        ),
         SurveyQuestion(
-            qType: SurveyQType.multiSelect, options: ['X', 'Y', 'Z', 'W']),
+          qType: SurveyQType.multiSelect,
+          options: ['X', 'Y', 'Z', 'W'],
+        ),
       ]);
       expect(actual, expected);
       // First word is the 0x…20 offset, NOT the array length 0x…02 — the proof
       // the outer-tuple wrap emitted the leading offset head.
-      expect(actual.substring(0, 64),
-          '0000000000000000000000000000000000000000000000000000000000000020');
+      expect(
+        actual.substring(0, 64),
+        '0000000000000000000000000000000000000000000000000000000000000020',
+      );
     });
 
-    test('sample 2 — single single-choice question: [SingleChoice(Yes,No)]',
-        () {
+    test('sample 2 — single single-choice question: [SingleChoice(Yes,No)]', () {
       // node -e 'const {ethers}=require("ethers");console.log(
       //   ethers.AbiCoder.defaultAbiCoder().encode(["tuple(uint8,string[])[]"],
       //     [[[0,["Yes","No"]]]]))'
@@ -103,8 +107,7 @@ void main() {
           '4e6f000000000000000000000000000000000000000000000000000000000000';
 
       final actual = enc(const [
-        SurveyQuestion(
-            qType: SurveyQType.singleChoice, options: ['Yes', 'No']),
+        SurveyQuestion(qType: SurveyQType.singleChoice, options: ['Yes', 'No']),
       ]);
       expect(actual, expected);
     });

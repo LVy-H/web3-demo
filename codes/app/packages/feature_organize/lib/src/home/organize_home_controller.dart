@@ -60,7 +60,8 @@ OrganizerDeployedState synthesizeOrganizerState(
         turnout: snapshot.turnout,
         smallGroupWarning: smallGroup,
         finalized: !blind || snapshot.finalized,
-        revealWindowElapsed: !blind ||
+        revealWindowElapsed:
+            !blind ||
             (snapshot.revealDeadline > 0 && now >= snapshot.revealDeadline),
         fetchPending: false,
         cancellation: CancellationToken(),
@@ -191,8 +192,7 @@ class OrganizeHomeController extends ChangeNotifier {
                 spec: (e.state as OrganizerDeployedState).spec,
                 results: results,
                 turnout: e.snapshot.turnout,
-                smallGroupWarning:
-                    e.snapshot.roster < minRoster.threshold,
+                smallGroupWarning: e.snapshot.roster < minRoster.threshold,
               ),
             ),
           );

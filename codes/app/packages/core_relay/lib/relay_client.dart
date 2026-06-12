@@ -142,7 +142,10 @@ class RelayClient {
         'proof': proof.toJson(),
       }, timeout: voteTimeout);
       if (!r.ok) {
-        return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
+        return RelayResult(
+          success: false,
+          error: _err(r.data, 'HTTP ${r.status}'),
+        );
       }
       return RelayResult(
         success: true,
@@ -150,7 +153,9 @@ class RelayClient {
       );
     } on TimeoutException {
       return const RelayResult(
-          success: false, error: 'Relayer did not respond in time. Try again.');
+        success: false,
+        error: 'Relayer did not respond in time. Try again.',
+      );
     } catch (e) {
       return RelayResult(success: false, error: e.toString());
     }
@@ -174,7 +179,10 @@ class RelayClient {
         'proof': proof.toJson(),
       }, timeout: voteTimeout);
       if (!r.ok) {
-        return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
+        return RelayResult(
+          success: false,
+          error: _err(r.data, 'HTTP ${r.status}'),
+        );
       }
       return RelayResult(
         success: true,
@@ -182,7 +190,9 @@ class RelayClient {
       );
     } on TimeoutException {
       return const RelayResult(
-          success: false, error: 'Relayer did not respond in time. Try again.');
+        success: false,
+        error: 'Relayer did not respond in time. Try again.',
+      );
     } catch (e) {
       return RelayResult(success: false, error: e.toString());
     }
@@ -209,7 +219,10 @@ class RelayClient {
         'proof': proof.toJson(),
       }, timeout: voteTimeout);
       if (!r.ok) {
-        return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
+        return RelayResult(
+          success: false,
+          error: _err(r.data, 'HTTP ${r.status}'),
+        );
       }
       return RelayResult(
         success: true,
@@ -217,7 +230,9 @@ class RelayClient {
       );
     } on TimeoutException {
       return const RelayResult(
-          success: false, error: 'Relayer did not respond in time. Try again.');
+        success: false,
+        error: 'Relayer did not respond in time. Try again.',
+      );
     } catch (e) {
       return RelayResult(success: false, error: e.toString());
     }
@@ -246,7 +261,10 @@ class RelayClient {
         'proof': proof.toJson(),
       }, timeout: voteTimeout);
       if (!r.ok) {
-        return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
+        return RelayResult(
+          success: false,
+          error: _err(r.data, 'HTTP ${r.status}'),
+        );
       }
       return RelayResult(
         success: true,
@@ -254,7 +272,9 @@ class RelayClient {
       );
     } on TimeoutException {
       return const RelayResult(
-          success: false, error: 'Relayer did not respond in time. Try again.');
+        success: false,
+        error: 'Relayer did not respond in time. Try again.',
+      );
     } catch (e) {
       return RelayResult(success: false, error: e.toString());
     }
@@ -294,7 +314,10 @@ class RelayClient {
         'proof': proof.toJson(),
       }, timeout: voteTimeout);
       if (!r.ok) {
-        return RelayResult(success: false, error: _err(r.data, 'HTTP ${r.status}'));
+        return RelayResult(
+          success: false,
+          error: _err(r.data, 'HTTP ${r.status}'),
+        );
       }
       return RelayResult(
         success: true,
@@ -302,7 +325,9 @@ class RelayClient {
       );
     } on TimeoutException {
       return const RelayResult(
-          success: false, error: 'Relayer did not respond in time. Try again.');
+        success: false,
+        error: 'Relayer did not respond in time. Try again.',
+      );
     } catch (e) {
       return RelayResult(success: false, error: e.toString());
     }
@@ -352,14 +377,21 @@ class RelayClient {
 
   /// Wallet-free, sponsored poll creation: the relayer clones + initializes the
   /// poll via `PollRegistry.createPoll`, paying gas, and returns the new poll
-  /// address. [initDataHex] is the module's `initialize(...)` calldata with the
-  /// RELAYER as `owner` (see [getRelayerInfo]). On failure, [CreatePollResult.ok]
-  /// is false and `error` carries the relayer's client-facing message.
+  /// address. [initDataHex] is the module's PRE-R4 `initialize(...)` calldata
+  /// with the RELAYER as `owner` (see [getRelayerInfo]); the R4 privacy
+  /// choices travel as the TOP-LEVEL [visibility] / [resultsPolicy] fields
+  /// (0|1, both default 0 — unlisted + sealed-until-close) because the
+  /// relayer appends `resultsPolicy` to the initData server-side (PR #108's
+  /// shim — see `sponsored_poll_creator.dart` for the full wire contract).
+  /// On failure, [CreatePollResult.ok] is false and `error` carries the
+  /// relayer's client-facing message.
   Future<CreatePollResult> createPoll({
     required String moduleType,
     required String title,
     required String description,
     required String initDataHex,
+    int visibility = 0,
+    int resultsPolicy = 0,
   }) async {
     try {
       final r = await _postJson(
@@ -369,16 +401,24 @@ class RelayClient {
           'title': title,
           'description': description,
           'initData': initDataHex,
+          // Always sent explicitly so the JSON mirrors what the chain will
+          // store — the relayer treats omitted and 0 identically.
+          'visibility': visibility,
+          'resultsPolicy': resultsPolicy,
         },
         timeout: voteTimeout, // create includes an on-chain tx submission
       );
       if (r.ok && r.data['pollAddress'] is String) {
         return CreatePollResult(
           pollAddress: r.data['pollAddress'] as String,
-          txHash: r.data['txHash'] is String ? r.data['txHash'] as String : null,
+          txHash: r.data['txHash'] is String
+              ? r.data['txHash'] as String
+              : null,
         );
       }
-      return CreatePollResult(error: _err(r.data, 'Could not create the poll.'));
+      return CreatePollResult(
+        error: _err(r.data, 'Could not create the poll.'),
+      );
     } on TimeoutException {
       return const CreatePollResult(error: 'The relayer timed out. Try again.');
     } catch (e) {
@@ -403,7 +443,9 @@ class RelayClient {
       if (r.ok && r.data['success'] == true) {
         return RegisterResult(
           ok: true,
-          txHash: r.data['txHash'] is String ? r.data['txHash'] as String : null,
+          txHash: r.data['txHash'] is String
+              ? r.data['txHash'] as String
+              : null,
           alreadyRegistered: r.data['alreadyRegistered'] == true,
         );
       }

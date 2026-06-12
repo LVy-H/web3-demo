@@ -90,16 +90,20 @@ abstract class AppConfig {
   /// Reown/WalletConnect project ID (free, from cloud.reown.com). Without it the
   /// Connect-Wallet button shows a hint instead of initializing.
   /// Build with: --dart-define=WC_PROJECT_ID=YOUR_ID
-  static const walletConnectProjectId =
-      String.fromEnvironment('WC_PROJECT_ID', defaultValue: '');
+  static const walletConnectProjectId = String.fromEnvironment(
+    'WC_PROJECT_ID',
+    defaultValue: '',
+  );
 
   /// LOCAL-DEV signer key. When set, the app can sign + broadcast transactions
   /// directly (no mobile wallet needed) — the only way to cast M2 commit-reveal
   /// votes against the host-local Hardhat node that a phone wallet can't reach.
   /// NEVER set this for a real deployment. Build with:
   ///   `--dart-define=DEV_PRIVATE_KEY=0x...` (a Hardhat account key)
-  static const devPrivateKey =
-      String.fromEnvironment('DEV_PRIVATE_KEY', defaultValue: '');
+  static const devPrivateKey = String.fromEnvironment(
+    'DEV_PRIVATE_KEY',
+    defaultValue: '',
+  );
 
   // ── Desktop ZK prover (SP4) — opt-in Node sidecar ──────────────────────────
   // Lets the desktop app (Linux/Windows/macOS) cast Semaphore votes by spawning
@@ -107,12 +111,18 @@ abstract class AppConfig {
   // paths are set, so it never changes default web/mobile/desktop behavior. Set:
   //   --dart-define=DESKTOP_PROVER_SIDECAR=/abs/web_prover/desktop_prover.mjs
   //   --dart-define=DESKTOP_PROVER_BUNDLE=/abs/web/zkprover.js
-  static const desktopProverNode =
-      String.fromEnvironment('DESKTOP_PROVER_NODE', defaultValue: 'node');
-  static const desktopProverSidecar =
-      String.fromEnvironment('DESKTOP_PROVER_SIDECAR', defaultValue: '');
-  static const desktopProverBundle =
-      String.fromEnvironment('DESKTOP_PROVER_BUNDLE', defaultValue: '');
+  static const desktopProverNode = String.fromEnvironment(
+    'DESKTOP_PROVER_NODE',
+    defaultValue: 'node',
+  );
+  static const desktopProverSidecar = String.fromEnvironment(
+    'DESKTOP_PROVER_SIDECAR',
+    defaultValue: '',
+  );
+  static const desktopProverBundle = String.fromEnvironment(
+    'DESKTOP_PROVER_BUNDLE',
+    defaultValue: '',
+  );
 
   /// Desktop proving is enabled only when the sidecar + bundle paths are set.
   static bool get desktopProverEnabled =>
@@ -166,8 +176,9 @@ class NetworkConfig {
     final chain = j['chainId'];
     return NetworkConfig(
       rpcUrl: j['rpcUrl'] is String ? j['rpcUrl'] as String : d.rpcUrl,
-      relayerUrl:
-          j['relayerUrl'] is String ? j['relayerUrl'] as String : d.relayerUrl,
+      relayerUrl: j['relayerUrl'] is String
+          ? j['relayerUrl'] as String
+          : d.relayerUrl,
       registryAddress: j['registryAddress'] is String
           ? j['registryAddress'] as String
           : d.registryAddress,

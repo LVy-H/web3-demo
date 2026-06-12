@@ -90,28 +90,27 @@ class AppDependencies {
     }
     AppConfig.apply(saved != null && saved.isValidFormat ? saved : null);
 
-    // 2. Chain reader over the bundled ABIs. Module ABIs come from
-    //    core_chain's package assets (the canonical copy — no duplication).
-    //
-    //    PollRegistry is the ONE exception: the app ships its own copy under
-    //    assets/abi/ because the resolver decodes the R4 registry (PollInfo
-    //    gained `visibility`; decoding R4 return data with the pre-R4 ABI
-    //    fails), while core_chain still packages the pre-R4 ABI — refreshing
-    //    it breaks core_relay's dev-key createPoll/initialize encoders, whose
-    //    R4 migration belongs to the R3 organize flow. When R3 refreshes the
-    //    core_chain ABI set, delete the app copy and load the package asset.
+    // 2. Chain reader over the bundled ABIs — ALL from core_chain's package
+    //    assets, the single canonical R4 copy (the R4 client migration
+    //    refreshed the set and retired the app-local PollRegistry.json
+    //    workaround that bridged the pre-R4 gap).
     const pkgAbi = 'packages/core_chain/assets/abi';
     // One parallel batch, not five sequential awaits: on web every
     // rootBundle.loadString is an HTTP fetch and runApp() waits on this, so
     // sequential loads put five round-trips on the startup critical path.
-    final [izkPollAbi, registryAbi, anonAbi, blindAbi, surveyAbi] =
-        await Future.wait([
-          rootBundle.loadString('$pkgAbi/IZkPoll.json'),
-          rootBundle.loadString('assets/abi/PollRegistry.json'),
-          rootBundle.loadString('$pkgAbi/ZkAnonVoting.json'),
-          rootBundle.loadString('$pkgAbi/ZkBlindVoting.json'),
-          rootBundle.loadString('$pkgAbi/ZkSurveyVoting.json'),
-        ]);
+    final [
+      izkPollAbi,
+      registryAbi,
+      anonAbi,
+      blindAbi,
+      surveyAbi,
+    ] = await Future.wait([
+      rootBundle.loadString('$pkgAbi/IZkPoll.json'),
+      rootBundle.loadString('$pkgAbi/PollRegistry.json'),
+      rootBundle.loadString('$pkgAbi/ZkAnonVoting.json'),
+      rootBundle.loadString('$pkgAbi/ZkBlindVoting.json'),
+      rootBundle.loadString('$pkgAbi/ZkSurveyVoting.json'),
+    ]);
     final chainReader = ChainReader(
       rpcUrl: AppConfig.rpcUrl,
       izkPollAbiJson: _abiArray(izkPollAbi),

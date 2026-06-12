@@ -51,4 +51,4 @@ melos:
 
     format:check:
       description: Fail when any file is unformatted (CI gate).
-      run: dart run melos exec --concurrency=1 -- dart format --set-exit-if-changed .
+      run: dart run melos exec --concurrency=1 -- dart format --output=none --set-exit-if-changed .

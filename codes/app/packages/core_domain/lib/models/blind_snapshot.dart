@@ -29,8 +29,7 @@ class BlindSnapshot {
     required this.revealed,
   });
 
-  BigInt get totalRevealed =>
-      results.fold(BigInt.zero, (a, b) => a + b);
+  BigInt get totalRevealed => results.fold(BigInt.zero, (a, b) => a + b);
 
   bool isOwner(String? signer) =>
       signer != null && signer.toLowerCase() == owner.toLowerCase();

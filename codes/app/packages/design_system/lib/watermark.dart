@@ -53,7 +53,10 @@ class Watermark extends StatelessWidget {
   Widget build(BuildContext context) {
     final (svg, color) = switch (phase) {
       PollPhase.active => (_voteSvg, Db.segnale.withValues(alpha: 0.20)),
-      PollPhase.upcoming => (_scheduleSvg, Db.oltremare.withValues(alpha: 0.25)),
+      PollPhase.upcoming => (
+        _scheduleSvg,
+        Db.oltremare.withValues(alpha: 0.25),
+      ),
       PollPhase.ended => (_trophySvg, Db.success.withValues(alpha: 0.18)),
     };
     return IgnorePointer(

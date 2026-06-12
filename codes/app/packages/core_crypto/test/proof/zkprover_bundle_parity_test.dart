@@ -15,15 +15,25 @@ void main() {
     // is bundled by this package (core_crypto). Paths are package-root-relative.
     final web = File('../../apps/tessera/web/zkprover.js');
     final asset = File('assets/zk/zkprover.js');
-    expect(web.existsSync(), isTrue,
-        reason: 'apps/tessera/web/zkprover.js must exist');
-    expect(asset.existsSync(), isTrue,
-        reason: 'assets/zk/zkprover.js (the bundled mobile prover) must exist');
+    expect(
+      web.existsSync(),
+      isTrue,
+      reason: 'apps/tessera/web/zkprover.js must exist',
+    );
+    expect(
+      asset.existsSync(),
+      isTrue,
+      reason: 'assets/zk/zkprover.js (the bundled mobile prover) must exist',
+    );
 
     final webSha = sha256.convert(web.readAsBytesSync()).toString();
     final assetSha = sha256.convert(asset.readAsBytesSync()).toString();
-    expect(assetSha, webSha,
-        reason: 'assets/zk/zkprover.js drifted from web/zkprover.js — re-copy '
-            'the rebuilt vite bundle into assets/zk/ (web_prover build output).');
+    expect(
+      assetSha,
+      webSha,
+      reason:
+          'assets/zk/zkprover.js drifted from web/zkprover.js — re-copy '
+          'the rebuilt vite bundle into assets/zk/ (web_prover build output).',
+    );
   });
 }

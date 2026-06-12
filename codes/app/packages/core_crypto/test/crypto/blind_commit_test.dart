@@ -16,8 +16,11 @@ void main() {
 
   test('blindCommitHash matches the viem/contract golden vectors', () {
     golden.forEach((option, expected) {
-      expect(toHex0x(blindCommitHash(option, salt)), expected,
-          reason: 'option $option');
+      expect(
+        toHex0x(blindCommitHash(option, salt)),
+        expected,
+        reason: 'option $option',
+      );
     });
   });
 

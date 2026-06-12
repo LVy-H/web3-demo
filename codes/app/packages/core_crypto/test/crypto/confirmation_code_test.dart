@@ -11,11 +11,13 @@ import 'package:core_crypto/crypto/confirmation_code.dart';
 /// generator; a pass means the Dart port agrees with the web client + relayer,
 /// not merely with itself.
 void main() {
-  final fixture = jsonDecode(
-    File('test/fixtures/cross_client_vectors.json').readAsStringSync(),
-  ) as Map<String, dynamic>;
-  final ccVectors =
-      (fixture['confirmationCode'] as List).cast<Map<String, dynamic>>();
+  final fixture =
+      jsonDecode(
+            File('test/fixtures/cross_client_vectors.json').readAsStringSync(),
+          )
+          as Map<String, dynamic>;
+  final ccVectors = (fixture['confirmationCode'] as List)
+      .cast<Map<String, dynamic>>();
 
   group('confirmationCode — golden cross-client vectors', () {
     test('reproduces the TS codes (commitment as decimal String)', () {
@@ -65,8 +67,10 @@ void main() {
         '12345678901234567890123456789012345678901234567890',
       );
       final fromHexAndBigint = confirmationCode(nonceHex, commitment);
-      final fromBytesAndString =
-          confirmationCode(nonceBytes, commitment.toString());
+      final fromBytesAndString = confirmationCode(
+        nonceBytes,
+        commitment.toString(),
+      );
       expect(fromBytesAndString, fromHexAndBigint);
     });
 

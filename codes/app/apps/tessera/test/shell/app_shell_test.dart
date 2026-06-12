@@ -12,43 +12,40 @@ import 'package:tessera/spaces/you_space_screen.dart';
 import '../test_dependencies.dart';
 
 void main() {
-  testWidgets(
-    'shell bar is a notched BottomAppBar with the three space tabs '
-    '(VOTE / ORGANIZE / YOU) and no legacy NavigationBar',
-    (tester) async {
-      final deps = await buildTestDependencies();
-      await tester.pumpWidget(TesseraApp(dependencies: deps));
-      await tester.pumpAndSettle();
+  testWidgets('shell bar is a notched BottomAppBar with the three space tabs '
+      '(VOTE / ORGANIZE / YOU) and no legacy NavigationBar', (tester) async {
+    final deps = await buildTestDependencies();
+    await tester.pumpWidget(TesseraApp(dependencies: deps));
+    await tester.pumpAndSettle();
 
-      // Square bar with a circular notch for the droplet.
-      final bar = tester.widget<BottomAppBar>(find.byType(BottomAppBar));
-      expect(bar.shape, isA<CircularNotchedRectangle>());
-      expect(find.byType(NavigationBar), findsNothing);
+    // Square bar with a circular notch for the droplet.
+    final bar = tester.widget<BottomAppBar>(find.byType(BottomAppBar));
+    expect(bar.shape, isA<CircularNotchedRectangle>());
+    expect(find.byType(NavigationBar), findsNothing);
 
-      // Exactly the three spaces as tabs — JOIN is NOT a tab.
-      expect(
-        find.descendant(
-          of: find.byType(BottomAppBar),
-          matching: find.text('VOTE'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byType(BottomAppBar),
-          matching: find.text('ORGANIZE'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byType(BottomAppBar),
-          matching: find.text('YOU'),
-        ),
-        findsOneWidget,
-      );
-    },
-  );
+    // Exactly the three spaces as tabs — JOIN is NOT a tab.
+    expect(
+      find.descendant(
+        of: find.byType(BottomAppBar),
+        matching: find.text('VOTE'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(BottomAppBar),
+        matching: find.text('ORGANIZE'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(BottomAppBar),
+        matching: find.text('YOU'),
+      ),
+      findsOneWidget,
+    );
+  });
 
   testWidgets('JOIN droplet is a circular center-docked FAB', (tester) async {
     final deps = await buildTestDependencies();
@@ -69,10 +66,12 @@ void main() {
     );
 
     final scaffold = tester.widget<Scaffold>(
-      find.ancestor(
-        of: find.byType(FloatingActionButton),
-        matching: find.byType(Scaffold),
-      ).first,
+      find
+          .ancestor(
+            of: find.byType(FloatingActionButton),
+            matching: find.byType(Scaffold),
+          )
+          .first,
     );
     expect(
       scaffold.floatingActionButtonLocation,

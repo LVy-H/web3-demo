@@ -145,7 +145,9 @@ class QrMatrix {
       }
     }
 
-    final maxDataLen = blocks.map((b) => b.length).reduce((a, b) => a > b ? a : b);
+    final maxDataLen = blocks
+        .map((b) => b.length)
+        .reduce((a, b) => a > b ? a : b);
     final out = BytesBuilder();
     for (var i = 0; i < maxDataLen; i++) {
       for (final block in blocks) {
@@ -260,7 +262,9 @@ class _Builder {
     for (var i = 0; i < positions.length; i++) {
       for (var j = 0; j < positions.length; j++) {
         final corner =
-            (i == 0 && j == 0) || (i == 0 && j == last) || (i == last && j == 0);
+            (i == 0 && j == 0) ||
+            (i == 0 && j == last) ||
+            (i == last && j == 0);
         if (!corner) _drawAlignment(positions[i], positions[j]);
       }
     }

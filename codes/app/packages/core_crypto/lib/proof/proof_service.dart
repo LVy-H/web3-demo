@@ -65,8 +65,7 @@ class FakeProofService implements ProofService {
     required List<String> memberCommitments,
     required int message,
     required String scope,
-  }) async =>
-      proof;
+  }) async => proof;
 
   @override
   Future<RelayProof> generateVoteProofWide({
@@ -89,8 +88,7 @@ class FakeProofService implements ProofService {
       );
 
   @override
-  Future<String> deriveCommitment(String identitySeed) async =>
-      '1234567890'; // deterministic stand-in for tests
+  Future<String> deriveCommitment(String identitySeed) async => '1234567890'; // deterministic stand-in for tests
 
   @override
   void dispose() {}

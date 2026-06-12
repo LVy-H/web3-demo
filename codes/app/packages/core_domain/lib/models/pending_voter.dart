@@ -23,21 +23,20 @@ class PendingVoter {
   });
 
   factory PendingVoter.fromJson(Map<String, dynamic> json) => PendingVoter(
-        ticketNonce: json['ticketNonce'] as String,
-        ticket: json['ticket'] as String,
-        ephemeralIdentityCommitment:
-            json['ephemeralIdentityCommitment'] as String,
-        confirmationCode: json['confirmationCode'] as String,
-        status: json['status'] as String,
-        createdAt: (json['createdAt'] as num).toInt(),
-      );
+    ticketNonce: json['ticketNonce'] as String,
+    ticket: json['ticket'] as String,
+    ephemeralIdentityCommitment: json['ephemeralIdentityCommitment'] as String,
+    confirmationCode: json['confirmationCode'] as String,
+    status: json['status'] as String,
+    createdAt: (json['createdAt'] as num).toInt(),
+  );
 
   Map<String, dynamic> toJson() => {
-        'ticketNonce': ticketNonce,
-        'ticket': ticket,
-        'ephemeralIdentityCommitment': ephemeralIdentityCommitment,
-        'confirmationCode': confirmationCode,
-        'status': status,
-        'createdAt': createdAt,
-      };
+    'ticketNonce': ticketNonce,
+    'ticket': ticket,
+    'ephemeralIdentityCommitment': ephemeralIdentityCommitment,
+    'confirmationCode': confirmationCode,
+    'status': status,
+    'createdAt': createdAt,
+  };
 }
