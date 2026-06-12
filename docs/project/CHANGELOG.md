@@ -4,30 +4,39 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
-### Fixed
-- **On-device prover hung at "Minting your identity" on release builds** — the
-  Android `ProofServiceMobile` runs `zkprover.js` in a headless WebView and
-  serves its bundled Groth16 artifacts from an in-app loopback server at
-  `http://127.0.0.1:<port>` (cleartext). The **release** manifest had no cleartext
-  allowance (modern `targetSdk` blocks it by default — only the *debug* manifest
-  set `usesCleartextTraffic`), so on a real device the WebView couldn't load the
-  loopback page, `zkprover.js` never ran, and the host timed out
-  (*"never reached readiness"*). Anything needing a proof — minting a live-meeting
-  identity, casting — stalled. Added a **scoped `network_security_config.xml`**
-  permitting cleartext only for `127.0.0.1` / `localhost` / `10.0.2.2` (the
-  loopback prover + emulator host); every real domain stays blocked. The
-  on-device prover now works in release, not just debug.
-- **Settings → Network "save" appeared to hang** — `NetworkConfigStore` was
-  registered in the screen's test harness but **not** in `main()`'s
-  `MultiProvider`, so on-device `context.read<NetworkConfigStore>()` threw
-  `ProviderNotFoundException` *after* the button flipped to `SAVING…` — which
-  never reset, looking like a hang (analyze + the widget test passed because the
-  test supplied the provider itself). Registered the provider in `main()`, and
-  hardened the save/reset path so any store failure now resets the button and
-  surfaces a snackbar instead of sticking. Regression test added (screen with no
-  provider → error shown, button recovers).
-
 ### Added
+- **Tessera Revolution — R1–R4 shipped (2026-06-11→12, PRs #100–#122)** —
+  ground-up redesign of the client product layer per
+  `docs/superpowers/specs/2026-06-11-tessera-revolution-design.md`. By area:
+  - **Workspace (R1, #101):** new `codes/app/` pub workspace (melos 7) — 10
+    packages (`core_domain/chain/crypto/relay/storage`, `design_system`,
+    `feature_join/vote/organize/you`) + the thin `apps/tessera` shell; proven
+    non-UI code lifted verbatim from `codes/mobile/` (which stays as the
+    frozen reference until the cutover PR).
+  - **Journey engine (R2, #102–#107, #109):** journey contract +
+    capabilities/policies, state machines for the voter, blind commit-reveal,
+    organizer, and live voter+host journeys (phase gating, salt-backup gate,
+    reveal-deadline client enforcement, live timeouts, organizer phase
+    ordering); typed join-target grammar + `TES-XXXXXX` short-code format
+    (#103; resolver still pending); guarded go_router + `Capabilities` probe
+    + on-chain module resolution (#109).
+  - **Three-space IA (R3, #110–#114, #116):** VOTE / ORGANIZE / JOIN-droplet
+    / You shell with zero crypto jargon for voters — module ballots + sealed
+    results (#113), create-with-private-defaults + run-event console (#114),
+    JOIN scan/paste/code + live-voter flow (#112), voting pass / receipts /
+    verify / settings (#111), droplet JOIN button notched into the navbar +
+    alignment sweep (#116).
+  - **Privacy defaults (R4, #108, #117):** on-chain `visibility` (unlisted by
+    DEFAULT; listing is a creation-time opt-in) + `resultsPolicy`
+    (sealed-until-close by DEFAULT) across registry + all six modules;
+    `getListedPolls()` public directory + `getPollInfo` link access; relayer
+    create accepts/forwards the policy fields and re-encodes pre-R4 client
+    initData (old clients keep working, get privacy); client core migrated —
+    refreshed R4 ABIs, overload-aware `createPoll`, pinned pre-R4 sponsored
+    wire format. Contracts suite 268 → 296 passing.
+  - **Brand (#122):** Tessera identity — tile mark, web/Android icons,
+    splash, titles, `TesseraMark` in `design_system`.
+
 - **Runtime network config — point one build at any backend (no rebuild)** —
   the backend pointers (RPC, relayer, registry, Semaphore verifier, chain id)
   were compile-time only (`--dart-define`), so a hosted build (e.g. on Cloudflare
@@ -179,6 +188,14 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
     architecture: `docs/architecture/module-survey.md`.
 
 ### Changed
+- **Web cold load −19.7%** (12.0 MB → 9.6 MB; computed 10 Mbps load ≈ −22%) —
+  icon tree-shaking, font subsetting, self-hosted CanvasKit, batched ABI
+  loads, lazy-loaded `zkprover.js` (#115).
+- **CI `app` job gated on `melos format:check`** (non-mutating) before
+  analyze/tests (#119).
+- **Relayer limits env-configurable** — `RELAY_RATE_LIMIT_MAX/WINDOW_MS`
+  (#118) and `RELAY_CREATE_DAILY_MAX` / `RELAY_REGISTER_PER_POLL_MAX` (#120);
+  production defaults unchanged, `dev-stack.sh` raises them for local dev.
 - **Nightly real-verifier CI** — `.github/workflows/real-verifier.yml` runs the
   `RealVerifier.test.ts` Groth16 integration test (a real snarkjs proof, accept +
   tamper-reject) on a nightly schedule and on manual dispatch. Kept off the
@@ -200,6 +217,32 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
   and `web3-demo.zip` (P3-18) — live source stays; frozen blobs dropped.
 
 ### Fixed
+- **Idempotent JOIN navigation** — duplicate page-key crash on repeated JOIN
+  entries (#121).
+- **Web proving wiring in the workspace shell** — the prover script was never
+  loaded, so web proving was broken in `codes/app`; now lazy-loaded on the
+  first prove call (#115).
+- **On-device prover hung at "Minting your identity" on release builds** — the
+  Android `ProofServiceMobile` runs `zkprover.js` in a headless WebView and
+  serves its bundled Groth16 artifacts from an in-app loopback server at
+  `http://127.0.0.1:<port>` (cleartext). The **release** manifest had no cleartext
+  allowance (modern `targetSdk` blocks it by default — only the *debug* manifest
+  set `usesCleartextTraffic`), so on a real device the WebView couldn't load the
+  loopback page, `zkprover.js` never ran, and the host timed out
+  (*"never reached readiness"*). Anything needing a proof — minting a live-meeting
+  identity, casting — stalled. Added a **scoped `network_security_config.xml`**
+  permitting cleartext only for `127.0.0.1` / `localhost` / `10.0.2.2` (the
+  loopback prover + emulator host); every real domain stays blocked. The
+  on-device prover now works in release, not just debug.
+- **Settings → Network "save" appeared to hang** — `NetworkConfigStore` was
+  registered in the screen's test harness but **not** in `main()`'s
+  `MultiProvider`, so on-device `context.read<NetworkConfigStore>()` threw
+  `ProviderNotFoundException` *after* the button flipped to `SAVING…` — which
+  never reset, looking like a hang (analyze + the widget test passed because the
+  test supplied the provider itself). Registered the provider in `main()`, and
+  hardened the save/reset path so any store failure now resets the button and
+  surfaces a snackbar instead of sticking. Regression test added (screen with no
+  provider → error shown, button recovers).
 - **Settings signer status — review follow-ups** (adversarial review of the
   signing-explainer PR): `signerStatusLabel` now reports **`wallet connected`**
   when a wallet is actually connected (instead of always falling back to
@@ -214,6 +257,10 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
   existing CI). Closed/MOOT statuses synced to reality (P0-*, P2-*, P3-15..18).
 
 ### Security
+- **Relayer never logs ballot contents** (#100) — `vote` / `bitmask` /
+  `packedRanking` / `packedAlloc` / `answers` stripped from all five vote
+  routes and pre-check errors; mutation-checked regression suite
+  (`test/log-privacy.test.ts`).
 - **`registerVoters` batch cap lowered 100 → 50** (`ZkAnonVoting`, P1-13) so a full
   batch fits a 30M mainnet block (~24.5M gas; 100 ≈ 50M is unreachable). Test
   boundary and `module-m1-anon-voting.md` updated; full suite green (268).

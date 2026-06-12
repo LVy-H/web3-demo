@@ -82,22 +82,27 @@ These ride alongside every phase:
 ## Phase 8: Tessera — Unified Flutter Client — **DONE**
 
 > Supersedes "Mobile-native client — responsive web only" below. One Flutter
-> codebase (`codes/mobile/`) is now the canonical client across mobile, desktop,
+> codebase (`codes/mobile/`) became the canonical client across mobile, desktop,
 > AND web. See `docs/superpowers/specs/2026-06-02-tessera-unify-flutter-design.md`.
+> **Since superseded in turn by the Phase 13 `codes/app/` workspace** —
+> `codes/mobile/` is the frozen reference until the cutover PR lands.
 
 - Linux/desktop launch; Identity management; **M2 blind-vote** UI (commit-reveal);
   Receipts via Verify; live-meeting **host + voter**; **desktop ZK proving** (Node
   sidecar, real-vkey-verified); local **dev-signer**; **BLE/NFC** proximity seam.
 - React frontend **deprecated** (Flutter-web canonical).
 
-## Phase 9: Release readiness & product polish — **PARTIAL**
+## Phase 9: Release readiness & product polish — **PARTIAL (largely superseded by Phase 13)**
 
-- Cut **v0.2.0** (the Tessera milestone) per `RELEASING.md` once guardrails pass.
-- App polish: **Settings** (network/relayer/theme), browse **search/filter/
-  pagination**, responsive desktop layouts, onboarding/empty states, **results
-  charts** on poll detail — **DONE** (themed tally bars `ResultsBars` on M1/M2,
-  reused by M3 approval; spec:
-  `docs/superpowers/specs/2026-06-02-results-charts-design.md`), a11y.
+- Cut **v0.2.0** (the Tessera milestone) per `RELEASING.md` once guardrails
+  pass — **DONE** (CHANGELOG `[0.2.0] — 2026-06-02`). The next release cut
+  should follow the Phase 13 cutover.
+- App polish (Settings, results charts `ResultsBars`, layouts, empty states)
+  — **DONE in `codes/mobile/`**, and the surfaces themselves were since
+  rebuilt in the Phase 13 three-space IA (`codes/app/`); `ResultsBars` and
+  the design tokens were lifted into `design_system`. Browse
+  **pagination** never shipped and remains open debt (P4-21/P4-22 — applies
+  to `getListedPolls` too).
 - ~~**Mobile WebView prover** (so phones vote natively)~~ — promoted to a dedicated
   effort: **Phase 11** (and reframed as emulator-verifiable, not device-pending).
 - ~~Decouple `codes/frontend`~~ — **DONE** (React removed; prover self-contained).
@@ -124,11 +129,19 @@ These ride alongside every phase:
 - **Verified-or-fenced:** proving is **emulator-verified** against the real Groth16
   vkey; the **camera** is the only real-device/fenced piece (paste = verified
   fallback). Real-device confirmation is a follow-up gate.
+- **Post-Phase-13 note:** the WebView mobile prover (`ProofServiceMobile`) and
+  its platform siblings now live in the workspace's `core_crypto` package
+  (`codes/app/packages/core_crypto/lib/proof/`), lifted verbatim in R1. iOS
+  proving remains unsupported/fenced.
 
 ## Phase 10: Public testnet (Sepolia) + real verifier — **PLANNED**
 
 - Deploy Registry + modules to Sepolia with a **real Groth16 SemaphoreVerifier**
   (replace the local Mock). Per-network `deployed-addresses.<net>.json`.
+- The real verifier is already **done + proven on the live local chain**
+  (P4-23, nightly CI) — what remains is the Sepolia deployment itself.
+- Per the Revolution spec (§7), this gate **merges with Phase 14 (R5
+  cryptographic sealing)**: R5 + Sepolia together are the path to `1.0`.
 - This + "no open P0/P1" is the bar to move from `0.x` to **`1.0.0`**.
 
 ## Phase 12: Richer voting types — **COMPLETE (epic — 12a/12b/12c/12d all shipped)**
@@ -186,29 +199,63 @@ The **Phase 12 voting-types epic is complete**: approval (12a), ranked-choice
 Flutter — behind the existing `IZkPoll` / module-type dispatch. Each sub-module
 has its own design spec and `architecture/module-*.md`.
 
-## Phase 13: Tessera Revolution — persona IA, flow enforcement, by-design defaults — **NEXT**
+## Phase 13: Tessera Revolution — persona IA, flow enforcement, by-design defaults — **DONE (R1–R4; R5 split out below)**
 
 > Spec: `docs/superpowers/specs/2026-06-11-tessera-revolution-design.md`.
-> Owner mandate (2026-06-11). Ground-up redesign of the client product layer:
-> persona-driven IA (voter/organizer/operator), state-machined journeys with
-> router guards, private/sealed **by default**, and a pub-workspace package
-> split. Sub-phases ship serially as audited PRs:
+> Owner mandate (2026-06-11). Ground-up redesign of the client product layer,
+> shipped as audited PRs #100–#122 over 2026-06-11→12:
 
-- **R0 — Triage** (independent of redesign): refresh-after-cast on all modules,
-  module-aware poll-card tap, reveal-deadline display + client gating,
-  live-voter pending timeout, relayer ballot-log strip, 5 missing screen tests.
-- **R1 — Workspace**: pub workspace + melos; extract `core_*` + `design_system`
-  packages; per-package CI. Zero behavior change.
-- **R2 — Journey engine**: `core_domain` state machines for the four journeys;
-  go_router `redirect` guards; `Capabilities` object; jargon-free copy.
-- **R3 — Three-space IA**: VOTE / ORGANIZE / JOIN / You shell; organizer
-  dashboard (phases + turnout); live-host console folded in; old tabs removed.
-- **R4 — Privacy defaults**: `visibility` + `resultsPolicy` on
-  registry/modules; unlisted-by-default; sealed-tally-by-default with
-  creation-time opt-ins; small-group warning.
-- **R5 — Cryptographic sealing** (separate spec, after R4): threshold/timelock
-  sealed ballots (Shutter-style); receipt-freeness review; merges with the
-  Phase 10 Sepolia gate.
+- **R0 — Triage** — **CUT** (owner decision, spec §7): no interim-usability
+  work on the old app. The R0 fixes landed once, in their final homes — phase
+  gating / reveal-deadline enforcement / live timeouts as R2 journey
+  transitions, module-aware routing as the R2/R3 on-chain resolver, screen
+  tests against the R3 screens. Only the relayer ballot-log strip shipped
+  standalone (#100).
+- **R1 — Workspace** — **DONE** (#101): pub workspace + melos 7 at
+  `codes/app/`; proven non-UI code lifted verbatim into `core_domain` /
+  `core_chain` / `core_crypto` / `core_relay` / `core_storage` +
+  `design_system`; per-package CI. Zero behavior change.
+- **R2 — Journey engine** — **DONE** (#102–#107): journey contract +
+  capabilities/policies/route-guard model, then the voter, blind
+  commit-reveal, organizer, and live voter+host state machines in
+  `core_domain` (flow enforcement: phase gating, salt-backup gate,
+  reveal-deadline client enforcement, live timeouts, organizer phase
+  ordering); typed join-target grammar + short-code format (#103); guarded
+  go_router + `Capabilities` probe + app skeleton (#109).
+- **R3 — Three-space IA** — **DONE** (#110–#114, #116): VOTE / ORGANIZE /
+  JOIN-droplet / You shell with zero crypto jargon for voters; organizer
+  create flow with private defaults + run-event console; JOIN
+  scan/paste/code + live-voter flow; voting pass / receipts / verify /
+  settings under You.
+- **R4 — Privacy defaults** — **DONE** (#108, #117): `visibility` +
+  `resultsPolicy` on registry/modules, **unlisted + sealed-results by
+  default** with creation-time opt-ins (defaults live in the contract — the
+  4-arg `createPoll` overload hard-defaults to unlisted); `getListedPolls()`
+  directory + `getPollInfo` link access; relayer pass-through shim keeps
+  pre-R4 clients working (and private); client core migrated (refreshed R4
+  ABIs, overload-aware `createPoll`, pinned sponsored wire format);
+  small-group warning chip on the organizer dashboard. Contracts at 296 tests.
+- Rode along: web perf (−19.7% cold-load bytes, lazy prover — also fixed web
+  proving wiring, #115), Tessera brand identity (#122), idempotent JOIN
+  navigation (#121), melos `format:check` CI gate (#119), env-configurable
+  relayer limits (#118, #120).
+- **Remaining from the phase:** the legacy `codes/mobile/` cutover PR
+  (in flight) and the short-code resolver (spec §8 open question 2 — the
+  grammar + honest UI shipped; the lookup did not).
+
+## Phase 14 (was 13-R5): Cryptographic sealing — **NEXT**
+
+> Spec §5 (privacy model — "cryptographic sealing (threshold/timelock) =
+> Phase R5") and §7 (R5 line). Needs its own design spec before
+> implementation.
+
+- Threshold or timelock sealed ballots (Shutter-style) so "sealed until
+  close" becomes cryptographic, not client-honored metadata — today
+  `getResults()` is deliberately ungated on-chain because ballots are public
+  calldata.
+- Receipt-freeness review.
+- Merges with the Phase 10 Sepolia gate: R5 + Sepolia together are the path
+  to `1.0`.
 
 ## Out of scope (explicit)
 
