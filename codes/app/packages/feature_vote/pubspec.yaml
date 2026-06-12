@@ -1,0 +1,25 @@
+name: feature_vote
+description: "Tessera VOTE space (R3) — screens and journey-port adapters for the vote experience."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  core_domain: any
+  core_chain: any
+  core_crypto: any
+  core_relay: any
+  core_storage: any
+  design_system: any
+  feature_join: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

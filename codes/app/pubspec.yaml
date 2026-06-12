@@ -20,6 +20,9 @@ workspace:
   - packages/core_storage
   - packages/design_system
   - packages/feature_join
+  - packages/feature_organize
+  - packages/feature_vote
+  - packages/feature_you
 
 dev_dependencies:
   melos: ^7.1.0
