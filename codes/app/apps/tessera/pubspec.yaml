@@ -23,6 +23,9 @@ dependencies:
   core_storage: any
   design_system: any
   feature_join: any
+  feature_organize: any
+  feature_vote: any
+  feature_you: any
 
 dev_dependencies:
   flutter_test:
