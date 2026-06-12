@@ -22,12 +22,14 @@ class _VoteSpaceScreenState extends State<VoteSpaceScreen> {
   // backing storage key, so the poll screens' writes show up on refresh.
   final KnownPollsStore _knownPolls = SecureKnownPollsStore();
 
-  /// Directory reads need the R4 registry ABI (getListedPolls), which the
-  /// app — not core_chain — ships (see di/app_dependencies.dart). The shell
-  /// loads the asset and INJECTS the string, keeping feature_vote free of
-  /// asset paths.
+  /// Directory reads need the R4 registry ABI (getListedPolls), bundled from
+  /// core_chain's package assets (the canonical R4 copy since the R4 client
+  /// migration retired the app-local workaround). The shell loads the asset
+  /// and INJECTS the string, keeping feature_vote free of asset paths.
   Future<List<ListedPoll>> _fetchDirectory() async {
-    final abiJson = await rootBundle.loadString('assets/abi/PollRegistry.json');
+    final abiJson = await rootBundle.loadString(
+      'packages/core_chain/assets/abi/PollRegistry.json',
+    );
     if (!mounted) return const [];
     final reader = ListedPollsReader(
       registryAbiJson: abiJson,

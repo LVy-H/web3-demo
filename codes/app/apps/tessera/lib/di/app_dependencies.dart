@@ -90,20 +90,14 @@ class AppDependencies {
     }
     AppConfig.apply(saved != null && saved.isValidFormat ? saved : null);
 
-    // 2. Chain reader over the bundled ABIs. Module ABIs come from
-    //    core_chain's package assets (the canonical copy — no duplication).
-    //
-    //    PollRegistry is the ONE exception: the app ships its own copy under
-    //    assets/abi/ because the resolver decodes the R4 registry (PollInfo
-    //    gained `visibility`; decoding R4 return data with the pre-R4 ABI
-    //    fails), while core_chain still packages the pre-R4 ABI — refreshing
-    //    it breaks core_relay's dev-key createPoll/initialize encoders, whose
-    //    R4 migration belongs to the R3 organize flow. When R3 refreshes the
-    //    core_chain ABI set, delete the app copy and load the package asset.
+    // 2. Chain reader over the bundled ABIs — ALL from core_chain's package
+    //    assets, the single canonical R4 copy (the R4 client migration
+    //    refreshed the set and retired the app-local PollRegistry.json
+    //    workaround that bridged the pre-R4 gap).
     const pkgAbi = 'packages/core_chain/assets/abi';
     final izkPollAbi = await rootBundle.loadString('$pkgAbi/IZkPoll.json');
     final registryAbi = await rootBundle.loadString(
-      'assets/abi/PollRegistry.json',
+      '$pkgAbi/PollRegistry.json',
     );
     final anonAbi = await rootBundle.loadString('$pkgAbi/ZkAnonVoting.json');
     final blindAbi = await rootBundle.loadString('$pkgAbi/ZkBlindVoting.json');
