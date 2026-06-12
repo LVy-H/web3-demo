@@ -13,17 +13,30 @@
 #                           pointed at the host stack via 10.0.2.2. ZK_KEEP=1
 #                           leaves the emulator running afterwards.
 #
-# Everything that needs flutter/adb/emulator/avdmanager runs inside the Nix
-# devShell; the script re-execs itself there if those tools aren't on PATH.
+# Everything that needs flutter/adb/emulator/avdmanager runs inside the devenv
+# shell; the script re-execs itself there if those tools aren't on PATH.
 set -euo pipefail
 
-# ── Re-exec inside the Nix devShell if the Android/Flutter toolchain is absent ──
-if [ -z "${ZK_IN_DEVSHELL:-}" ] && ! command -v flutter >/dev/null 2>&1; then
-  if command -v nix >/dev/null 2>&1 && [ -f "$(dirname "${BASH_SOURCE[0]}")/flake.nix" ]; then
-    echo "==> entering Nix devShell (flutter not on PATH)…"
-    exec env ZK_IN_DEVSHELL=1 nix develop "$(dirname "${BASH_SOURCE[0]}")" --command bash "${BASH_SOURCE[0]}" "$@"
+# ── Re-exec inside the devenv shell if the needed toolchain is absent ──────────
+# up/down/status run fine in the light base shell (node + flutter + jq);
+# emu/emu-kill/e2e additionally need adb/emulator/gradle -> `android` profile.
+_profile=()
+case "${1:-}" in emu|emu-kill|e2e) _profile=(--profile android) ;; esac
+_missing=""
+command -v flutter >/dev/null 2>&1 || _missing=1
+[ ${#_profile[@]} -gt 0 ] && ! command -v adb >/dev/null 2>&1 && _missing=1
+if [ -z "${ZK_IN_DEVSHELL:-}" ] && [ -n "$_missing" ]; then
+  if command -v devenv >/dev/null 2>&1 && [ -f "$(dirname "${BASH_SOURCE[0]}")/devenv.nix" ]; then
+    echo "==> entering devenv shell${_profile[0]:+ (android profile)}…"
+    _root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    exec env ZK_IN_DEVSHELL=1 devenv "${_profile[@]}" shell --from "path:$_root" bash "${BASH_SOURCE[0]}" "$@"
   fi
 fi
+
+# Android env is only present in the `android` devenv profile; default the
+# vars so `set -u` doesn't kill base-shell commands (up/down/status).
+ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-}"
+ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-$HOME/.android/avd}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTRACTS="$ROOT/codes/contracts"
@@ -125,6 +138,13 @@ down() {
   echo "Stopped node + relayer."
 }
 
+require_android() {
+  if [ -z "$ANDROID_SDK_ROOT" ] || ! command -v adb >/dev/null 2>&1; then
+    echo "Android toolchain not on PATH — run inside 'devenv --profile android shell'." >&2
+    exit 1
+  fi
+}
+
 # ── Emulator ──────────────────────────────────────────────────────────────────
 # Resolve avdmanager/sdkmanager from cmdline-tools first. The legacy tools/bin
 # variants crash on JDK17 (NoClassDefFoundError javax/xml/bind — JAXB removed in
@@ -151,7 +171,7 @@ ensure_licenses() {
 
 system_image_pkg() {
   # Discover the installed google_apis_playstore x86_64 system image; never
-  # hard-pin the API level (the flake resolves "latest" against pinned nixpkgs).
+  # hard-pin the API level (devenv resolves "latest" against pinned nixpkgs).
   # API dir can carry a minor version, e.g. android-36.1 — match digits + dots.
   local d
   d="$(ls -d "$ANDROID_SDK_ROOT"/system-images/android-*/google_apis_playstore/x86_64 2>/dev/null | head -n1)"
@@ -182,6 +202,7 @@ ensure_avd() {
 emu_running() { [ "$(adb -s "$EMU_SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; }
 
 emu() {
+  require_android
   ensure_licenses
   ensure_avd
   adb start-server >/dev/null 2>&1 || true
@@ -233,6 +254,7 @@ registry_address() {
 }
 
 e2e() {
+  require_android
   rpc | grep -q result || up
 
   # Target: emulator (default) or a physical device via ZK_DEVICE=<serial>.

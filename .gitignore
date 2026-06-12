@@ -37,7 +37,11 @@ coverage.json
 # Nix
 result
 result-*
-# direnv (flake devShell cache)
+# devenv (local state; devenv.lock IS committed)
+.devenv/
+.devenv.*
+devenv.local.nix
+# direnv leftovers (pre-devenv setup)
 .direnv/
 .envrc
 # Local agent / tooling state (Claude Code, skills, scratch — never commit)
