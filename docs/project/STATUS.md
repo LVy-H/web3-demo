@@ -69,7 +69,8 @@ nothing):
 - `feature_vote` — VOTE space: directory of *listed* polls only, module
   ballots for all six types, sealed-results presentation (PR #113).
 - `feature_organize` — ORGANIZE space: create flow with **private defaults**
-  + creation-time opt-ins + small-group warning, run-event console (PR #114).
+  + creation-time opt-ins, small-group honesty chip ("results can identify
+  people") on the organizer dashboard, run-event console (PR #114).
 - `feature_you` — You: voting pass, receipts, verify, settings (PR #111).
 - `apps/tessera` — composition root, **guarded router** (go_router
   `redirect` driven by the journey machines), `Capabilities` probe, on-chain

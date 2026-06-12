@@ -234,7 +234,7 @@ has its own design spec and `architecture/module-*.md`.
   directory + `getPollInfo` link access; relayer pass-through shim keeps
   pre-R4 clients working (and private); client core migrated (refreshed R4
   ABIs, overload-aware `createPoll`, pinned sponsored wire format);
-  small-group warning in the create flow. Contracts at 296 tests.
+  small-group warning chip on the organizer dashboard. Contracts at 296 tests.
 - Rode along: web perf (−19.7% cold-load bytes, lazy prover — also fixed web
   proving wiring, #115), Tessera brand identity (#122), idempotent JOIN
   navigation (#121), melos `format:check` CI gate (#119), env-configurable
