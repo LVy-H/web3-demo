@@ -9,9 +9,9 @@ import 'package:core_storage/identity_store.dart';
 import 'package:core_storage/network_config_store.dart';
 import 'package:feature_you/feature_you.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../routing/safe_navigation.dart';
 import '../state/app_state.dart';
 
 class YouSpaceScreen extends StatelessWidget {
@@ -39,7 +39,7 @@ class YouSpaceScreen extends StatelessWidget {
           if (poll != null && poll.isNotEmpty) 'poll': poll,
           if (code != null && code.isNotEmpty) 'nullifier': code,
         };
-        context.push(
+        context.pushOnce(
           Uri(
             path: '/you/verify',
             queryParameters: query.isEmpty ? null : query,

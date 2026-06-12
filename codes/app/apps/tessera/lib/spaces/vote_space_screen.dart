@@ -7,8 +7,9 @@ import 'package:core_chain/config.dart';
 import 'package:feature_vote/feature_vote.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
+import '../routing/safe_navigation.dart';
 
 class VoteSpaceScreen extends StatefulWidget {
   const VoteSpaceScreen({super.key});
@@ -46,8 +47,9 @@ class _VoteSpaceScreenState extends State<VoteSpaceScreen> {
       knownPolls: _knownPolls,
       fetchPhase: chainReader.getState,
       fetchDirectory: _fetchDirectory,
-      onOpenPoll: (address) => context.push('/poll/$address'),
-      onJoin: () => context.push('/join'),
+      // pushOnce: double-taps never stack a second copy of the same page.
+      onOpenPoll: (address) => context.pushOnce('/poll/$address'),
+      onJoin: () => context.pushOnce('/join'),
     );
   }
 }

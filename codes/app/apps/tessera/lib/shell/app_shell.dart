@@ -14,6 +14,8 @@ import 'package:design_system/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../routing/safe_navigation.dart';
+
 /// Content height of the bottom bar (safe-area inset is added on top).
 const double kShellBarHeight = 64;
 
@@ -33,7 +35,12 @@ class AppShellScaffold extends StatelessWidget {
     // their scrollables (bottom: 96 >= bar 64 + droplet overhang 28).
     extendBody: true,
     body: shell,
-    floatingActionButton: _JoinDroplet(onPressed: () => context.push('/join')),
+    floatingActionButton: _JoinDroplet(
+      // pushOnce: a rapid double-tap (or re-fire while /join is already
+      // open) is a no-op instead of stacking a second /join page — the tab
+      // re-tap convention applied to the droplet.
+      onPressed: () => context.pushOnce('/join'),
+    ),
     floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     bottomNavigationBar: BottomAppBar(
       color: Db.slate3,
