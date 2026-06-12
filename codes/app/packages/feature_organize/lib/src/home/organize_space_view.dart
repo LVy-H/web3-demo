@@ -159,7 +159,7 @@ class _OrganizeSpaceViewState extends State<OrganizeSpaceView> {
       return [
         Container(
           key: OrganizeSpaceView.emptyStateKey,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Db.slate3,
             border: Border.all(color: Db.rule),
