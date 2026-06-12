@@ -51,7 +51,7 @@ class OrganizerPollCard extends StatelessWidget {
     final phase = _phaseLabel(state);
     final action = state.nextAction;
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Db.slate,

@@ -259,7 +259,7 @@ class _EntryTile extends StatelessWidget {
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(border: Border.all(color: Db.rule)),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           child: Row(
             children: [
               Icon(icon, color: Db.segnale, size: 28),
@@ -295,8 +295,11 @@ class _InlineError extends StatelessWidget {
         color: Db.slate3,
         border: Border.all(color: Db.segnale),
       ),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       child: Row(
+        // Top-aligned: the copy wraps to two lines at phone widths, and the
+        // icon should sit level with the first line, not float mid-block.
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(Icons.error_outline, color: Db.segnale, size: 18),
           const SizedBox(width: 10),

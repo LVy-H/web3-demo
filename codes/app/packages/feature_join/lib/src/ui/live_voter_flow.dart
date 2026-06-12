@@ -494,7 +494,7 @@ class _BigButton extends StatelessWidget {
         foregroundColor: Db.void_,
         disabledForegroundColor: Db.mute,
         shape: const RoundedRectangleBorder(),
-        padding: const EdgeInsets.symmetric(vertical: 18),
+        padding: const EdgeInsets.symmetric(vertical: 16),
       ),
       icon: Icon(icon, size: 18),
       label: Text(label, style: dbMono(13, Db.void_, wght: 700)),

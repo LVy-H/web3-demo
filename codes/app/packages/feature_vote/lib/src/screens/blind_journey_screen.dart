@@ -121,7 +121,7 @@ class _BlindJourneyScreenState extends State<BlindJourneyScreen> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 32),
           children: [
             Text(
               'SEALED UNTIL REVEAL',
@@ -149,7 +149,7 @@ class _BlindJourneyScreenState extends State<BlindJourneyScreen> {
     bottomNavigationBar: switch (_footerAction(machine.state)) {
       null => null,
       final action => SafeArea(
-        minimum: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+        minimum: const EdgeInsets.fromLTRB(24, 8, 24, 20),
         child: Center(
           heightFactor: 1,
           child: ConstrainedBox(
