@@ -1,5 +1,5 @@
 name: tessera
-description: "Tessera — one app for anonymous on-chain voting. Revolution shell (R1): composition root only; features land in R2+."
+description: "Tessera — one app for anonymous on-chain voting. Revolution shell (R2f): guarded router, capabilities probe, app skeleton; real screens land in R3."
 publish_to: 'none'
 version: 0.3.0+1 # Revolution line; codes/mobile stays the 0.2.x reference until cutover
 resolution: workspace
@@ -11,6 +11,9 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  go_router: ^14.6.2 # declarative URL routing + deep links (guarded, R2f)
+  provider: ^6.1.2 # DI: one production provider list in the composition root
+  http: ^1.2.0 # relayer reachability probe (capabilities)
 
   # Workspace packages (resolved by the pub workspace, not pub.dev).
   core_chain: any
@@ -19,6 +22,7 @@ dependencies:
   core_relay: any
   core_storage: any
   design_system: any
+  feature_join: any
 
 dev_dependencies:
   flutter_test:
@@ -27,6 +31,13 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Module ABIs are bundled from core_chain's package assets
+  # (packages/core_chain/assets/abi/). assets/abi/ holds ONLY the R4
+  # PollRegistry ABI, kept app-side until R3 refreshes the core_chain set
+  # (see di/app_dependencies.dart).
+  assets:
+    - assets/abi/
 
   fonts:
     - family: Inter
