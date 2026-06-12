@@ -53,7 +53,7 @@ When real-verifier wiring lands, the runbook is:
 
 ## Client wiring
 
-The Tessera client (`codes/mobile/`) reads contract addresses from the
+The Tessera client (`codes/app/`) reads contract addresses from the
 chainId-keyed `deployed-addresses.json` that the deploy script writes. The
 target network / RPC is configured through the client's `AppConfig`
 (local Hardhat → `31337`, Sepolia → `11155111`).

@@ -34,7 +34,7 @@ One-step local stack (chain + deploy + a seeded demo poll + relayer):
 Then launch the app:
 
 ```bash
-cd codes/mobile
+cd codes/app/apps/tessera
 flutter run -d chrome    # web — voting works here
 # or: flutter run -d linux        (desktop; read-only voting)
 # or: flutter run -d <android-serial>

@@ -15,7 +15,7 @@ This file is the top-level index. For developer setup start at
 | Component | Path | Purpose | Docs |
 | --- | --- | --- | --- |
 | Contracts | [`codes/contracts/`](codes/contracts/) | Solidity + Hardhat. `PollRegistry` factory, six voting modules, `ZkAirdrop`. | [`codes/README.md`](codes/README.md) |
-| Client (Tessera) | [`codes/mobile/`](codes/mobile/) | One Flutter app across **mobile, desktop, and web** — the sole client. | [`INSTRUCTIONS.md`](INSTRUCTIONS.md) |
+| Client (Tessera) | [`codes/app/`](codes/app/) | One Flutter workspace across **mobile, desktop, and web** — the sole client. | [`INSTRUCTIONS.md`](INSTRUCTIONS.md) |
 | Relayer | [`codes/relayer/`](codes/relayer/) | Optional Express service: gasless votes + sponsored (wallet-free) poll lifecycle. | [`codes/relayer/README.md`](codes/relayer/README.md) |
 | Docs | [`docs/`](docs/) | Architecture, project tracking, standards, backlog. | [`docs/architecture/system-overview.md`](docs/architecture/system-overview.md) |
 
@@ -37,7 +37,7 @@ This file is the top-level index. For developer setup start at
 ./dev-stack.sh up
 
 # The Tessera app (voting/proving works on the web build)
-cd codes/mobile && flutter run -d chrome   # or -d linux / -d <android-serial>
+cd codes/app/apps/tessera && flutter run -d chrome   # or -d linux / -d <android-serial>
 ```
 
 `deploy:local` writes the contract addresses to
@@ -51,11 +51,11 @@ in [`codes/README.md`](codes/README.md).
 ```bash
 cd codes/contracts && npm test     # Hardhat — 268 passing
 cd codes/relayer   && npm test     # Vitest  — 96 passing (2 skipped)
-cd codes/mobile    && flutter analyze && flutter test
+cd codes/app       && dart run melos run analyze && dart run melos run test
 ```
 
 CI (`.github/workflows/ci.yml`) runs all three jobs — contracts, relayer, and
-mobile — on every PR to `main`. Local dev and CI use `MockSemaphoreVerifier`
+app — on every PR to `main`. Local dev and CI use `MockSemaphoreVerifier`
 (always-true), so no SNARK artifacts are needed.
 
 ## Repo layout

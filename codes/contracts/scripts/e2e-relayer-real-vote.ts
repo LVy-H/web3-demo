@@ -13,7 +13,7 @@ import * as path from "path";
  * `POST /api/relay/vote` → relayer `castVote` → on-chain SemaphoreVerifier —
  * end to end, minus only the on-device WebView that hosts the prover. It
  * generates a REAL Semaphore proof from the bundled depth-16 artifacts (the same
- * `codes/mobile/assets/zk` the app ships), POSTs it to the running relayer, and:
+ * `codes/app/packages/core_crypto/assets/zk` the app ships), POSTs it to the running relayer, and:
  *
  *   - asserts a TAMPERED proof is REJECTED (the real verifier rejects it; the
  *     mock would accept — so this is what proves the path is genuinely verified),
@@ -28,8 +28,8 @@ import * as path from "path";
  */
 const RELAYER = process.env.RELAYER_URL || "http://127.0.0.1:3001";
 const ARTIFACTS = {
-  wasm: path.join(__dirname, "../../mobile/assets/zk/semaphore-16.wasm"),
-  zkey: path.join(__dirname, "../../mobile/assets/zk/semaphore-16.zkey"),
+  wasm: path.join(__dirname, "../../app/packages/core_crypto/assets/zk/semaphore-16.wasm"),
+  zkey: path.join(__dirname, "../../app/packages/core_crypto/assets/zk/semaphore-16.zkey"),
 };
 const DEPTH = 16; // matches the bundled artifacts
 

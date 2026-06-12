@@ -66,28 +66,30 @@ The implementation contract is deployed once per module type. Clones are created
 
 ## Client Architecture (Tessera)
 
-The sole client is the Flutter app in [`codes/mobile/`](../../codes/mobile/) — one
+The sole client is the Flutter workspace in [`codes/app/`](../../codes/app/) — one
 codebase across **mobile, desktop, and web** ("Tessera"). The old React/Vite
 frontend was removed; the prover bundle is self-contained.
 
-### Layers
-- **Data** (`lib/data/`) — `ChainReader` reads polls/state/results from the
-  registry and clones via the `IZkPoll` interface; per-module repositories
-  (`approval_repository`, `ranked_repository`, `quadratic_repository`,
-  `survey_repository`) encode each module's ballot; `relay_client.dart` talks to
-  the relayer.
-- **Logic** (`lib/ui/features/**/​*_view_model.dart`) — one ViewModel per screen
-  holds per-poll state (no module-global state), so navigating between polls
-  can't leak state across them.
-- **UI** (`lib/ui/features/`) — Browse, Create, per-module poll screens
-  (anon / blind / approval / ranked / quadratic / survey), Verify, Identity,
-  Live-meeting host + voter, Settings.
+### Layers (pub workspace packages)
+- **Core** (`packages/core_*`) — `core_chain` (`ChainReader`/`ChainWriter`,
+  the canonical ABI assets, `AppConfig`); `core_crypto` (identity, tickets,
+  confirmation codes, the proof services + bundled Semaphore artifacts);
+  `core_relay` (`relay_client.dart`, sponsored poll creation); `core_storage`
+  (secure stores); `core_domain` (journey state machines + capabilities).
+- **Features** (`packages/feature_*`) — `feature_vote` (voter home +
+  per-module journey screens), `feature_organize`, `feature_join` (QR/link
+  grammar), `feature_you` (identity + receipt verify); `design_system`
+  carries the `Db` tokens.
+- **Shell** (`apps/tessera`) — the composition root, guarded router, and the
+  three-space IA (VOTE / ORGANIZE / YOU, plus the JOIN action).
 
 ### Routing
-- Browse reads `PollRegistry.getAllPolls()` and navigates to
-  `/poll/<address>?module=<moduleType>`.
-- `buildPollDetail` in `lib/router.dart` dispatches on the module type to the
-  matching screen, defaulting to the M1 anon single-choice screen.
+- The VOTE space's DIRECTORY tab reads the opt-in listed polls
+  (`PollRegistry.getListedPolls()`); private polls are joined by link/QR
+  (polls are unlisted by default).
+- `/poll/<address>` resolves the module type **on-chain**
+  (`PollModuleResolver`) and hosts the matching journey screen — the module
+  is never trusted from the URL.
 
 ### Identity & local secrets
 - The Semaphore identity **seed** is held in platform **secure storage**
@@ -150,7 +152,7 @@ The relayer cannot deanonymize the voter, alter the vote (`proof.message` is bou
 
 - **Hot wallet key.** [`codes/relayer/src/wallet.ts`](../../codes/relayer/src/wallet.ts) lazy-constructs a single `ethers.Wallet` from `RELAYER_PRIVATE_KEY` on first use and caches both the wallet and its `JsonRpcProvider` in module scope. The key is consumed only at process start; nothing else in the codebase reads it. A malformed key throws synchronously at first request, which surfaces in the boot-time `getRelayerInfo()` log line — startup failures are loud, not silent. For local dev the value defaults to Hardhat account #0 via [`docker-compose.yml`](../../docker-compose.yml); any non-dev deploy must override it (KMS / secret manager — never the on-disk `.env`).
 - **Container wiring.** [`docker-compose.yml`](../../docker-compose.yml) defines the `relayer` service alongside `contracts` (a Hardhat node) and an `explorer`. It is built from [`codes/relayer/`](../../codes/relayer/), binds port 3001 to loopback only (`127.0.0.1:3001`), and points `RPC_URL` at `http://contracts:8545` over the compose-internal DNS. `depends_on: [contracts]` with a `service_healthy` condition gates startup on JSON-RPC readiness. The Tessera client is **not** part of the compose stack — it runs via `flutter run`; the one-liner local stack is `./dev-stack.sh up`.
-- **Client.** The client lives in the Flutter app at [`codes/mobile/lib/data/services/relay_client.dart`](../../codes/mobile/lib/data/services/relay_client.dart). It reads the relayer host from `AppConfig`, exposes the vote/issue/queue/redeem/status calls, and normalizes proof field elements to decimal strings before posting so the relayer can stay schema-strict. A one-shot `/api/relay/status` health check decides whether the relayer path is offered; otherwise the client submits directly.
+- **Client.** The client lives in the Flutter workspace at [`codes/app/packages/core_relay/lib/relay_client.dart`](../../codes/app/packages/core_relay/lib/relay_client.dart). It reads the relayer host from `AppConfig`, exposes the vote/issue/queue/redeem/status calls, and normalizes proof field elements to decimal strings before posting so the relayer can stay schema-strict. A one-shot `/api/relay/status` health check decides whether the relayer path is offered; otherwise the client submits directly.
 - **Request validation.** [`codes/relayer/src/validation.ts`](../../codes/relayer/src/validation.ts) shape-checks every request body before any RPC call: address syntax via `ethers.isAddress`, option-index range, proof field presence, and an 8-element `points` array. This is shape validation only — proof correctness is the on-chain `SemaphoreVerifier`'s job, not the relayer's. The error tiers are distinct: HTTP 400 for malformed input (validation), 503 for insufficient hot-wallet balance, and 500 for unexpected reverts or RPC failures, which lets the client distinguish "fix your request" from "service is down".
 
 ## Deployment Stack

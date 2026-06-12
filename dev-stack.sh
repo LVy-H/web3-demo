@@ -28,7 +28,7 @@ fi
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTRACTS="$ROOT/codes/contracts"
 RELAYER="$ROOT/codes/relayer"
-MOBILE="$ROOT/codes/mobile"
+APP="$ROOT/codes/app/apps/tessera"
 ADDRESSES="$ROOT/codes/contracts/deployed-addresses.json"
 
 NODE_LOG=/tmp/zkvote-hardhat.log
@@ -112,7 +112,7 @@ up() {
   echo "Stack up:"
   echo "  chain    http://127.0.0.1:8545  (chainId $CHAIN_ID, mock verifier)"
   echo "  relayer  http://127.0.0.1:3001"
-  echo "  app      cd codes/mobile && flutter run -d $EMU_SERIAL --dart-define RPC_URL=http://10.0.2.2:8545"
+  echo "  app      cd codes/app/apps/tessera && flutter run -d $EMU_SERIAL --dart-define RPC_URL=http://10.0.2.2:8545"
 }
 
 down() {
@@ -255,7 +255,7 @@ e2e() {
 
   echo "==> Running integration_test on $serial (registry $reg)"
   local rc=0
-  ( cd "$MOBILE" && flutter test integration_test/app_test.dart \
+  ( cd "$APP" && flutter test integration_test/app_test.dart \
       -d "$serial" \
       --dart-define RPC_URL="$rpc_url" \
       --dart-define RELAYER_URL="$relay_url" \

@@ -40,7 +40,7 @@ error InvalidResultsPolicy(uint8 resultsPolicy);
 ///         compatibility.
 contract ZkApprovalVoting is IZkPoll, Initializable, Ownable {
     /// @notice Max number of options. The off-chain prover bridge
-    ///         (codes/mobile/web_prover/entry.js) does `Number(message)`; a JS
+    ///         (codes/app/apps/tessera/web_prover/entry.js) does `Number(message)`; a JS
     ///         Number holds 53 bits of integer precision, so a bitmask
     ///         round-trips exactly well past 32 bits. 32 is a conservative
     ///         sanity / UI guardrail (one 32-bit word, manageable checkbox UI),

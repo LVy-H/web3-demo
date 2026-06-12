@@ -209,7 +209,7 @@ blocked for 24 h, so `dev-stack.sh` launches the relayer with
 legacy unprefixed names `CREATE_DAILY_MAX` / `REGISTER_PER_POLL_MAX` are still
 honored as fallbacks.
 
-The Tessera client (`codes/mobile/`) reads the relayer host from its
+The Tessera client (`codes/app/`) reads the relayer host from its
 `AppConfig` (default `http://localhost:3001`); when the host is unreachable the
 client falls back to submitting transactions directly.
 

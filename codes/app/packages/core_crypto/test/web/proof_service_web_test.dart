@@ -16,7 +16,7 @@ import 'package:core_crypto/proof/proof_service_web.dart';
 /// false green. `@TestOn('browser')` means the default VM `flutter test` skips it.
 ///
 /// Run it (needs the bundle served + network for snark artifacts):
-///   python3 -m http.server 8099 --directory web   # in codes/mobile
+///   python3 -m http.server 8099 --directory web   # in codes/app/apps/tessera
 ///   flutter test --platform chrome test/web/proof_service_web_test.dart
 /// Skips gracefully if the bundle isn't served.
 @JS('zkVerifyProof')
