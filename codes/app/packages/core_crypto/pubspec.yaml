@@ -17,11 +17,11 @@ dependencies:
   ed25519_edwards: ^0.3.1
   pointycastle: ^4.0.0
   webview_flutter: ^4.10.0
+  web: ^1.1.1 # ProofServiceWeb lazy <script> injection (+ in-browser test DOM)
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  web: ^1.1.1 # DOM access in the in-browser ProofServiceWeb test
   flutter_lints: ^6.0.0
 
 flutter:

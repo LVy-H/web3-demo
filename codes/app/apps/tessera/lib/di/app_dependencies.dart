@@ -95,15 +95,17 @@ class AppDependencies {
     //    refreshed the set and retired the app-local PollRegistry.json
     //    workaround that bridged the pre-R4 gap).
     const pkgAbi = 'packages/core_chain/assets/abi';
-    final izkPollAbi = await rootBundle.loadString('$pkgAbi/IZkPoll.json');
-    final registryAbi = await rootBundle.loadString(
-      '$pkgAbi/PollRegistry.json',
-    );
-    final anonAbi = await rootBundle.loadString('$pkgAbi/ZkAnonVoting.json');
-    final blindAbi = await rootBundle.loadString('$pkgAbi/ZkBlindVoting.json');
-    final surveyAbi = await rootBundle.loadString(
-      '$pkgAbi/ZkSurveyVoting.json',
-    );
+    // One parallel batch, not five sequential awaits: on web every
+    // rootBundle.loadString is an HTTP fetch and runApp() waits on this, so
+    // sequential loads put five round-trips on the startup critical path.
+    final [izkPollAbi, registryAbi, anonAbi, blindAbi, surveyAbi] =
+        await Future.wait([
+          rootBundle.loadString('$pkgAbi/IZkPoll.json'),
+          rootBundle.loadString('$pkgAbi/PollRegistry.json'),
+          rootBundle.loadString('$pkgAbi/ZkAnonVoting.json'),
+          rootBundle.loadString('$pkgAbi/ZkBlindVoting.json'),
+          rootBundle.loadString('$pkgAbi/ZkSurveyVoting.json'),
+        ]);
     final chainReader = ChainReader(
       rpcUrl: AppConfig.rpcUrl,
       izkPollAbiJson: _abiArray(izkPollAbi),

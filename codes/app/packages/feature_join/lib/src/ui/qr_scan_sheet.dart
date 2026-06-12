@@ -79,7 +79,7 @@ class _JoinScanSheetState extends State<_JoinScanSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+              padding: const EdgeInsets.fromLTRB(24, 16, 12, 12),
               child: Row(
                 children: [
                   Expanded(
@@ -104,7 +104,7 @@ class _JoinScanSheetState extends State<_JoinScanSheet> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
               child: Text(
                 widget.hint,
                 style: dbMono(11, Db.muteDim, height: 1.5),

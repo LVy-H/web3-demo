@@ -152,12 +152,12 @@ class _VoteHomeScreenState extends State<VoteHomeScreen> {
       child: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
+            constraints: const BoxConstraints(maxWidth: 620),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
                   child: Row(
                     children: [
                       Text('VOTE', style: dbSans(34, 800, Db.chalk)),

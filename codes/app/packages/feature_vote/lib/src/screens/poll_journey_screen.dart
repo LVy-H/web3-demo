@@ -143,7 +143,7 @@ class _PollJourneyScreenState extends State<PollJourneyScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+            padding: const EdgeInsets.fromLTRB(24, 4, 24, 32),
             children: [_header(), const SizedBox(height: 18), ..._body(state)],
           ),
         ),
@@ -152,7 +152,7 @@ class _PollJourneyScreenState extends State<PollJourneyScreen> {
       bottomNavigationBar: switch (_footerAction(state)) {
         null => null,
         final action => SafeArea(
-          minimum: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          minimum: const EdgeInsets.fromLTRB(24, 8, 24, 20),
           child: Center(
             heightFactor: 1,
             child: ConstrainedBox(
