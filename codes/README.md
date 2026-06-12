@@ -8,8 +8,8 @@ ranked-choice, quadratic, and survey. A standalone `ZkAirdrop` contract reuses
 Semaphore for one-shot anonymous claims and is intentionally **not** part of the
 registry.
 
-The sole client is the Flutter app in `codes/mobile/` — one codebase across
-mobile, desktop, and web.
+The sole client is the Flutter workspace in `codes/app/` — one codebase across
+mobile, desktop, and web (shell at `codes/app/apps/tessera/`).
 
 ## Quick start (local, 4 terminals)
 
@@ -21,19 +21,19 @@ cd contracts && npm install && npm run node
 cd contracts && npm run deploy:local
 
 # Terminal 3 — the Tessera app (Flutter; canonical client for mobile/desktop/web)
-cd mobile && flutter run -d linux   # or -d chrome, -d <android-serial>
+cd app/apps/tessera && flutter run -d linux   # or -d chrome, -d <android-serial>
 
 # Terminal 4 (optional) — gasless relayer (http://localhost:3001)
 cd relayer && npm install && npm start
 
 # Terminal 5 (optional) — Flutter tests
-cd mobile && flutter test
+cd app && dart run melos run test
 ```
 
 > Tip: `../dev-stack.sh up` does node → deploy → demo poll → relayer in one step.
 
 `deploy:local` writes addresses to `codes/contracts/deployed-addresses.json`.
-The React frontend has been removed — the Flutter app (`codes/mobile`) is the
+The React frontend has been removed — the Flutter app (`codes/app`) is the
 sole client.
 
 ## Architecture at a glance
@@ -55,11 +55,12 @@ Relayer (optional)     — Express service; submits the SNARK-message votes
                          (wallet-free) poll lifecycle. See ./relayer/README.md.
 ```
 
-The Flutter app reads registered polls from `PollRegistry.getAllPolls()`. Browse
-then navigates to `/poll/<address>?module=<moduleType>`, and `buildPollDetail`
-in `codes/mobile/lib/router.dart` dispatches on that module type to the matching
-screen (blind / approval / ranked / quadratic / survey), defaulting to the M1
-anon single-choice screen.
+The app's VOTE-space DIRECTORY tab reads the opt-in listed polls from
+`PollRegistry.getListedPolls()` (polls are unlisted by default — private polls
+are joined by link/QR). Opening `/poll/<address>` resolves the poll's module
+type on-chain (`PollModuleResolver` in
+`codes/app/apps/tessera/lib/routing/`) and hosts the matching voter journey
+screen — the module type is never trusted from the URL.
 
 ## Optional: gasless voting via relayer
 
@@ -84,11 +85,11 @@ Trust model and API reference: [`./relayer/README.md`](./relayer/README.md).
 
 - Contracts: `cd contracts && npm test` (Hardhat — 268 passing).
 - Relayer: `cd relayer && npm test` (Vitest — 96 passing, 2 skipped).
-- Flutter: `cd mobile && flutter analyze` and `flutter test`.
+- Flutter: `cd app && dart run melos run analyze` and `dart run melos run test`.
 
 CI (`.github/workflows/ci.yml`) runs three jobs — contracts, relayer, and
-mobile. The **mobile** job (`flutter analyze` + `flutter test` +
-`flutter build web`) is the canonical-client release gate.
+app. The **app** job (melos format/analyze/test across every workspace package
++ `flutter build web`) is the canonical-client release gate.
 
 > Local dev and CI use `MockSemaphoreVerifier` (an always-true verifier), so no
 > SNARK artifacts are needed. Public networks require the real Groth16
