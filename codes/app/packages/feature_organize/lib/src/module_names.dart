@@ -86,6 +86,21 @@ enum BallotGroup {
     BallotGroup.gatherOpinions => const [OrganizerModule.surveyVote],
     BallotGroup.prioritize => const [OrganizerModule.quadraticVote],
   };
+
+  /// The ballot type the goal chooser lands on when an organizer picks this
+  /// group: the group's first (recommended) module — "Pick one" for
+  /// [decideWinner], "Questionnaire" for [gatherOpinions], "Split 100 points"
+  /// for [prioritize]. Every group declares at least one module, so this is
+  /// always defined.
+  OrganizerModule get recommendedModule => modules.first;
+
+  /// The plain-words intent the goal chooser shows for this group — the
+  /// optional one-question aid above the manual picker (spec 2026-06-13 P2).
+  String get goalPrompt => switch (this) {
+    BallotGroup.decideWinner => 'Decide on one winner',
+    BallotGroup.gatherOpinions => 'Gather opinions',
+    BallotGroup.prioritize => 'Prioritize / allocate',
+  };
 }
 
 /// The five selectable ballot types, flattened in picker order (the union of

@@ -5,6 +5,19 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Vote-type P2 chooser + visual-audit harness (2026-06-13)** —
+  - **"What's your goal?" guided chooser**: an optional, dismissible one-liner
+    above the vote-type picker — tapping a goal (decide a winner / gather
+    opinions / prioritize) selects that group's recommended type and scrolls to
+    it. Collapsed by default; the full grouped manual picker is never hidden
+    (no wizard lock-in). The P2 from the vote-type redesign spec.
+  - **Golden visual-audit harness** (`apps/tessera/test/golden/`): renders key
+    UI surfaces (contrast swatch, results bars, share sheet) to PNGs so a
+    human/agent can *see* the UI headlessly — the technique that caught the
+    sub-WCAG contrast. Committed as **CI-excluded** infra (`@Tags(['golden'])`,
+    `test:flutter` runs `--exclude-tags golden`, new `melos test:golden` script;
+    generated PNGs git-ignored). Never gates CI (golden pixels are
+    platform-dependent); regenerate + inspect on demand.
 - **Render-time cleanup (2026-06-13)** — two more fixes from the render-time
   audit: the quadratic **credit-meter row** ("POINTS LEFT … 100/100") could
   RenderFlex-overflow at narrow widths / large font scale (now `Flexible` +

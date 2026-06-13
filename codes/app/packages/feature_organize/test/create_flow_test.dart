@@ -377,4 +377,154 @@ void main() {
       expect(gateway.moduleType, 'survey-vote');
     });
   });
+
+  // ── optional "what's your goal?" chooser (2026-06-13 P2) ─────────────────
+
+  group('goal chooser', () {
+    testWidgets('renders the "Not sure?" prompt collapsed by default, with '
+        'the full manual picker still visible', (tester) async {
+      final (_, port) = _port();
+      await _pump(tester, port: port);
+
+      // The optional aid is present…
+      expect(find.byKey(CreateFlowView.goalChooserKey), findsOneWidget);
+      expect(find.textContaining('Not sure?'), findsOneWidget);
+
+      // …but collapsed: the three goal options are not shown yet.
+      for (final group in BallotGroup.values) {
+        expect(find.text(group.goalPrompt), findsNothing);
+      }
+
+      // The manual picker is fully present regardless (never hidden).
+      for (final group in BallotGroup.values) {
+        expect(find.text(group.label), findsOneWidget);
+      }
+      for (final module in selectableBallotTypes) {
+        expect(find.text(moduleBlurb(module)), findsOneWidget);
+      }
+    });
+
+    testWidgets('tapping the prompt reveals the three goal options', (
+      tester,
+    ) async {
+      final (_, port) = _port();
+      await _pump(tester, port: port);
+
+      await tester.tap(find.byKey(CreateFlowView.goalChooserKey));
+      await tester.pump();
+
+      for (final group in BallotGroup.values) {
+        expect(find.text(group.goalPrompt), findsOneWidget);
+      }
+    });
+
+    testWidgets('"Decide on one winner" selects Pick one (anon-vote) and the '
+        'manual picker is still present', (tester) async {
+      final (gateway, port) = _port();
+      await _pump(tester, port: port);
+
+      await tester.tap(find.byKey(CreateFlowView.goalChooserKey));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('goal-decideWinner')));
+      await tester.pump();
+
+      // Manual picker stays usable after a goal pick.
+      for (final group in BallotGroup.values) {
+        expect(find.text(group.label), findsOneWidget);
+      }
+
+      await _fillMinimalForm(tester);
+      await tester.tap(find.byKey(CreateFlowView.deployButtonKey));
+      await tester.pumpAndSettle();
+      expect(gateway.moduleType, 'anon-vote');
+    });
+
+    testWidgets('"Gather opinions" selects Questionnaire (survey-vote)', (
+      tester,
+    ) async {
+      final (gateway, port) = _port();
+      await _pump(tester, port: port);
+
+      await tester.tap(find.byKey(CreateFlowView.goalChooserKey));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('goal-gatherOpinions')));
+      await tester.pump();
+
+      // The survey question builder appeared — the goal landed on survey-vote.
+      expect(find.byKey(const Key('question-0-prompt')), findsOneWidget);
+
+      await tester.enterText(
+        find.byKey(CreateFlowView.titleFieldKey),
+        'Team retro',
+      );
+      await tester.enterText(
+        find.byKey(const Key('question-0-prompt')),
+        'How did it feel?',
+      );
+      await tester.enterText(
+        find.byKey(const Key('question-0-option-0')),
+        'Great',
+      );
+      await tester.enterText(
+        find.byKey(const Key('question-0-option-1')),
+        'Rough',
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(CreateFlowView.deployButtonKey));
+      await tester.pumpAndSettle();
+      expect(gateway.moduleType, 'survey-vote');
+    });
+
+    testWidgets('"Prioritize / allocate" selects Split 100 points '
+        '(quadratic-vote)', (tester) async {
+      final (gateway, port) = _port();
+      await _pump(tester, port: port);
+
+      await tester.tap(find.byKey(CreateFlowView.goalChooserKey));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('goal-prioritize')));
+      await tester.pump();
+
+      await _fillMinimalForm(tester);
+      await tester.tap(find.byKey(CreateFlowView.deployButtonKey));
+      await tester.pumpAndSettle();
+      expect(gateway.moduleType, 'quadratic-vote');
+    });
+
+    testWidgets('selecting a goal collapses the chooser; the manual list and '
+        'the highlighted card remain', (tester) async {
+      final (_, port) = _port();
+      await _pump(tester, port: port);
+
+      await tester.tap(find.byKey(CreateFlowView.goalChooserKey));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('goal-prioritize')));
+      await tester.pump();
+
+      // Chooser collapsed back: the goal options are gone again.
+      for (final group in BallotGroup.values) {
+        expect(find.text(group.goalPrompt), findsNothing);
+      }
+      // The recommended card is selected (highlighted) in the manual picker.
+      expect(find.byKey(const Key('ballot-quadratic-vote')), findsOneWidget);
+    });
+
+    testWidgets('the chooser is dismissible — once dismissed the prompt is '
+        'gone but the manual picker stays', (tester) async {
+      final (_, port) = _port();
+      await _pump(tester, port: port);
+
+      await tester.tap(find.byKey(CreateFlowView.goalChooserDismissKey));
+      await tester.pump();
+
+      expect(find.byKey(CreateFlowView.goalChooserKey), findsNothing);
+      expect(find.textContaining('Not sure?'), findsNothing);
+
+      // The manual picker is untouched and usable.
+      for (final group in BallotGroup.values) {
+        expect(find.text(group.label), findsOneWidget);
+      }
+      expect(find.byKey(_rankedCard), findsOneWidget);
+    });
+  });
 }

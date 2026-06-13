@@ -42,12 +42,21 @@ melos:
       run: dart run melos exec --concurrency=1 --scope="core_domain" --scope="core_chain" -- dart test
 
     test:flutter:
-      description: Flutter packages + packages whose tests need flutter_test.
+      description: Flutter packages + packages whose tests need flutter_test (goldens EXCLUDED — see test:golden).
       # feature_join's grammar is pure-Dart, but its JOIN-surface widgets
       # (lib/ui.dart) now carry a widget test (camera-denied fallback), so the
       # whole package runs under `flutter test` (a superset that also runs its
       # package:test grammar/relay-port suites).
-      run: dart run melos exec --concurrency=1 --dir-exists=test --ignore="core_domain" --ignore="core_chain" -- flutter test
+      #
+      # `--exclude-tags golden` keeps the CI-excluded visual-audit harness
+      # (apps/tessera/test/golden/, @Tags(['golden'])) OUT of the default run:
+      # golden pixels are platform-/engine-dependent and MUST NOT gate CI.
+      # Run them on demand with `test:golden`.
+      run: dart run melos exec --concurrency=1 --dir-exists=test --ignore="core_domain" --ignore="core_chain" -- flutter test --exclude-tags golden
+
+    test:golden:
+      description: The CI-EXCLUDED visual-audit harness — renders UI surfaces to PNG goldens for human/agent inspection. Regenerate with `flutter test --tags golden --update-goldens`; never gate CI on these.
+      run: dart run melos exec --scope="tessera" -- flutter test --tags golden
 
     format:
       description: Format all packages in place.
