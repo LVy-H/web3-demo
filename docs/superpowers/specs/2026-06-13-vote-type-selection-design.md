@@ -61,41 +61,38 @@ Each card always shows its differentiator (`dbSans(12,400,chalkDim)`); selected
 state is a radio glyph + `Db.segnale` border + `Db.slate2` fill, name in `Db.chalk`
 when selected else `Db.chalkDim`. Group headers reuse the `_label(...)` style.
 
-**Sealing toggle** (replaces the `blindVote` card): rendered **only when "Pick
-one" is selected** — a switch row *"Hide results until voting closes"* / *"Early
-votes can't sway later ones."* When ON, the effective deployed module becomes
-`OrganizerModule.blindVote` and the existing `_revealWindowPicker()` appears.
+### Sealing (commit–reveal) is intentionally NOT offered — no ghost
 
-### State / `_effectiveModule`
+Sealed/commit-reveal creation (`OrganizerModule.blindVote`) is **deliberately not
+offered in the CREATE flow**. `RelayOrganizerPort.deployPoll` — the only deploy
+path — **hard-refuses `blindVote`** with a typed honest failure ("Sealed-until-reveal
+polls can't be created from this app yet"), because the relayer's sponsored
+allow-list excludes the module and the lifted dev-signer creator predates its R4
+initialize shape. Any sealing control would therefore be a **ghost**: the
+organizer could enable it, fill the form, hit deploy, and fail every time. The
+product rule is *no ghost features*, so the picker exposes **only the five
+deployable ballot types** and there is no sealing toggle / reveal-window control
+anywhere in create.
 
-The single `_module` field is replaced by `_ballotType` (one of the five
-non-blind values, default `anonVote`) + `_sealed` (bool, default false):
+`blindVote` is consequently **unreachable from create** (correct — it can't
+deploy). Its `moduleDisplayName`/`moduleBlurb` entries remain, used by the VOTE
+and organize-home flows to render EXISTING blind polls; the picker's `BallotGroup`
+grouping and `selectableBallotTypes` simply exclude it.
 
-```dart
-OrganizerModule get _effectiveModule =>
-    (_ballotType == OrganizerModule.anonVote && _sealed)
-        ? OrganizerModule.blindVote
-        : _ballotType;
-```
+### State / `_ballotType`
 
-`_effectiveModule` drives the built spec (`module:`), the reveal window
-(`_effectiveModule == blindVote`), and the `usesQuestions` / `capsOptionsAtEight`
-branches. `blindVote` is therefore reachable **only** via Pick one + toggle.
+A single `_ballotType` field holds the chosen ballot type (one of the five
+deployable values, default `anonVote`). It drives the built spec (`module:`,
+always with `revealWindow: null`) and the `usesQuestions` / `capsOptionsAtEight`
+branches. There is no `_effectiveModule` / `_sealed` indirection.
 
-### No-ghost sealing constraint
+### Deferred to R5 (sealed-ballots)
 
-The toggle is **never rendered** for ranked/approval/survey/quadratic — not even
-disabled. The contracts seal single-choice voting only; offering a greyed toggle
-would imply a "sealed ranked" combination that cannot be deployed. Switching away
-from Pick one simply removes the toggle; `_sealed` is ignored by
-`_effectiveModule`, so the effective module is always a valid combination.
-
-> Known downstream limit (out of this change's scope): `RelayOrganizerPort.deployPoll`
-> still refuses `blindVote` with a typed honest failure (sponsored allow-list
-> excludes it). So the UI now lets organizers *build* a sealed Pick-one and see
-> the reveal-window control, but a deploy attempt surfaces the existing
-> "Sealed-until-reveal polls can't be created from this app yet" message. Wiring
-> sealed creation end-to-end is tracked separately (R5 sealed-ballots).
+Enabling sealed/commit-reveal creation is tracked as **R5: enable blind-create in
+the relayer's sponsored allow-list end-to-end**. When `RelayOrganizerPort` can
+actually deploy `blindVote`, the sealing affordance (a result-timing toggle on
+"Pick one", never a peer ballot type) can be reintroduced — verified deployable
+before it ships.
 
 ## P2 follow-ups
 

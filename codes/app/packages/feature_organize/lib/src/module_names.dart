@@ -2,12 +2,14 @@
 /// engine name (spec §3 principle 5).
 ///
 /// The CREATE picker (spec 2026-06-13 vote-type-selection-design) groups the
-/// **five ballot types** an organizer chooses between by the GOAL they serve,
-/// and shows each card's one-line differentiator at all times so the organizer
-/// can compare before picking. Sealing (commit–reveal) is NOT a sixth ballot
-/// type — it is a result-timing property of single-choice voting, offered as a
-/// toggle on the "Pick one" card. So [OrganizerModule.blindVote] never appears
-/// in [BallotGroup]; it is reached only via that toggle.
+/// **five deployable ballot types** an organizer chooses between by the GOAL
+/// they serve, and shows each card's one-line differentiator at all times so
+/// the organizer can compare before picking. Sealing (commit–reveal,
+/// [OrganizerModule.blindVote]) is NOT offered at create — the relayer's
+/// sponsored allow-list refuses it (it would be a ghost), so [BallotGroup]
+/// excludes it and the picker never lists it; deferred to R5 (sealed-ballots).
+/// Its [moduleDisplayName]/[moduleBlurb] entries remain for the vote and
+/// organize-home flows, which still render EXISTING blind polls.
 library;
 
 import 'package:core_domain/journeys/organizer_journey.dart';
@@ -73,8 +75,8 @@ enum BallotGroup {
   const BallotGroup(this.label);
 
   /// The ballot-type modules in this group, in display order. **Never**
-  /// includes [OrganizerModule.blindVote] — sealing is a toggle on "Pick one",
-  /// not a peer ballot type.
+  /// includes [OrganizerModule.blindVote] — sealed/commit-reveal creation is
+  /// not offered (the relayer refuses it); deferred to R5 (sealed-ballots).
   List<OrganizerModule> get modules => switch (this) {
     BallotGroup.decideWinner => const [
       OrganizerModule.anonVote,

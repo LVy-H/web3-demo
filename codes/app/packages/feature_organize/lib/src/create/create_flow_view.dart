@@ -58,19 +58,12 @@ class _CreateFlowViewState extends State<CreateFlowView> {
 
   // ── form state (pushed into the machine's draft on every edit) ──────────
   //
-  // The picker chooses one of the FIVE ballot types ([_ballotType], never
-  // blindVote). Sealing is a result-timing toggle on "Pick one", not a sixth
-  // ballot type — when [_sealed] is on under anonVote the *effective* deployed
-  // module becomes blindVote ([_effectiveModule]). See module_names.dart.
+  // The picker chooses one of the FIVE deployable ballot types ([_ballotType],
+  // never blindVote). Sealed/commit-reveal creation is intentionally NOT offered
+  // here — RelayOrganizerPort.deployPoll refuses blindVote (the relayer's
+  // sponsored allow-list excludes it), so a sealing control would be a ghost.
+  // See module_names.dart; tracked for R5 (sealed-ballots).
   OrganizerModule _ballotType = recommendedBallotType;
-  bool _sealed = false;
-
-  /// The module actually deployed: blindVote only when "Pick one" is sealed;
-  /// otherwise the chosen ballot type. blindVote is reachable ONLY this way.
-  OrganizerModule get _effectiveModule =>
-      (_ballotType == OrganizerModule.anonVote && _sealed)
-      ? OrganizerModule.blindVote
-      : _ballotType;
 
   final TextEditingController _title = TextEditingController();
   final TextEditingController _description = TextEditingController();
@@ -83,7 +76,6 @@ class _CreateFlowViewState extends State<CreateFlowView> {
   // Spec §5 opt-ins — DEFAULT OFF (private defaults).
   bool _listed = false;
   bool _liveResults = false;
-  Duration _revealWindow = const Duration(hours: 1);
 
   @override
   void initState() {
@@ -109,7 +101,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
   }
 
   OrganizerPollSpec _spec() => OrganizerPollSpec(
-    module: _effectiveModule,
+    module: _ballotType,
     title: _title.text,
     description: _description.text,
     options: [for (final c in _options) c.text],
@@ -124,9 +116,9 @@ class _CreateFlowViewState extends State<CreateFlowView> {
     resultsPolicy: _liveResults
         ? ResultsPolicy.livePublic
         : ResultsPolicy.sealedUntilClose,
-    revealWindow: _effectiveModule == OrganizerModule.blindVote
-        ? _revealWindow
-        : null,
+    // Blind/commit-reveal is never created here (the relayer refuses it), so
+    // there is never a reveal window to set. See R5 (sealed-ballots).
+    revealWindow: null,
   );
 
   /// Push the current form into the machine's draft (legal from the draft
@@ -178,17 +170,6 @@ class _CreateFlowViewState extends State<CreateFlowView> {
                 _label('HOW PEOPLE VOTE'),
                 const SizedBox(height: 10),
                 _modulePicker(),
-                // The sealing toggle is offered ONLY under "Pick one" — the
-                // contracts seal single-choice voting only, so we never show a
-                // ghost/disabled toggle for the other ballot types.
-                if (_ballotType == OrganizerModule.anonVote) ...[
-                  const SizedBox(height: 12),
-                  _sealingToggle(),
-                  if (_sealed) ...[
-                    const SizedBox(height: 12),
-                    _revealWindowPicker(),
-                  ],
-                ],
                 const SizedBox(height: 24),
                 _label('WHAT IT IS'),
                 const SizedBox(height: 10),
@@ -204,7 +185,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
                   maxLines: 3,
                 ),
                 const SizedBox(height: 24),
-                if (_effectiveModule.usesQuestions)
+                if (_ballotType.usesQuestions)
                   _questionBuilder()
                 else
                   _optionsBuilder(),
@@ -357,56 +338,8 @@ class _CreateFlowViewState extends State<CreateFlowView> {
     _sync();
   }
 
-  /// Sealing toggle — shown ONLY under "Pick one". When on, the effective
-  /// deployed module is [OrganizerModule.blindVote] and the reveal-window
-  /// picker appears.
-  Widget _sealingToggle() => _toggleRow(
-    key: const Key('seal-toggle'),
-    title: 'Hide results until voting closes',
-    explanation: "Early votes can't sway later ones.",
-    value: _sealed,
-    onChanged: (value) {
-      _sealed = value;
-      _sync();
-    },
-  );
-
-  Widget _revealWindowPicker() => Row(
-    children: [
-      Text('REVEAL WINDOW', style: dbLabel()),
-      const SizedBox(width: 12),
-      DropdownButton<Duration>(
-        value: _revealWindow,
-        dropdownColor: Db.slate2,
-        style: dbMono(12, Db.chalk),
-        underline: const SizedBox.shrink(),
-        items: const [
-          DropdownMenuItem(
-            value: Duration(minutes: 15),
-            child: Text('15 minutes'),
-          ),
-          DropdownMenuItem(value: Duration(hours: 1), child: Text('1 hour')),
-          DropdownMenuItem(value: Duration(hours: 24), child: Text('24 hours')),
-        ],
-        onChanged: (value) {
-          if (value != null) {
-            _revealWindow = value;
-            _sync();
-          }
-        },
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Text(
-          'Time voters get to reveal after voting closes.',
-          style: dbSans(11, 400, Db.mute),
-        ),
-      ),
-    ],
-  );
-
   Widget _optionsBuilder() {
-    final capped = _effectiveModule.capsOptionsAtEight && _options.length >= 8;
+    final capped = _ballotType.capsOptionsAtEight && _options.length >= 8;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
