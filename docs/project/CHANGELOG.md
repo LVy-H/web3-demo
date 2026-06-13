@@ -5,6 +5,28 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Wave 2 UX polish — accessibility + honest states (2026-06-13)** — a
+  parallel polish sprint across three surfaces:
+  - **YOU**: the receipts archive now distinguishes a *failed load* (honest,
+    retryable amber panel — "your receipts aren't lost, this is a read problem")
+    from a genuinely *empty* archive, instead of silently showing "no receipts
+    yet" on the one screen whose job is "was my vote counted?"; the verify
+    verdict (COUNTED / NOT FOUND) is a live-region header so screen readers
+    announce it; the About → Privacy row drops leaked jargon
+    ("zero-knowledge proofs (Semaphore v4)" → "vote secret, count public"); the
+    COPY chip (pass backup / registration code) gets a 48dp tap target.
+  - **ORGANIZE**: icon-only organizer controls — the dashboard DISTRIBUTE /
+    RUN-EVENT buttons and the create-flow remove-option/question/answer buttons
+    — now carry accessible labels + tooltips ("Remove option 2", "Run live
+    event") instead of announcing nothing.
+  - **Design system**: a reusable `ContentWidth` helper consolidating the
+    single-column max-width pattern (the app was *already* responsive — every
+    in-shell screen caps content at 620dp over a full-bleed grid — so this is a
+    one-source-of-truth helper + a **shell regression guard** that fails if the
+    full-bleed background is ever accidentally capped, not a behavior change).
+
+  Each fix is widget-tested (red-before / green-after). Complements the R3
+  ballot/results a11y already shipped.
 - **Android share/JOIN loop closed — deep links now open the app (2026-06-13)** —
   the SHARE sheet, QR codes, and `TES-` codes all *produced* the JOIN link
   grammar, but nothing on-device *consumed* a tapped/scanned link: no
