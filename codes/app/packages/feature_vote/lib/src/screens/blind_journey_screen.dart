@@ -96,6 +96,20 @@ class _BlindJourneyScreenState extends State<BlindJourneyScreen> {
 
   void _advance(JourneyEvent event) => unawaited(machine.advance(event));
 
+  /// Unmistakable "it copied" feedback that survives the gate advancing away.
+  void _confirmCopied() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Vote key copied — keep it somewhere safe.'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ),
+      );
+  }
+
   bool get _canRefresh => switch (machine.state) {
     BlindRegistered() ||
     BlindVotingOpen() ||
@@ -268,10 +282,21 @@ class _BlindJourneyScreenState extends State<BlindJourneyScreen> {
               children: [
                 const Icon(Icons.timer_outlined, size: 16, color: Db.segnale),
                 const SizedBox(width: 8),
-                Text(
-                  'TIME LEFT  ${_fmt(remaining)}',
+                // A live region with a spoken label: the deadline is the most
+                // consequential fact here — a missed confirmation is a
+                // permanently lost vote — so a screen reader must re-read it
+                // as it ticks, not leave a blind voter unaware of the clock.
+                Semantics(
                   key: BlindJourneyScreen.countdownKey,
-                  style: dbMono(13, Db.segnale, wght: 700, letterSpacing: 1),
+                  container: true,
+                  liveRegion: true,
+                  label:
+                      'Time left to confirm your vote: ${_spoken(remaining)}',
+                  excludeSemantics: true,
+                  child: Text(
+                    'TIME LEFT  ${_fmt(remaining)}',
+                    style: dbMono(13, Db.segnale, wght: 700, letterSpacing: 1),
+                  ),
                 ),
               ],
             ),
@@ -320,6 +345,13 @@ class _BlindJourneyScreenState extends State<BlindJourneyScreen> {
     return FutureBuilder<List<String>>(
       future: _options,
       builder: (context, snap) {
+        if (snap.hasError) {
+          // A failed options load must offer a retry, not spin forever.
+          return ErrorPanel(
+            messageKey: 'error.blind.loadFailed',
+            onRetry: () => setState(() => _options = null),
+          );
+        }
         final options = snap.data;
         if (options == null) {
           return const ProgressPanel(title: 'LOADING OPTIONS…');
@@ -384,6 +416,11 @@ class _BlindJourneyScreenState extends State<BlindJourneyScreen> {
               key: BlindJourneyScreen.saltCopyKey,
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: receipt.saltHex));
+                // Confirm the copy — the key is the one irreversible thing
+                // here, so "did it copy?" must have a visible answer (copying
+                // also counts as the backup acknowledgment, advancing the
+                // gate, so the reassurance has to outlive that transition).
+                _confirmCopied();
                 _advance(const BlindExportSaltRequested());
               },
               style: OutlinedButton.styleFrom(
@@ -396,19 +433,25 @@ class _BlindJourneyScreenState extends State<BlindJourneyScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: InkWell(
-                key: BlindJourneyScreen.saltAckKey,
-                onTap: () => _advance(const BlindSaltBackupAcknowledged()),
-                child: Container(
-                  height: 40,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: Db.void_,
-                    border: Border.all(color: Db.rule),
-                  ),
-                  child: Text(
-                    'I’VE SAVED IT',
-                    style: dbSans(11, 800, Db.chalkDim, letterSpacing: 1),
+              child: Semantics(
+                container: true,
+                button: true,
+                label: 'I’VE SAVED IT',
+                excludeSemantics: true,
+                child: InkWell(
+                  key: BlindJourneyScreen.saltAckKey,
+                  onTap: () => _advance(const BlindSaltBackupAcknowledged()),
+                  child: Container(
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Db.void_,
+                      border: Border.all(color: Db.rule),
+                    ),
+                    child: Text(
+                      'I’VE SAVED IT',
+                      style: dbSans(11, 800, Db.chalkDim, letterSpacing: 1),
+                    ),
                   ),
                 ),
               ),
@@ -433,6 +476,13 @@ class _BlindJourneyScreenState extends State<BlindJourneyScreen> {
     return FutureBuilder<(List<String>, List<BigInt>)>(
       future: _tally,
       builder: (context, snap) {
+        if (snap.hasError) {
+          // A failed results load must offer a retry, not spin forever.
+          return ErrorPanel(
+            messageKey: 'error.blind.loadFailed',
+            onRetry: () => setState(() => _tally = null),
+          );
+        }
         final data = snap.data;
         if (data == null) {
           return const ProgressPanel(title: 'LOADING RESULTS…');
@@ -480,5 +530,19 @@ class _BlindJourneyScreenState extends State<BlindJourneyScreen> {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return h > 0 ? '$h:$m:$s' : '$m:$s';
+  }
+
+  /// Screen-reader phrasing for the countdown — spelled-out units, not the
+  /// glanceable `mm:ss` glyph string (which assistive tech reads ambiguously).
+  static String _spoken(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes.remainder(60);
+    final s = d.inSeconds.remainder(60);
+    final parts = [
+      if (h > 0) '$h ${h == 1 ? 'hour' : 'hours'}',
+      '$m ${m == 1 ? 'minute' : 'minutes'}',
+      '$s ${s == 1 ? 'second' : 'seconds'}',
+    ];
+    return parts.join(' ');
   }
 }

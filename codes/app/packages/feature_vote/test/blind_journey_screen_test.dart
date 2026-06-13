@@ -69,6 +69,8 @@ void main() {
     WidgetTester tester,
     FakeBlindPort port, {
     DateTime Function()? clock,
+    Future<List<String>> Function()? loadOptions,
+    Future<(List<String>, List<BigInt>)> Function()? loadTally,
   }) async {
     final machine = BlindJourneyMachine(port: port, clock: clock);
     addTearDown(machine.dispose);
@@ -77,9 +79,10 @@ void main() {
         home: BlindJourneyScreen(
           machine: machine,
           title: 'Budget vote',
-          loadOptions: () async => const ['Alpha', 'Beta'],
-          loadTally: () async =>
-              (const ['Alpha', 'Beta'], [BigInt.two, BigInt.one]),
+          loadOptions: loadOptions ?? () async => const ['Alpha', 'Beta'],
+          loadTally:
+              loadTally ??
+              () async => (const ['Alpha', 'Beta'], [BigInt.two, BigInt.one]),
         ),
       ),
     );
@@ -235,5 +238,133 @@ void main() {
       find.textContaining('Joining closed before you joined'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('results load failure shows an error with a way out, never a '
+      'forever spinner', (tester) async {
+    final port = FakeBlindPort(
+      phase: 2,
+      registered: true,
+      committed: true,
+      revealed: true,
+      finalized: true,
+    );
+    var attempts = 0;
+    await pumpScreen(
+      tester,
+      port,
+      loadTally: () async {
+        attempts += 1;
+        if (attempts == 1) throw Exception('network');
+        return (const ['Alpha', 'Beta'], [BigInt.two, BigInt.one]);
+      },
+    );
+    await tester.pumpAndSettle();
+
+    // The failed load must NOT leave a perpetual "LOADING RESULTS…" spinner.
+    expect(find.text('LOADING RESULTS…'), findsNothing);
+    expect(
+      find.text('Could not load this vote. Check your connection.'),
+      findsOneWidget,
+    );
+
+    // Retrying re-runs the loader and renders the tally.
+    await tester.tap(find.text('TRY AGAIN'));
+    await tester.pumpAndSettle();
+    expect(attempts, 2);
+    expect(find.text('FINAL RESULTS'), findsOneWidget);
+    expect(find.text('Alpha'), findsOneWidget);
+  });
+
+  testWidgets('options load failure shows an error with a way out, never a '
+      'forever spinner', (tester) async {
+    final port = FakeBlindPort(phase: 1, registered: true);
+    var attempts = 0;
+    await pumpScreen(
+      tester,
+      port,
+      loadOptions: () async {
+        attempts += 1;
+        if (attempts == 1) throw Exception('network');
+        return const ['Alpha', 'Beta'];
+      },
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('LOADING OPTIONS…'), findsNothing);
+    expect(
+      find.text('Could not load this vote. Check your connection.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('TRY AGAIN'));
+    await tester.pumpAndSettle();
+    expect(attempts, 2);
+    expect(find.text('Alpha'), findsOneWidget);
+    expect(find.text('Beta'), findsOneWidget);
+  });
+
+  testWidgets(
+    'reveal countdown is a live region with a spoken time-left label',
+    (tester) async {
+      final handle = tester.ensureSemantics();
+      final now = DateTime(2026, 6, 12, 12);
+      final port = FakeBlindPort(
+        phase: 2,
+        registered: true,
+        committed: true,
+        deadline: now.add(const Duration(minutes: 5)),
+      );
+      await pumpScreen(tester, port, clock: () => now);
+      await tester.pump();
+      await tester.pump();
+
+      // The deadline — the most consequential fact on this screen — must be
+      // announced (a missed confirmation is a permanently lost vote), and it
+      // must be a live region so a screen reader re-reads it as it ticks down.
+      expect(
+        tester.getSemantics(find.byKey(BlindJourneyScreen.countdownKey)),
+        isSemantics(
+          isLiveRegion: true,
+          label: 'Time left to confirm your vote: 5 minutes 0 seconds',
+        ),
+      );
+
+      handle.dispose();
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets('save-your-vote-key gate: copy confirms, and the buttons are '
+      'labelled for assistive tech', (tester) async {
+    final handle = tester.ensureSemantics();
+    final port = FakeBlindPort(phase: 1, registered: true);
+    await pumpScreen(tester, port);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Beta'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('LOCK IN YOUR VOTE'));
+    await tester.pumpAndSettle();
+
+    // The "I've saved it" acknowledgement is a real button to a screen reader,
+    // not a mystery tap target.
+    expect(
+      tester.getSemantics(find.byKey(BlindJourneyScreen.saltAckKey)),
+      isSemantics(isButton: true, label: 'I’VE SAVED IT'),
+    );
+
+    // "Did it copy?" — tapping copy surfaces an unmistakable confirmation,
+    // not a silent no-op (the vote key is the one irreversible thing here).
+    expect(find.text('COPY KEY'), findsOneWidget);
+    await tester.tap(find.byKey(BlindJourneyScreen.saltCopyKey));
+    await tester.pump(); // let the SnackBar appear
+
+    expect(
+      find.text('Vote key copied — keep it somewhere safe.'),
+      findsOneWidget,
+    );
+
+    handle.dispose();
   });
 }
