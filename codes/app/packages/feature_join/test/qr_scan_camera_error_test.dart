@@ -3,10 +3,6 @@
 // routes them to the always-available paste/code path. This pumps that panel
 // in isolation — no real camera, no plugin channel — by constructing the
 // MobileScannerException the scanner's errorBuilder hands us.
-// flutter_test ships with the Flutter SDK (the package already depends on
-// `flutter`) but isn't listed as a redundant explicit dev_dependency, and
-// pubspecs are out of this change's ownership — so silence the lint here.
-// ignore: depend_on_referenced_packages
 import 'package:flutter_test/flutter_test.dart';
 import 'package:feature_join/ui.dart';
 import 'package:flutter/material.dart';
