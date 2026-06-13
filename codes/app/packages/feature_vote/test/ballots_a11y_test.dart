@@ -158,5 +158,50 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'the credit meter row does not overflow at a narrow width and large '
+      'text scale',
+      (tester) async {
+        // Render-time regression: the "POINTS LEFT … 100 / 100" meter row used
+        // a fixed label + Spacer + fixed count, so at a narrow width / large
+        // OS text scale the two texts together exceeded the row and struck a
+        // RenderFlex overflow.
+        tester.view.physicalSize = const Size(320, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: MediaQuery(
+              data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
+              child: Scaffold(
+                body: QuadraticBallot(
+                  options: const ['Apples', 'Pears'],
+                  onChanged: (_) {},
+                ),
+              ),
+            ),
+          ),
+        );
+
+        // Drive an allocation so the meter recomputes (99 / 100).
+        await tester.tap(find.byKey(QuadraticBallot.plusKey(0)));
+        await tester.pumpAndSettle();
+
+        // No RenderFlex overflow at 320dp + 2.0 scale…
+        expect(tester.takeException(), isNull);
+        // …and the meter is still present and readable.
+        expect(find.text('POINTS LEFT'), findsOneWidget);
+        expect(find.text('99 / 100'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byKey(QuadraticBallot.meterKey),
+            matching: find.text('99 / 100'),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }
