@@ -175,10 +175,17 @@ class _VerifyViewState extends State<VerifyView> {
               children: [
                 Icon(icon, color: color, size: 18),
                 const SizedBox(width: 8),
+                // The verdict is the answer to "was my vote counted?" — make
+                // it a live-region header so a screen reader announces it the
+                // moment the async check lands.
                 Expanded(
-                  child: Text(
-                    title,
-                    style: dbSans(13, 800, color, letterSpacing: 1.4),
+                  child: Semantics(
+                    liveRegion: true,
+                    header: true,
+                    child: Text(
+                      title,
+                      style: dbSans(13, 800, color, letterSpacing: 1.4),
+                    ),
                   ),
                 ),
               ],

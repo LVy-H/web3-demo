@@ -131,18 +131,32 @@ class OrganizerPollCard extends StatelessWidget {
                 ),
               if (onDistribute != null) ...[
                 const SizedBox(width: 8),
-                OutlinedButton(
-                  key: const Key('card-distribute'),
-                  onPressed: onDistribute,
-                  child: const Icon(Icons.qr_code_2, size: 18),
+                Tooltip(
+                  message: 'Distribute this poll',
+                  child: OutlinedButton(
+                    key: const Key('card-distribute'),
+                    onPressed: onDistribute,
+                    child: const Icon(
+                      Icons.qr_code_2,
+                      size: 18,
+                      semanticLabel: 'Distribute this poll',
+                    ),
+                  ),
                 ),
               ],
               if (onRunEvent != null) ...[
                 const SizedBox(width: 8),
-                OutlinedButton(
-                  key: const Key('card-run-event'),
-                  onPressed: onRunEvent,
-                  child: const Icon(Icons.sensors, size: 18),
+                Tooltip(
+                  message: 'Run live event',
+                  child: OutlinedButton(
+                    key: const Key('card-run-event'),
+                    onPressed: onRunEvent,
+                    child: const Icon(
+                      Icons.sensors,
+                      size: 18,
+                      semanticLabel: 'Run live event',
+                    ),
+                  ),
                 ),
               ],
             ],

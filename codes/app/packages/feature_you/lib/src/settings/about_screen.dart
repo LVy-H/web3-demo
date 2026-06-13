@@ -47,7 +47,7 @@ class AboutScreen extends StatelessWidget {
                         YouInfoRow(label: 'Version', value: version!),
                       const YouInfoRow(
                         label: 'Privacy',
-                        value: 'zero-knowledge proofs (Semaphore v4)',
+                        value: 'vote secret, count public',
                       ),
                     ],
                   ),

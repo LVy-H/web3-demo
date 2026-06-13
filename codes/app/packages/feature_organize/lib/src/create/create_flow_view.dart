@@ -329,11 +329,17 @@ class _CreateFlowViewState extends State<CreateFlowView> {
               if (_options.length > 2)
                 IconButton(
                   key: Key('remove-option-$i'),
+                  tooltip: 'Remove option ${i + 1}',
                   onPressed: () {
                     _options.removeAt(i).dispose();
                     _sync();
                   },
-                  icon: const Icon(Icons.close, size: 16, color: Db.mute),
+                  icon: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: Db.mute,
+                    semanticLabel: 'Remove option ${i + 1}',
+                  ),
                 ),
             ],
           ),
@@ -378,11 +384,17 @@ class _CreateFlowViewState extends State<CreateFlowView> {
                   if (_questions.length > 1)
                     IconButton(
                       key: Key('remove-question-$q'),
+                      tooltip: 'Remove question ${q + 1}',
                       onPressed: () {
                         _questions.removeAt(q).dispose();
                         _sync();
                       },
-                      icon: const Icon(Icons.close, size: 16, color: Db.mute),
+                      icon: Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Db.mute,
+                        semanticLabel: 'Remove question ${q + 1}',
+                      ),
                     ),
                 ],
               ),
@@ -405,11 +417,20 @@ class _CreateFlowViewState extends State<CreateFlowView> {
                     ),
                     if (_questions[q].options.length > 2)
                       IconButton(
+                        key: Key('remove-question-$q-option-$i'),
+                        tooltip:
+                            'Remove answer ${i + 1} from question ${q + 1}',
                         onPressed: () {
                           _questions[q].options.removeAt(i).dispose();
                           _sync();
                         },
-                        icon: const Icon(Icons.close, size: 16, color: Db.mute),
+                        icon: Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Db.mute,
+                          semanticLabel:
+                              'Remove answer ${i + 1} from question ${q + 1}',
+                        ),
                       ),
                   ],
                 ),

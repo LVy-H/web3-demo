@@ -126,19 +126,28 @@ class YouMiniButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: const BoxDecoration(
-        color: Db.void_,
-        border: Border.fromBorderSide(BorderSide(color: Db.rule)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Db.chalkDim),
-          const SizedBox(width: 7),
-          Text(label, style: dbLabel(size: 10, color: Db.chalkDim)),
-        ],
+    // The visible chip stays compact, but the hit area is padded to the 48dp
+    // minimum tap target so a one-shot action (COPY a backup / code) is easy
+    // to land — the chip itself sits centered inside it.
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: Center(
+        widthFactor: 1,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: const BoxDecoration(
+            color: Db.void_,
+            border: Border.fromBorderSide(BorderSide(color: Db.rule)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: Db.chalkDim),
+              const SizedBox(width: 7),
+              Text(label, style: dbLabel(size: 10, color: Db.chalkDim)),
+            ],
+          ),
+        ),
       ),
     ),
   );
