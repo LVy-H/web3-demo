@@ -5,6 +5,21 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Wave 3 — native share + blind-flow honesty (2026-06-13)** —
+  - **Native OS share** (`share_plus`): the distribute sheet gains a SHARE
+    action that opens the OS share sheet with honest text ("Join my poll on
+    Tessera:\n<link>") — completing the share loop now that Android deep links
+    actually *open* the app. QR + COPY LINK unchanged; the share call is behind
+    an injectable seam so it's widget-tested without a platform channel.
+  - **Blind commit–reveal honesty**: a failed results/options load now shows a
+    retryable error instead of an infinite "LOADING…" spinner at the most
+    consequential moment; the reveal countdown is a `liveRegion` with a
+    spoken-out label ("Time left to confirm your vote: 5 minutes 0 seconds") —
+    a missed reveal permanently loses the vote, so a blind voter must hear the
+    clock; copying the vote key now confirms via a SnackBar that survives the
+    gate transition, and the "I'VE SAVED IT" control is labelled for assistive
+    tech. (Phase headings were already honest — a full phase-strip was declined
+    as a needless new visual.)
 - **Wave 2 UX polish — accessibility + honest states (2026-06-13)** — a
   parallel polish sprint across three surfaces:
   - **YOU**: the receipts archive now distinguishes a *failed load* (honest,
