@@ -174,6 +174,30 @@ void main() {
     );
   });
 
+  testWidgets('the COPY action meets the minimum tap-target height', (
+    tester,
+  ) async {
+    store = InMemoryIdentityStore('0xdeadbeef');
+    await pump(tester);
+
+    await tester.tap(find.text('BACK UP PASS'));
+    await tester.pumpAndSettle();
+
+    // Backing up the pass is a one-shot, high-stakes action — the COPY
+    // control must be comfortably tappable (a 14px icon + tiny label is not).
+    // The InkWell that wraps the COPY label is what the user actually hits.
+    final inkWell = find.ancestor(
+      of: find.text('COPY'),
+      matching: find.byType(InkWell),
+    );
+    expect(inkWell, findsOneWidget);
+    expect(
+      tester.getSize(inkWell).height,
+      greaterThanOrEqualTo(48.0),
+      reason: 'COPY tap target must be at least 48dp tall',
+    );
+  });
+
   testWidgets('primary copy never says Semaphore / commitment / nullifier', (
     tester,
   ) async {

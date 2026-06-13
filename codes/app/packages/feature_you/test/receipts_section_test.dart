@@ -68,12 +68,43 @@ void main() {
     expect(find.textContaining('No receipts yet'), findsOneWidget);
   });
 
-  testWidgets('a throwing store degrades to the empty state, not a crash', (
-    tester,
-  ) async {
-    await pump(tester, _ThrowingReceiptsStore());
+  testWidgets(
+    'a throwing store shows an honest error, not a false empty state',
+    (tester) async {
+      await pump(tester, _ThrowingReceiptsStore());
 
-    expect(find.textContaining('No receipts yet'), findsOneWidget);
+      // The whole point of receipts is "check your vote counted" — telling a
+      // voter "No receipts yet" when the store actually FAILED is a trust gap.
+      expect(find.textContaining('No receipts yet'), findsNothing);
+      expect(
+        find.textContaining('Couldn’t load your receipts'),
+        findsOneWidget,
+      );
+      expect(find.text('TRY AGAIN'), findsOneWidget);
+    },
+  );
+
+  testWidgets('retry after a load failure recovers the list', (tester) async {
+    final store = _FlakyReceiptsStore([
+      VoteReceipt(
+        pollAddress: pollA,
+        pollTitle: 'Club budget 2026',
+        receiptCode: '987654321',
+        savedAt: DateTime(2026, 6, 1),
+      ),
+    ]);
+    await pump(tester, store);
+
+    // First load threw → error state, no false empty.
+    expect(find.text('TRY AGAIN'), findsOneWidget);
+    expect(find.text('Club budget 2026'), findsNothing);
+
+    store.failNext = false;
+    await tester.tap(find.text('TRY AGAIN'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('TRY AGAIN'), findsNothing);
+    expect(find.text('Club budget 2026'), findsOneWidget);
   });
 }
 
@@ -81,6 +112,25 @@ class _ThrowingReceiptsStore implements ReceiptsStore {
   @override
   Future<List<VoteReceipt>> loadAll() async =>
       throw StateError('secure storage unavailable');
+  @override
+  Future<void> save(VoteReceipt receipt) async {}
+  @override
+  Future<void> remove(String pollAddress, String receiptCode) async {}
+  @override
+  Future<void> clear() async {}
+}
+
+/// Throws on the first load, then succeeds — exercises the retry path.
+class _FlakyReceiptsStore implements ReceiptsStore {
+  _FlakyReceiptsStore(this._receipts);
+  final List<VoteReceipt> _receipts;
+  bool failNext = true;
+  @override
+  Future<List<VoteReceipt>> loadAll() async {
+    if (failNext) throw StateError('secure storage unavailable');
+    return List.unmodifiable(_receipts);
+  }
+
   @override
   Future<void> save(VoteReceipt receipt) async {}
   @override

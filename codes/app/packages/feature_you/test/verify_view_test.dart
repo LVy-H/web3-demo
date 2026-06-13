@@ -115,6 +115,22 @@ void main() {
     expect(find.text('COUNTED'), findsOneWidget);
   });
 
+  testWidgets('the verdict is a live-region header so it is announced', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await pump(tester, checkReceipt: (_, _) async => true);
+    await enterAndCheck(tester);
+
+    // A screen-reader user must be told the result of "was my vote counted?"
+    // — the verdict is the whole point of the surface, so it announces.
+    expect(
+      tester.getSemantics(find.text('COUNTED')),
+      isSemantics(label: 'COUNTED', isLiveRegion: true, isHeader: true),
+    );
+    handle.dispose();
+  });
+
   testWidgets('invalid inputs are rejected locally, before any chain call', (
     tester,
   ) async {
