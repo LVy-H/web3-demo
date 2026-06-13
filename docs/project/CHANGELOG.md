@@ -5,6 +5,21 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Wave 4 — render-time fixes a headless run can't see (2026-06-13)** — found by
+  rendering the UI to images (golden) plus an adversarial re-audit, since logic
+  tests / CI never look at pixels:
+  - **Contrast**: `Db.mute`/`muteDim` were below WCAG AA on card surfaces (used
+    for 11px meta text like receipt dates); bumped to ≥4.5:1 and added a
+    **contrast guard unit test** (token × surface pairs) so it can't regress.
+  - **Blind-flow render bugs**: the reveal countdown could RenderFlex-overflow
+    for multi-hour windows / large font scale (now `Flexible`+`FittedBox`); the
+    irreversible "I'VE SAVED IT" backup gate was a 40dp tap target that clipped
+    at large font (now ≥48dp, grows); the quadratic per-option count clipped at
+    three digits (now widened + `FittedBox`).
+  - **Native SHARE** was fire-and-forget — a throwing desktop share backend left
+    a silent dead button; now falls back to copy-link + an honest snackbar.
+  Each fix is widget-tested (overflow asserted via `takeException()==null`, tap
+  target via measured height).
 - **Vote-type picker redesign — goal-grouped, self-explaining (2026-06-13)** —
   the create flow listed all voting methods as a flat, undifferentiated chip
   cloud with the one-line explanation shown ONLY for the already-selected one,
