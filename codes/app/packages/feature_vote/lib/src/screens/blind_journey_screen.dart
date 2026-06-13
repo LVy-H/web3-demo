@@ -286,16 +286,31 @@ class _BlindJourneyScreenState extends State<BlindJourneyScreen> {
                 // consequential fact here — a missed confirmation is a
                 // permanently lost vote — so a screen reader must re-read it
                 // as it ticks, not leave a blind voter unaware of the clock.
-                Semantics(
-                  key: BlindJourneyScreen.countdownKey,
-                  container: true,
-                  liveRegion: true,
-                  label:
-                      'Time left to confirm your vote: ${_spoken(remaining)}',
-                  excludeSemantics: true,
-                  child: Text(
-                    'TIME LEFT  ${_fmt(remaining)}',
-                    style: dbMono(13, Db.segnale, wght: 700, letterSpacing: 1),
+                // An unbounded-hours window (e.g. 120:00:00) or a large OS
+                // text scale would overflow this Row and stripe over the most
+                // consequential fact on screen — scale the time down to fit
+                // rather than ever truncate the deadline.
+                Flexible(
+                  child: Semantics(
+                    key: BlindJourneyScreen.countdownKey,
+                    container: true,
+                    liveRegion: true,
+                    label:
+                        'Time left to confirm your vote: ${_spoken(remaining)}',
+                    excludeSemantics: true,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'TIME LEFT  ${_fmt(remaining)}',
+                        style: dbMono(
+                          13,
+                          Db.segnale,
+                          wght: 700,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -442,7 +457,11 @@ class _BlindJourneyScreenState extends State<BlindJourneyScreen> {
                   key: BlindJourneyScreen.saltAckKey,
                   onTap: () => _advance(const BlindSaltBackupAcknowledged()),
                   child: Container(
-                    height: 40,
+                    // The one irreversible "I backed up my vote key" gate:
+                    // hold the 48dp minimum tap target (and let it grow at
+                    // large font scale instead of clipping the label).
+                    constraints: const BoxConstraints(minHeight: 48),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: Db.void_,
@@ -450,6 +469,7 @@ class _BlindJourneyScreenState extends State<BlindJourneyScreen> {
                     ),
                     child: Text(
                       'I’VE SAVED IT',
+                      textAlign: TextAlign.center,
                       style: dbSans(11, 800, Db.chalkDim, letterSpacing: 1),
                     ),
                   ),
