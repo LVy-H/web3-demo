@@ -112,7 +112,7 @@ class DistributeSheet extends StatelessWidget {
             width: double.infinity,
             child: OutlinedButton.icon(
               key: shareKey,
-              onPressed: () => onShare(_shareText),
+              onPressed: () => _share(context),
               icon: const Icon(Icons.ios_share, size: 16, color: Db.chalk),
               label: Text('SHARE', style: dbMono(11, Db.chalk)),
             ),
@@ -155,5 +155,28 @@ class DistributeSheet extends StatelessWidget {
         content: Text('Link copied', style: dbSans(13, 500, Db.chalk)),
       ),
     );
+  }
+
+  /// SHARE is a convenience over COPY: hand the honest text to the OS share
+  /// sheet. The desktop share_plus backends can throw ("Failed to launch …")
+  /// where there's no native share affordance — when that happens, fall back
+  /// to the same honest copy path COPY uses so the button is never silently
+  /// dead. Capture the messenger before the await (no context across the gap).
+  Future<void> _share(BuildContext context) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    try {
+      await onShare(_shareText);
+    } catch (_) {
+      await Clipboard.setData(ClipboardData(text: shareLink));
+      messenger?.showSnackBar(
+        SnackBar(
+          backgroundColor: Db.slate2,
+          content: Text(
+            'Couldn’t open share — link copied instead',
+            style: dbSans(13, 500, Db.chalk),
+          ),
+        ),
+      );
+    }
   }
 }

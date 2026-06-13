@@ -90,6 +90,43 @@ void main() {
     expect(shared.single, 'Join my poll on Tessera:\n$_link');
   });
 
+  testWidgets('SHARE failure (desktop share_plus throws) falls back to '
+      'copying the link and tells the user', (tester) async {
+    final calls = <MethodCall>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        calls.add(call);
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    await _pump(
+      tester,
+      nfcAvailable: false,
+      onShare: (text) async => throw Exception('Failed to launch xdg-open'),
+    );
+
+    await tester.tap(find.byKey(DistributeSheet.shareKey));
+    await tester.pump();
+
+    // (a) the link landed on the clipboard via the honest copy path.
+    final setData = calls.where((c) => c.method == 'Clipboard.setData');
+    expect(setData, hasLength(1));
+    expect((setData.single.arguments as Map)['text'], _link);
+    // (b) the fallback snackbar gives the user honest feedback.
+    expect(
+      find.text('Couldn’t open share — link copied instead'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('no NFC hardware → the NFC tile is dropped entirely', (
     tester,
   ) async {
