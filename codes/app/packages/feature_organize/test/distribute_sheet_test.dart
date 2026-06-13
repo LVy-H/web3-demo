@@ -11,14 +11,21 @@ import 'package:flutter_test/flutter_test.dart';
 const _pollAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
 final String _link = shareLinkForPoll(_pollAddress, module: 'anon-vote');
 
-Future<void> _pump(WidgetTester tester, {required bool nfcAvailable}) =>
-    tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: DistributeSheet(shareLink: _link, nfcAvailable: nfcAvailable),
-        ),
+Future<void> _pump(
+  WidgetTester tester, {
+  required bool nfcAvailable,
+  ShareLinkFn? onShare,
+}) => tester.pumpWidget(
+  MaterialApp(
+    home: Scaffold(
+      body: DistributeSheet(
+        shareLink: _link,
+        nfcAvailable: nfcAvailable,
+        onShare: onShare,
       ),
-    );
+    ),
+  ),
+);
 
 void main() {
   testWidgets('shows the QR and the canonical link the JOIN grammar reads '
@@ -61,6 +68,26 @@ void main() {
     expect(setData, hasLength(1));
     expect((setData.single.arguments as Map)['text'], _link);
     expect(find.text('Link copied'), findsOneWidget);
+  });
+
+  testWidgets('SHARE opens the OS share sheet with honest text carrying '
+      'the deep link', (tester) async {
+    final shared = <String>[];
+    await _pump(
+      tester,
+      nfcAvailable: false,
+      onShare: (text) async => shared.add(text),
+    );
+
+    expect(find.byKey(DistributeSheet.shareKey), findsOneWidget);
+    await tester.tap(find.byKey(DistributeSheet.shareKey));
+    await tester.pump();
+
+    expect(shared, hasLength(1));
+    // Honest: a human line + the same link COPY already produces. No claim
+    // that it works for people without the app.
+    expect(shared.single, contains(_link));
+    expect(shared.single, 'Join my poll on Tessera:\n$_link');
   });
 
   testWidgets('no NFC hardware → the NFC tile is dropped entirely', (
