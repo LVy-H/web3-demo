@@ -174,6 +174,36 @@ void main() {
       expect(find.text('No votes yet'), findsNothing);
     });
 
+    testWidgets('each bar exposes one merged, readable semantics label', (
+      tester,
+    ) async {
+      // The results card is the payoff of the whole voting journey. To a screen
+      // reader each bar must read as ONE sentence (option, count, share) — not
+      // three disconnected fragments — and the leader must be announced.
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(_host([_opt('Yes', 3), _opt('No', 1)]));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.bySemanticsLabel('Yes: 3 votes, 75.0%, leading'),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel('No: 1 votes, 25.0%'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('non-leading bars are not announced as leading', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      // A tie: nobody leads, so no bar carries the "leading" suffix.
+      await tester.pumpWidget(_host([_opt('A', 2), _opt('B', 2)]));
+      await tester.pumpAndSettle();
+
+      expect(find.bySemanticsLabel(RegExp('leading')), findsNothing);
+      handle.dispose();
+    });
+
     testWidgets('huge BigInt counts do not overflow the layout', (
       tester,
     ) async {
