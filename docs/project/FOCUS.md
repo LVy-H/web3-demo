@@ -13,10 +13,25 @@ Use this file to answer "what should I open my laptop and work on right now?" �
 **Why now:** R1–R4 shipped (PRs #100–#122); `resultsPolicy` is honest metadata, not cryptography — the spec (§5/§7) explicitly defers real sealing to R5 and folds it into the Sepolia gate. Nothing else stands between the current state and planning `1.0`.
 
 **Done when:**
-- [ ] Legacy `codes/mobile/` cutover PR merged (in flight from the Revolution; CI + `dev-stack.sh` + docs point at `codes/app/`)
+- [x] Legacy `codes/mobile/` cutover PR merged — done (#124); CI + `dev-stack.sh` + docs point at `codes/app/`
 - [ ] R5 design spec written and reviewed (sealing mechanism chosen: threshold vs timelock; receipt-freeness reviewed; migration story for the six modules)
 - [ ] Sepolia readiness checklist drafted (deploy script per-network addresses, real-verifier-only policy off-localhost, relayer funding/limits, faucet story)
 - [ ] Short-code resolver decision made (spec §8 open question 2 — relayer-hosted code→address table or cut)
+
+## Interim round — UX + headless-audit hardening (2026-06-13, PRs #125–#130, merged)
+
+Orthogonal to R5/Sepolia: a UX/feature + render-time-quality pass driven by owner feedback ("niche UX, things we can't test headlessly, no ghost features"). Shipped:
+- **Android share/JOIN loop closed** (#125): `tessera://` deep links now open the app (intent-filter + `DeepLinkService` + release-manifest `INTERNET` + `network_security_config`); web-guarded.
+- **Honest device-fencing** (#125): the NFC "tap-to-share" ghost (Android Beam, removed in Android 10+) disabled; QR camera-denied fallback.
+- **Accessibility + honest states** (#126/#127): ballot/results/organize/you a11y; receipts empty-vs-error; blind-flow error states + spoken reveal countdown; native OS share (`share_plus`) with copy fallback.
+- **Vote-type picker redesign** (#128): flat undifferentiated chip list → goal-grouped, self-explaining cards with a recommended default.
+- **Render-time fixes headless verification missed** (#129/#130): sub-WCAG-AA contrast (`mute`/`muteDim`) + a contrast guard test; reveal-countdown & credit-meter overflow; 48dp salt-ack gate; verify-verdict live region.
+
+**Concrete follow-ups this round surfaced (feed the next iterations):**
+- **Blind-create is an R5 dependency** — `RelayOrganizerPort.deployPoll` *refuses* `blindVote` (sponsored allow-list excludes it), so the app cannot offer sealed-poll *creation* (kept out as a no-ghost decision; see [[blind-create-is-a-ghost-until-r5]]). Fold into **R5-SPEC**: enable blind-vote in the relayer allow-list end-to-end.
+- **On-device deep-link smoke** — add a cold+warm `adb am start tessera://…` check to `dev-stack.sh e2e` (the one #125 claim a headless run can't confirm).
+- **Golden visual-audit harness** — institutionalize as committed, CI-excluded infra (`@Tags(['golden'])` + a `test:golden` melos script) so render-time regressions stay catchable (technique in agent memory).
+- **Vote-type P2** — optional "what's your goal?" chooser + a voter-ballot preview (`docs/superpowers/specs/2026-06-13-vote-type-selection-design.md`).
 
 ## Active work items
 
@@ -24,7 +39,8 @@ Pull from `improvements/findings.md` (or wherever the work originates). One row 
 
 | ID | Title | Owner | Status | Notes |
 |----|-------|-------|--------|-------|
-| CUTOVER | Delete `codes/mobile/`, repoint CI + dev-stack + docs | parallel agent | in flight | one-PR cutover per the Revolution spec §6 |
+| CUTOVER | Delete `codes/mobile/`, repoint CI + dev-stack + docs | — | done (#124) | one-PR cutover per the Revolution spec §6 |
+| UX-HARDEN | Android share loop + a11y + vote-type picker + render-time fixes | autonomous round | done (#125–#130) | see "Interim round" above; surfaced the blind-create R5 dependency |
 | R5-SPEC | Cryptographic sealing design spec | — | not started | spec §5/§7; separate spec file under `docs/superpowers/specs/` |
 | SEP-CHK | Sepolia readiness checklist | — | not started | feeds ROADMAP Phase 10 |
 
