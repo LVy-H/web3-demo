@@ -76,7 +76,14 @@ Capabilities composeCapabilities({
       platform == TargetPlatform.android || platform == TargetPlatform.iOS;
   // Camera QR scanning ships on web (feat/web-camera-scan) and mobile.
   final canScanQr = isWeb || isMobile;
-  final hasNfc = !isWeb && platform == TargetPlatform.android;
+  // NFC is honestly unavailable everywhere. The only "tap to share" path we
+  // ever surfaced — holding two phones back-to-back — was Android Beam / NDEF
+  // push, which Google REMOVED in Android 10+ (2019); no device can use it and
+  // there is no NFC code behind the tile. The one viable replacement is
+  // writing the invite to a physical NFC tag, which is deliberately out until
+  // it can be verified on real hardware (verifiable-only constraint). Mirrors
+  // [hasBle]: a hard `false` with a standing reason, not a platform guess.
+  const hasNfc = false;
   // No BLE proximity probe exists yet — honestly unavailable everywhere.
   const hasBle = false;
   final canUseWallet = walletConfigured;
@@ -94,7 +101,8 @@ Capabilities composeCapabilities({
       if (!canProve) Capability.prove: CapabilityReasons.proveUnsupported,
       if (!canSign) Capability.sign: CapabilityReasons.signNoSigner,
       if (!canScanQr) Capability.scanQr: CapabilityReasons.scanQrNoCamera,
-      if (!hasNfc) Capability.nfc: CapabilityReasons.nfcUnsupported,
+      // hasNfc/hasBle are const false — their reason always stands.
+      Capability.nfc: CapabilityReasons.nfcUnsupported,
       Capability.ble: CapabilityReasons.bleUnsupported,
       if (!canUseWallet)
         Capability.wallet: CapabilityReasons.walletNotConfigured,

@@ -57,13 +57,25 @@ void main() {
       expect(compose(platform: TargetPlatform.linux).canScanQr, isFalse);
     });
 
-    test('NFC: android-native only', () {
-      expect(compose(platform: TargetPlatform.android).hasNfc, isTrue);
+    test('NFC: honestly false everywhere, reason always present', () {
+      // Android Beam (the only "tap two phones" path) was removed in Android
+      // 10+; tag-write is unverified. So hasNfc is a hard false on every
+      // platform — never a platform guess — and always carries its why-not key.
+      for (final platform in TargetPlatform.values) {
+        final caps = compose(platform: platform);
+        expect(caps.hasNfc, isFalse, reason: '$platform');
+        expect(
+          caps.reasonFor(Capability.nfc),
+          CapabilityReasons.nfcUnsupported,
+          reason: '$platform must carry the nfc why-not key',
+        );
+      }
+      // Including the case that used to report true.
+      expect(compose(platform: TargetPlatform.android).hasNfc, isFalse);
       expect(
         compose(platform: TargetPlatform.android, isWeb: true).hasNfc,
         isFalse,
       );
-      expect(compose(platform: TargetPlatform.iOS).hasNfc, isFalse);
     });
 
     test('relayer pending vs unreachable carry distinct reasons', () {

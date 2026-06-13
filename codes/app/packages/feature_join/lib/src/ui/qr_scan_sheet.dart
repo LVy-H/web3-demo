@@ -100,7 +100,8 @@ class _JoinScanSheetState extends State<_JoinScanSheet> {
               child: MobileScanner(
                 controller: _controller,
                 onDetect: _onDetect,
-                errorBuilder: (context, error) => _CameraError(error: error),
+                errorBuilder: (context, error) =>
+                    JoinScanCameraError(error: error),
               ),
             ),
             Padding(
@@ -120,10 +121,17 @@ class _JoinScanSheetState extends State<_JoinScanSheet> {
 /// Shown inside the scanner when the camera can't be used — most commonly a
 /// denied/unavailable camera permission. The sheet stays dismissable so the
 /// user falls back to the always-available paste/code entry underneath.
-class _CameraError extends StatelessWidget {
+///
+/// Public so a widget test can pump it WITHOUT a real camera: construct a
+/// [MobileScannerException] with the desired [MobileScannerErrorCode] and
+/// assert the Dark-Bauhaus copy that routes the user to paste.
+class JoinScanCameraError extends StatelessWidget {
+  /// Stable handle for tests / callers that want to find the error panel.
+  static const Key viewKey = Key('join-scan-camera-error');
+
   final MobileScannerException error;
 
-  const _CameraError({required this.error});
+  const JoinScanCameraError({super.key, required this.error});
 
   @override
   Widget build(BuildContext context) {
@@ -134,6 +142,7 @@ class _CameraError extends StatelessWidget {
         : "The camera isn't available. Close this and paste the link "
               'instead.';
     return Center(
+      key: viewKey,
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
