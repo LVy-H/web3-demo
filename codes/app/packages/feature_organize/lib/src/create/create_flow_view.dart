@@ -57,7 +57,14 @@ class _CreateFlowViewState extends State<CreateFlowView> {
   StreamSubscription<OrganizerState>? _sub;
 
   // ── form state (pushed into the machine's draft on every edit) ──────────
-  OrganizerModule _module = OrganizerModule.anonVote;
+  //
+  // The picker chooses one of the FIVE deployable ballot types ([_ballotType],
+  // never blindVote). Sealed/commit-reveal creation is intentionally NOT offered
+  // here — RelayOrganizerPort.deployPoll refuses blindVote (the relayer's
+  // sponsored allow-list excludes it), so a sealing control would be a ghost.
+  // See module_names.dart; tracked for R5 (sealed-ballots).
+  OrganizerModule _ballotType = recommendedBallotType;
+
   final TextEditingController _title = TextEditingController();
   final TextEditingController _description = TextEditingController();
   final List<TextEditingController> _options = [
@@ -69,7 +76,6 @@ class _CreateFlowViewState extends State<CreateFlowView> {
   // Spec §5 opt-ins — DEFAULT OFF (private defaults).
   bool _listed = false;
   bool _liveResults = false;
-  Duration _revealWindow = const Duration(hours: 1);
 
   @override
   void initState() {
@@ -95,7 +101,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
   }
 
   OrganizerPollSpec _spec() => OrganizerPollSpec(
-    module: _module,
+    module: _ballotType,
     title: _title.text,
     description: _description.text,
     options: [for (final c in _options) c.text],
@@ -110,7 +116,9 @@ class _CreateFlowViewState extends State<CreateFlowView> {
     resultsPolicy: _liveResults
         ? ResultsPolicy.livePublic
         : ResultsPolicy.sealedUntilClose,
-    revealWindow: _module == OrganizerModule.blindVote ? _revealWindow : null,
+    // Blind/commit-reveal is never created here (the relayer refuses it), so
+    // there is never a reveal window to set. See R5 (sealed-ballots).
+    revealWindow: null,
   );
 
   /// Push the current form into the machine's draft (legal from the draft
@@ -162,15 +170,6 @@ class _CreateFlowViewState extends State<CreateFlowView> {
                 _label('HOW PEOPLE VOTE'),
                 const SizedBox(height: 10),
                 _modulePicker(),
-                const SizedBox(height: 8),
-                Text(
-                  moduleBlurb(_module),
-                  style: dbSans(12, 400, Db.chalkDim, height: 1.5),
-                ),
-                if (_module == OrganizerModule.blindVote) ...[
-                  const SizedBox(height: 12),
-                  _revealWindowPicker(),
-                ],
                 const SizedBox(height: 24),
                 _label('WHAT IT IS'),
                 const SizedBox(height: 10),
@@ -186,7 +185,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
                   maxLines: 3,
                 ),
                 const SizedBox(height: 24),
-                if (_module.usesQuestions)
+                if (_ballotType.usesQuestions)
                   _questionBuilder()
                 else
                   _optionsBuilder(),
@@ -247,70 +246,100 @@ class _CreateFlowViewState extends State<CreateFlowView> {
     setState(() {});
   }
 
-  Widget _modulePicker() => Wrap(
-    spacing: 8,
-    runSpacing: 8,
+  /// Goal-grouped ballot-type picker: one section per [BallotGroup], every
+  /// card always showing its one-line differentiator so an organizer can
+  /// compare before choosing (spec 2026-06-13). "Pick one" comes pre-selected.
+  Widget _modulePicker() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      for (final module in OrganizerModule.values)
-        OutlinedButton(
-          key: Key('module-${module.wireName}'),
-          style: OutlinedButton.styleFrom(
-            shape: const RoundedRectangleBorder(),
-            side: BorderSide(color: module == _module ? Db.segnale : Db.rule),
-            backgroundColor: module == _module ? Db.slate2 : null,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          ),
-          onPressed: () {
-            _module = module;
-            if (module.usesQuestions && _questions.isEmpty) {
-              _questions.add(_QuestionDraft());
-            }
-            _sync();
-          },
-          child: Text(
-            moduleDisplayName(module),
-            style: dbMono(12, module == _module ? Db.chalk : Db.chalkDim),
-          ),
-        ),
+      for (var g = 0; g < BallotGroup.values.length; g++) ...[
+        if (g > 0) const SizedBox(height: 16),
+        _label(BallotGroup.values[g].label),
+        const SizedBox(height: 8),
+        for (final module in BallotGroup.values[g].modules) ...[
+          _ballotCard(module),
+          const SizedBox(height: 8),
+        ],
+      ],
     ],
   );
 
-  Widget _revealWindowPicker() => Row(
-    children: [
-      Text('REVEAL WINDOW', style: dbLabel()),
-      const SizedBox(width: 12),
-      DropdownButton<Duration>(
-        value: _revealWindow,
-        dropdownColor: Db.slate2,
-        style: dbMono(12, Db.chalk),
-        underline: const SizedBox.shrink(),
-        items: const [
-          DropdownMenuItem(
-            value: Duration(minutes: 15),
-            child: Text('15 minutes'),
-          ),
-          DropdownMenuItem(value: Duration(hours: 1), child: Text('1 hour')),
-          DropdownMenuItem(value: Duration(hours: 24), child: Text('24 hours')),
-        ],
-        onChanged: (value) {
-          if (value != null) {
-            _revealWindow = value;
-            _sync();
-          }
-        },
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Text(
-          'Time voters get to reveal after voting closes.',
-          style: dbSans(11, 400, Db.mute),
+  Widget _ballotCard(OrganizerModule module) {
+    final selected = module == _ballotType;
+    final badge = isRecommendedBallot(module)
+        ? 'Recommended'
+        : (isAdvancedBallot(module) ? 'Advanced' : null);
+    return InkWell(
+      key: Key('ballot-${module.wireName}'),
+      onTap: () => _selectBallot(module),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? Db.slate2 : null,
+          border: Border.all(color: selected ? Db.segnale : Db.rule),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 1, right: 10),
+              child: Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                size: 16,
+                color: selected ? Db.segnale : Db.mute,
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          moduleDisplayName(module),
+                          style: dbMono(13, selected ? Db.chalk : Db.chalkDim),
+                        ),
+                      ),
+                      if (badge != null) ...[
+                        const SizedBox(width: 8),
+                        _badge(badge),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    moduleBlurb(module),
+                    style: dbSans(12, 400, Db.chalkDim, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
-    ],
+    );
+  }
+
+  Widget _badge(String text) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(border: Border.all(color: Db.segnale)),
+    child: Text(text.toUpperCase(), style: dbMono(9, Db.segnale)),
   );
+
+  void _selectBallot(OrganizerModule module) {
+    _ballotType = module;
+    if (module.usesQuestions && _questions.isEmpty) {
+      _questions.add(_QuestionDraft());
+    }
+    _sync();
+  }
 
   Widget _optionsBuilder() {
-    final capped = _module.capsOptionsAtEight && _options.length >= 8;
+    final capped = _ballotType.capsOptionsAtEight && _options.length >= 8;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
