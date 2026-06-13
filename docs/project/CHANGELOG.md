@@ -5,6 +5,12 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Render-time cleanup (2026-06-13)** — two more fixes from the render-time
+  audit: the quadratic **credit-meter row** ("POINTS LEFT … 100/100") could
+  RenderFlex-overflow at narrow widths / large font scale (now `Flexible` +
+  `FittedBox`); and the **verify verdict** now announces title *and* body to
+  screen readers (the body was previously outside the live region). Both
+  widget-tested (overflow via `takeException()==null`, body via `isSemantics(isLiveRegion)`).
 - **Wave 4 — render-time fixes a headless run can't see (2026-06-13)** — found by
   rendering the UI to images (golden) plus an adversarial re-audit, since logic
   tests / CI never look at pixels:
