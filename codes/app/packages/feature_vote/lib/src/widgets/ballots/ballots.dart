@@ -30,26 +30,36 @@ class _OptionTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => InkWell(
+  Widget build(BuildContext context) => Semantics(
+    // A choice tile is a selectable control: assistive tech must announce the
+    // option label, that it's tappable, and whether it's currently chosen —
+    // the leading radio/checkbox glyph is purely visual.
+    button: true,
+    selected: selected,
+    label: label,
+    excludeSemantics: true,
     onTap: onTap,
-    child: Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: selected ? Db.slate2 : Db.void_,
-        border: Border.all(color: selected ? Db.segnale : Db.rule),
-      ),
-      child: Row(
-        children: [
-          leading,
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              label,
-              style: dbSans(14, selected ? 800 : 600, Db.chalk),
+    child: InkWell(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: selected ? Db.slate2 : Db.void_,
+          border: Border.all(color: selected ? Db.segnale : Db.rule),
+        ),
+        child: Row(
+          children: [
+            leading,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: dbSans(14, selected ? 800 : 600, Db.chalk),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
@@ -356,44 +366,57 @@ class _QuadraticBallotState extends State<QuadraticBallot> {
         ),
         const SizedBox(height: 12),
         for (var i = 0; i < widget.options.length; i++)
-          Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: _votes[i] > 0 ? Db.slate2 : Db.void_,
-              border: Border.all(color: _votes[i] > 0 ? Db.segnale : Db.rule),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.options[i],
-                    style: dbSans(14, _votes[i] > 0 ? 800 : 600, Db.chalk),
+          Semantics(
+            // The row reads as "{option}: {n} points" so a screen-reader voter
+            // always knows the current allocation; the +/- buttons keep their
+            // own labels (below) and the bare digit Text is folded into this.
+            container: true,
+            label: '${widget.options[i]}: ${_votes[i]} points',
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: _votes[i] > 0 ? Db.slate2 : Db.void_,
+                border: Border.all(color: _votes[i] > 0 ? Db.segnale : Db.rule),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ExcludeSemantics(
+                      child: Text(
+                        widget.options[i],
+                        style: dbSans(14, _votes[i] > 0 ? 800 : 600, Db.chalk),
+                      ),
+                    ),
                   ),
-                ),
-                IconButton(
-                  key: QuadraticBallot.minusKey(i),
-                  onPressed: _votes[i] > 0 ? () => _bump(i, -1) : null,
-                  icon: const Icon(Icons.remove, size: 18),
-                  color: Db.chalkDim,
-                  disabledColor: Db.rule,
-                ),
-                SizedBox(
-                  width: 28,
-                  child: Text(
-                    '${_votes[i]}',
-                    textAlign: TextAlign.center,
-                    style: dbMono(15, Db.chalk, wght: 700),
+                  IconButton(
+                    key: QuadraticBallot.minusKey(i),
+                    tooltip: 'Remove a point from ${widget.options[i]}',
+                    onPressed: _votes[i] > 0 ? () => _bump(i, -1) : null,
+                    icon: const Icon(Icons.remove, size: 18),
+                    color: Db.chalkDim,
+                    disabledColor: Db.rule,
                   ),
-                ),
-                IconButton(
-                  key: QuadraticBallot.plusKey(i),
-                  onPressed: () => _bump(i, 1),
-                  icon: const Icon(Icons.add, size: 18),
-                  color: Db.chalkDim,
-                  disabledColor: Db.rule,
-                ),
-              ],
+                  SizedBox(
+                    width: 28,
+                    child: ExcludeSemantics(
+                      child: Text(
+                        '${_votes[i]}',
+                        textAlign: TextAlign.center,
+                        style: dbMono(15, Db.chalk, wght: 700),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    key: QuadraticBallot.plusKey(i),
+                    tooltip: 'Add a point to ${widget.options[i]}',
+                    onPressed: () => _bump(i, 1),
+                    icon: const Icon(Icons.add, size: 18),
+                    color: Db.chalkDim,
+                    disabledColor: Db.rule,
+                  ),
+                ],
+              ),
             ),
           ),
       ],

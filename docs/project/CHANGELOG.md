@@ -5,6 +5,43 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Android share/JOIN loop closed — deep links now open the app (2026-06-13)** —
+  the SHARE sheet, QR codes, and `TES-` codes all *produced* the JOIN link
+  grammar, but nothing on-device *consumed* a tapped/scanned link: no
+  `tessera://` intent-filter, no incoming-link handler, and the release manifest
+  had no `INTERNET` permission (it lived only in the debug manifest). A new
+  `DeepLinkService` feeds every OS-delivered link through the SAME tested
+  pipeline the in-app scanner uses (`parseJoinInput` → `locationForJoinTarget` →
+  router); unknown/hostile links degrade to `/error`, never crash. Wired
+  off-web only — on web go_router already owns the URL and `app_links_web` would
+  mis-read the page URL (e.g. `/vote`) as a link. The Android manifest gains the
+  `tessera://` VIEW/BROWSABLE intent-filter, `INTERNET` in the MAIN manifest,
+  and a `network_security_config.xml` restoring loopback-only cleartext so a
+  release APK's on-device WebView prover doesn't hang. 9 new tests (6 service +
+  3 app-wiring). Device-fenced: the physical NFC-tag tap; the APK manifest merge
+  is verified by the CI `android` job.
+- **Honest device-fencing — the NFC "ghost" is gone (2026-06-13)** — the
+  distribute sheet advertised "hold the voter's phone to the back of this one"
+  (Android Beam / NDEF push, which Google removed in Android 10+) with zero NFC
+  code behind it, yet `hasNfc` lit it on every Android device. `hasNfc` is now
+  honestly `false` everywhere (with its reason key), so neither the tile nor
+  `ShareTarget.nfc` surfaces a feature no user can use; the field/enum are
+  preserved. The QR scanner's camera-denied / no-camera fallback is now a
+  public, widget-tested panel ("Camera unavailable — paste a link or code
+  instead"). A capability audit confirmed nothing else lies.
+- **Accessibility polish on the voter's critical path (2026-06-13)** — ballot
+  option tiles announce as selectable buttons with selected state (single-choice,
+  approval, survey); quadratic steppers carry per-option labels + tooltips ("Add
+  a point to {option}") and read their current allocation; results bars read as
+  one node per option ("Yes: 3 votes, 75.0%, leading") instead of three
+  disconnected fragments. Each fix is widget-tested (red-before / green-after).
+- **Android release-config honesty (2026-06-13)** — replaced the Flutter-template
+  `// TODO` boilerplate: `applicationId` is intentionally fixed
+  (`com.zkvote.tessera`); release stays debug-signed for internal/CI artifacts
+  with the real-keystore path documented for the release pipeline. Permissions
+  audited (INTERNET added; no NFC over-ask now that it's disabled; camera via the
+  scanner plugin's manifest merge). Spec:
+  `docs/superpowers/specs/2026-06-13-android-share-loop-and-ux-design.md`.
 - **Tessera Revolution — R1–R4 shipped (2026-06-11→12, PRs #100–#122)** —
   ground-up redesign of the client product layer per
   `docs/superpowers/specs/2026-06-11-tessera-revolution-design.md`. By area:

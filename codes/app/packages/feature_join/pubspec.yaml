@@ -8,10 +8,11 @@ environment:
   sdk: ^3.11.0
 
 # Library split (R3): the grammar export `package:feature_join/feature_join.dart`
-# stays importable without Flutter (its files have no Flutter imports and its
-# tests run under plain `dart test`); the widgets live behind the separate
-# `package:feature_join/ui.dart` export. Dependency rule (spec §6):
-# feature_* → core_* + design_system only.
+# stays importable without Flutter (its files have no Flutter imports, and its
+# grammar/relay suites use `package:test`); the widgets live behind the separate
+# `package:feature_join/ui.dart` export and carry widget tests, so the package's
+# suite runs under `flutter test` (see the root melos `test:flutter`).
+# Dependency rule (spec §6): feature_* → core_* + design_system only.
 dependencies:
   flutter:
     sdk: flutter
@@ -23,6 +24,8 @@ dependencies:
   mobile_scanner: ^7.2.0
 
 dev_dependencies:
-  test: ^1.25.0
+  test: ^1.25.0 # pure-Dart grammar tests (lib/feature_join.dart)
+  flutter_test:
+    sdk: flutter # widget tests for the JOIN surface (e.g. camera-error panel)
   flutter_lints: ^6.0.0
   http: ^1.2.0 # MockClient for the relay-port adapter tests

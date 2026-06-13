@@ -847,6 +847,10 @@ final class OrganizerJourneyMachine extends JourneyMachine<OrganizerState> {
     ShareTarget.qr,
     ShareTarget.link,
     ShareTarget.code,
+    // Gate kept to document the contract: NFC share is offered only when the
+    // device honestly has it. In production [Capabilities.hasNfc] is now a hard
+    // false (Android Beam was removed in Android 10+; tag-write is unverified),
+    // so this never fires — but the journey still honours the flag if it flips.
     if (capabilities.hasNfc) ShareTarget.nfc,
   ];
 

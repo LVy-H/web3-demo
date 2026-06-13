@@ -39,11 +39,15 @@ melos:
 
     test:dart:
       description: Pure-Dart packages (no Flutter anywhere in their dev graph).
-      run: dart run melos exec --concurrency=1 --scope="core_domain" --scope="core_chain" --scope="feature_join" -- dart test
+      run: dart run melos exec --concurrency=1 --scope="core_domain" --scope="core_chain" -- dart test
 
     test:flutter:
       description: Flutter packages + packages whose tests need flutter_test.
-      run: dart run melos exec --concurrency=1 --dir-exists=test --ignore="core_domain" --ignore="core_chain" --ignore="feature_join" -- flutter test
+      # feature_join's grammar is pure-Dart, but its JOIN-surface widgets
+      # (lib/ui.dart) now carry a widget test (camera-denied fallback), so the
+      # whole package runs under `flutter test` (a superset that also runs its
+      # package:test grammar/relay-port suites).
+      run: dart run melos exec --concurrency=1 --dir-exists=test --ignore="core_domain" --ignore="core_chain" -- flutter test
 
     format:
       description: Format all packages in place.
