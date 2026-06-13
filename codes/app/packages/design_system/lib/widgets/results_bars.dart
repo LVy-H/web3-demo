@@ -129,6 +129,20 @@ class _Bar extends StatelessWidget {
     // so the fraction (and its %) are exact enough for display.
     final frac = (count / total).clamp(0.0, 1.0);
     final pct = frac * 100;
+    // Merge the label, count, share (and leader status) into ONE node so a
+    // screen reader reads the bar as a sentence — "Yes: 3 votes, 75.0%,
+    // leading" — instead of three disconnected fragments. The bar fill and
+    // trophy glyph are purely visual, conveyed by this text.
+    return Semantics(
+      container: true,
+      label:
+          '$label: $count votes, ${pct.toStringAsFixed(1)}%'
+          '${isLeader ? ', leading' : ''}',
+      child: ExcludeSemantics(child: _bar(frac, pct)),
+    );
+  }
+
+  Widget _bar(double frac, double pct) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
