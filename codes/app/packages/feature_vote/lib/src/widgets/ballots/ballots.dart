@@ -345,14 +345,30 @@ class _QuadraticBallotState extends State<QuadraticBallot> {
           ),
           child: Row(
             children: [
-              Text('POINTS LEFT', style: dbLabel(size: 9)),
-              const Spacer(),
-              Text(
-                '$remaining / ${Quadratic.credits}',
-                style: dbMono(
-                  13,
-                  remaining == 0 ? Db.segnale : Db.chalk,
-                  wght: 700,
+              // Let the label give way before the count: ellipsize it rather
+              // than let the row overflow at a narrow width / large text scale.
+              Flexible(
+                child: Text(
+                  'POINTS LEFT',
+                  style: dbLabel(size: 9),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Scale the count down rather than clip it — same approach as the
+              // per-option count box below.
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '$remaining / ${Quadratic.credits}',
+                    style: dbMono(
+                      13,
+                      remaining == 0 ? Db.segnale : Db.chalk,
+                      wght: 700,
+                    ),
+                  ),
                 ),
               ),
             ],
