@@ -234,10 +234,14 @@ void main() {
       background:
           Db.slate, // the sheet's real backdrop (see DistributeSheet.show)
       child: DistributeSheet(
+        // Production-faithful: the real shareLinkForPoll() format, and
+        // nfcAvailable=false — the capability `hasNfc` is permanently false, so
+        // the NFC tile never renders in production (rendering it true would show
+        // a dead state and mislead the inspector).
         shareLink:
-            'https://tessera.vote/join#anon-vote='
-            '0x5FbDB2315678afecb367f032d93F642f64180aa3',
-        nfcAvailable: true,
+            'tessera://poll/0x5FbDB2315678afecb367f032d93F642f64180aa3'
+            '?module=anon-vote',
+        nfcAvailable: false,
         onShare: (_) async {},
       ),
     );
