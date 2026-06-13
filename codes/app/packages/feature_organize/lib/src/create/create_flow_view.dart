@@ -32,6 +32,12 @@ class CreateFlowView extends StatefulWidget {
   static const Key liveResultsToggleKey = Key('toggle-live-results');
   static const Key doneButtonKey = Key('create-done');
 
+  /// The optional "what's your goal?" chooser prompt above the picker (P2).
+  static const Key goalChooserKey = Key('goal-chooser');
+
+  /// The dismiss ("×") control on the goal chooser.
+  static const Key goalChooserDismissKey = Key('goal-chooser-dismiss');
+
   final OrganizerJourneyPort port;
   final Capabilities capabilities;
 
@@ -55,6 +61,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
     capabilities: widget.capabilities,
   );
   StreamSubscription<OrganizerState>? _sub;
+  final ScrollController _formScroll = ScrollController();
 
   // ── form state (pushed into the machine's draft on every edit) ──────────
   //
@@ -77,6 +84,20 @@ class _CreateFlowViewState extends State<CreateFlowView> {
   bool _listed = false;
   bool _liveResults = false;
 
+  // ── optional "what's your goal?" chooser (spec 2026-06-13 P2) ────────────
+  //
+  // An OPTIONAL aid above the manual goal-grouped picker — never a gate. It
+  // starts collapsed (just the "Not sure?" prompt), expands to three plain-
+  // words goals, and on a pick lands the organizer on that group's recommended
+  // ballot type and scrolls the group into view. The full manual picker stays
+  // visible and usable at all times (no Hick's-law wizard that hides options).
+  bool _chooserExpanded = false;
+  bool _chooserDismissed = false;
+  // One anchor per group so a goal pick can scroll its section into view.
+  final Map<BallotGroup, GlobalKey> _groupAnchors = {
+    for (final g in BallotGroup.values) g: GlobalKey(),
+  };
+
   @override
   void initState() {
     super.initState();
@@ -89,6 +110,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
   void dispose() {
     _sub?.cancel();
     _machine.dispose();
+    _formScroll.dispose();
     _title.dispose();
     _description.dispose();
     for (final c in _options) {
@@ -158,6 +180,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
     final deploying = state is OrganizerDeployInProgress;
     final action = state.nextAction;
     return ListView(
+      controller: _formScroll,
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 96),
       children: [
         AbsorbPointer(
@@ -169,6 +192,10 @@ class _CreateFlowViewState extends State<CreateFlowView> {
               children: [
                 _label('HOW PEOPLE VOTE'),
                 const SizedBox(height: 10),
+                if (!_chooserDismissed) ...[
+                  _goalChooser(),
+                  const SizedBox(height: 12),
+                ],
                 _modulePicker(),
                 const SizedBox(height: 24),
                 _label('WHAT IT IS'),
@@ -254,7 +281,10 @@ class _CreateFlowViewState extends State<CreateFlowView> {
     children: [
       for (var g = 0; g < BallotGroup.values.length; g++) ...[
         if (g > 0) const SizedBox(height: 16),
-        _label(BallotGroup.values[g].label),
+        KeyedSubtree(
+          key: _groupAnchors[BallotGroup.values[g]],
+          child: _label(BallotGroup.values[g].label),
+        ),
         const SizedBox(height: 8),
         for (final module in BallotGroup.values[g].modules) ...[
           _ballotCard(module),
@@ -263,6 +293,109 @@ class _CreateFlowViewState extends State<CreateFlowView> {
       ],
     ],
   );
+
+  /// Optional one-question aid above the manual picker (spec 2026-06-13 P2):
+  /// collapsed it is just a "Not sure?" prompt; expanded it offers three
+  /// plain-words goals that each land on a group's recommended ballot type and
+  /// scroll that group into view. Dismissible, never a gate — the manual picker
+  /// below stays visible and usable whatever this does.
+  Widget _goalChooser() => Container(
+    key: CreateFlowView.goalChooserKey,
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    decoration: BoxDecoration(
+      color: Db.slate3,
+      border: Border.all(color: Db.rule),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                key: const Key('goal-chooser-toggle'),
+                onTap: () =>
+                    setState(() => _chooserExpanded = !_chooserExpanded),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _chooserExpanded
+                              ? "What's your goal?"
+                              : 'Not sure? Pick your goal →',
+                          style: dbSans(13, 600, Db.chalk),
+                        ),
+                      ),
+                      Icon(
+                        _chooserExpanded
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        size: 18,
+                        color: Db.mute,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              key: CreateFlowView.goalChooserDismissKey,
+              tooltip: 'Dismiss the goal helper',
+              onPressed: () => setState(() => _chooserDismissed = true),
+              icon: const Icon(
+                Icons.close,
+                size: 16,
+                color: Db.mute,
+                semanticLabel: 'Dismiss the goal helper',
+              ),
+            ),
+          ],
+        ),
+        if (_chooserExpanded) ...[
+          for (final group in BallotGroup.values) ...[
+            _goalOption(group),
+            const SizedBox(height: 4),
+          ],
+          const SizedBox(height: 8),
+        ],
+      ],
+    ),
+  );
+
+  Widget _goalOption(BallotGroup group) => InkWell(
+    key: Key('goal-${group.name}'),
+    onTap: () => _chooseGoal(group),
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(border: Border.all(color: Db.rule)),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(group.goalPrompt, style: dbMono(13, Db.chalkDim)),
+          ),
+          const Icon(Icons.arrow_forward, size: 14, color: Db.mute),
+        ],
+      ),
+    ),
+  );
+
+  /// Land on the group's recommended ballot type, collapse the chooser, and
+  /// scroll that group into view so the highlighted card is obvious.
+  void _chooseGoal(BallotGroup group) {
+    _selectBallot(group.recommendedModule);
+    setState(() => _chooserExpanded = false);
+    final anchor = _groupAnchors[group]?.currentContext;
+    if (anchor != null) {
+      Scrollable.ensureVisible(
+        anchor,
+        duration: const Duration(milliseconds: 250),
+        alignment: 0.1,
+      );
+    }
+  }
 
   Widget _ballotCard(OrganizerModule module) {
     final selected = module == _ballotType;
