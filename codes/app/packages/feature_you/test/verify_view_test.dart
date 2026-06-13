@@ -115,18 +115,32 @@ void main() {
     expect(find.text('COUNTED'), findsOneWidget);
   });
 
-  testWidgets('the verdict is a live-region header so it is announced', (
-    tester,
-  ) async {
+  testWidgets('the full verdict — title AND body — is in one live region so '
+      'it is announced when the check lands', (tester) async {
     final handle = tester.ensureSemantics();
-    await pump(tester, checkReceipt: (_, _) async => true);
+    await pump(
+      tester,
+      checkReceipt: (_, _) async => true,
+      lookupPollTitle: (_) async => 'Club budget 2026',
+    );
     await enterAndCheck(tester);
 
-    // A screen-reader user must be told the result of "was my vote counted?"
-    // — the verdict is the whole point of the surface, so it announces.
+    // A screen-reader user must be told the WHOLE result of "was my vote
+    // counted?" — not just the "COUNTED" headline but the explanatory line
+    // that names the poll. The body lives inside the same live region as the
+    // title, so the verdict announces in full the moment the check lands.
+    final bodyFinder = find.textContaining('counted in “Club budget 2026”');
+    expect(bodyFinder, findsOneWidget);
+    expect(
+      tester.getSemantics(bodyFinder),
+      isSemantics(isLiveRegion: true),
+      reason: 'the explanatory body must be inside the verdict live region',
+    );
+
+    // And the verdict still reads as a live-region header (regression guard).
     expect(
       tester.getSemantics(find.text('COUNTED')),
-      isSemantics(label: 'COUNTED', isLiveRegion: true, isHeader: true),
+      isSemantics(isLiveRegion: true, isHeader: true),
     );
     handle.dispose();
   });

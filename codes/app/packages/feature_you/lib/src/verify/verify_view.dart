@@ -168,31 +168,36 @@ class _VerifyViewState extends State<VerifyView> {
   Widget _panel(Color color, IconData icon, String title, String body) =>
       YouAccentPanel(
         accent: color,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: color, size: 18),
-                const SizedBox(width: 8),
-                // The verdict is the answer to "was my vote counted?" — make
-                // it a live-region header so a screen reader announces it the
-                // moment the async check lands.
-                Expanded(
-                  child: Semantics(
-                    liveRegion: true,
-                    header: true,
-                    child: Text(
-                      title,
-                      style: dbSans(13, 800, color, letterSpacing: 1.4),
+        // The verdict is the answer to "was my vote counted?" — wrap the title
+        // AND the explanatory body in one live region so a screen reader
+        // announces the full verdict (e.g. "COUNTED. …counted in '<poll>'.")
+        // the moment the async check lands, not just the headline.
+        child: Semantics(
+          liveRegion: true,
+          container: true,
+          label: '$title. $body',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: color, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        title,
+                        style: dbSans(13, 800, color, letterSpacing: 1.4),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(body, style: dbSans(13, 500, Db.chalkDim, height: 1.5)),
-          ],
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(body, style: dbSans(13, 500, Db.chalkDim, height: 1.5)),
+            ],
+          ),
         ),
       );
 }
