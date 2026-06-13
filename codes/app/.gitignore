@@ -7,3 +7,9 @@ build/
 # IDE
 .idea/
 *.iml
+
+# Visual-audit harness output — platform-/engine-dependent golden PNGs.
+# The CI-excluded harness regenerates these on demand:
+#   cd apps/tessera && flutter test --tags golden --update-goldens
+# Never commit them; never gate CI on them. (See apps/tessera/test/golden/.)
+apps/tessera/test/golden/goldens/
