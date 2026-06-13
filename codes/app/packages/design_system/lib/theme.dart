@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+/// Re-exported so the responsive content-width helper is part of the
+/// design_system public surface that consumers already pull in via `theme.dart`.
+export 'responsive.dart';
+
 /// Dark Bauhaus design tokens — ported from the web app's `index.css`
 /// (`--color-db-*`). Sharp geometry, hairline rules, signal-red accents,
 /// Inter + JetBrains Mono. Source of truth so web and Flutter match.
