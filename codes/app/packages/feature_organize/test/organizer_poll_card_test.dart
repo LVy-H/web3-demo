@@ -197,4 +197,24 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('icon-only side actions carry accessible labels — a screen '
+      'reader hears what distribute / run-event do', (tester) async {
+    await _pump(
+      tester,
+      OrganizerRegistrationOpen(
+        pollAddress: '0xpoll',
+        spec: _spec,
+        rosterCount: 9,
+        fetchPending: false,
+        cancellation: CancellationToken(),
+      ),
+      onDistribute: () {},
+      onRunEvent: () {},
+    );
+
+    // The qr_code_2 / sensors glyphs alone say nothing to assistive tech.
+    expect(find.bySemanticsLabel('Distribute this poll'), findsOneWidget);
+    expect(find.bySemanticsLabel('Run live event'), findsOneWidget);
+  });
 }

@@ -218,6 +218,22 @@ void main() {
     );
   });
 
+  testWidgets('the remove-option control names which option it drops — an '
+      'icon-only close button is mute to a screen reader otherwise', (
+    tester,
+  ) async {
+    final (_, port) = _port();
+    await _pump(tester, port: port);
+
+    // A third option makes the remove controls appear (they hide at the
+    // two-option floor the spec requires).
+    await tester.tap(find.byKey(const Key('create-add-option')));
+    await tester.pump();
+
+    expect(find.bySemanticsLabel('Remove option 1'), findsOneWidget);
+    expect(find.bySemanticsLabel('Remove option 2'), findsOneWidget);
+  });
+
   testWidgets('created → DISTRIBUTE opens the share sheet on '
       "feature_join's canonical link for the new poll", (tester) async {
     final (_, port) = _port();
