@@ -28,6 +28,7 @@ class ReceiptsSection extends StatefulWidget {
 
 class _ReceiptsSectionState extends State<ReceiptsSection> {
   List<VoteReceipt>? _receipts; // null while loading
+  bool _loadFailed = false;
 
   @override
   void initState() {
@@ -36,13 +37,21 @@ class _ReceiptsSectionState extends State<ReceiptsSection> {
   }
 
   Future<void> _load() async {
-    List<VoteReceipt> loaded;
+    if (_loadFailed) setState(() => _loadFailed = false);
     try {
-      loaded = await widget.store.loadAll();
+      final loaded = await widget.store.loadAll();
+      if (mounted) setState(() => _receipts = loaded);
     } catch (_) {
-      loaded = const []; // store contract already shields; double-shield here
+      // The receipts archive is how a voter checks their vote was counted —
+      // a failed load must read as an honest, retryable error, never a false
+      // "no receipts yet" (which would tell them their proof vanished).
+      if (mounted) {
+        setState(() {
+          _receipts = null;
+          _loadFailed = true;
+        });
+      }
     }
-    if (mounted) setState(() => _receipts = loaded);
   }
 
   static String _date(DateTime t) =>
@@ -60,7 +69,9 @@ class _ReceiptsSectionState extends State<ReceiptsSection> {
       children: [
         const YouSectionLabel('RECEIPTS'),
         const SizedBox(height: 8),
-        if (receipts == null)
+        if (_loadFailed)
+          _errorPanel()
+        else if (receipts == null)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Center(
@@ -106,6 +117,22 @@ class _ReceiptsSectionState extends State<ReceiptsSection> {
       ],
     );
   }
+
+  Widget _errorPanel() => YouAccentPanel(
+    accent: Db.amber,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Couldn’t load your receipts on this device. Your saved receipts '
+          'aren’t lost — this is just a problem reading them right now.',
+          style: dbSans(13, 400, Db.chalkDim, height: 1.5),
+        ),
+        const SizedBox(height: 12),
+        YouOutlineButton(label: 'TRY AGAIN', color: Db.amber, onTap: _load),
+      ],
+    ),
+  );
 
   Widget _receiptTile(VoteReceipt r) => InkWell(
     onTap: () => widget.onOpenVerify(r.pollAddress, r.receiptCode),
