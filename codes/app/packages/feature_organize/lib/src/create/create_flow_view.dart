@@ -57,7 +57,21 @@ class _CreateFlowViewState extends State<CreateFlowView> {
   StreamSubscription<OrganizerState>? _sub;
 
   // ── form state (pushed into the machine's draft on every edit) ──────────
-  OrganizerModule _module = OrganizerModule.anonVote;
+  //
+  // The picker chooses one of the FIVE ballot types ([_ballotType], never
+  // blindVote). Sealing is a result-timing toggle on "Pick one", not a sixth
+  // ballot type — when [_sealed] is on under anonVote the *effective* deployed
+  // module becomes blindVote ([_effectiveModule]). See module_names.dart.
+  OrganizerModule _ballotType = recommendedBallotType;
+  bool _sealed = false;
+
+  /// The module actually deployed: blindVote only when "Pick one" is sealed;
+  /// otherwise the chosen ballot type. blindVote is reachable ONLY this way.
+  OrganizerModule get _effectiveModule =>
+      (_ballotType == OrganizerModule.anonVote && _sealed)
+      ? OrganizerModule.blindVote
+      : _ballotType;
+
   final TextEditingController _title = TextEditingController();
   final TextEditingController _description = TextEditingController();
   final List<TextEditingController> _options = [
@@ -95,7 +109,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
   }
 
   OrganizerPollSpec _spec() => OrganizerPollSpec(
-    module: _module,
+    module: _effectiveModule,
     title: _title.text,
     description: _description.text,
     options: [for (final c in _options) c.text],
@@ -110,7 +124,9 @@ class _CreateFlowViewState extends State<CreateFlowView> {
     resultsPolicy: _liveResults
         ? ResultsPolicy.livePublic
         : ResultsPolicy.sealedUntilClose,
-    revealWindow: _module == OrganizerModule.blindVote ? _revealWindow : null,
+    revealWindow: _effectiveModule == OrganizerModule.blindVote
+        ? _revealWindow
+        : null,
   );
 
   /// Push the current form into the machine's draft (legal from the draft
@@ -162,14 +178,16 @@ class _CreateFlowViewState extends State<CreateFlowView> {
                 _label('HOW PEOPLE VOTE'),
                 const SizedBox(height: 10),
                 _modulePicker(),
-                const SizedBox(height: 8),
-                Text(
-                  moduleBlurb(_module),
-                  style: dbSans(12, 400, Db.chalkDim, height: 1.5),
-                ),
-                if (_module == OrganizerModule.blindVote) ...[
+                // The sealing toggle is offered ONLY under "Pick one" — the
+                // contracts seal single-choice voting only, so we never show a
+                // ghost/disabled toggle for the other ballot types.
+                if (_ballotType == OrganizerModule.anonVote) ...[
                   const SizedBox(height: 12),
-                  _revealWindowPicker(),
+                  _sealingToggle(),
+                  if (_sealed) ...[
+                    const SizedBox(height: 12),
+                    _revealWindowPicker(),
+                  ],
                 ],
                 const SizedBox(height: 24),
                 _label('WHAT IT IS'),
@@ -186,7 +204,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
                   maxLines: 3,
                 ),
                 const SizedBox(height: 24),
-                if (_module.usesQuestions)
+                if (_effectiveModule.usesQuestions)
                   _questionBuilder()
                 else
                   _optionsBuilder(),
@@ -247,32 +265,110 @@ class _CreateFlowViewState extends State<CreateFlowView> {
     setState(() {});
   }
 
-  Widget _modulePicker() => Wrap(
-    spacing: 8,
-    runSpacing: 8,
+  /// Goal-grouped ballot-type picker: one section per [BallotGroup], every
+  /// card always showing its one-line differentiator so an organizer can
+  /// compare before choosing (spec 2026-06-13). "Pick one" comes pre-selected.
+  Widget _modulePicker() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      for (final module in OrganizerModule.values)
-        OutlinedButton(
-          key: Key('module-${module.wireName}'),
-          style: OutlinedButton.styleFrom(
-            shape: const RoundedRectangleBorder(),
-            side: BorderSide(color: module == _module ? Db.segnale : Db.rule),
-            backgroundColor: module == _module ? Db.slate2 : null,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          ),
-          onPressed: () {
-            _module = module;
-            if (module.usesQuestions && _questions.isEmpty) {
-              _questions.add(_QuestionDraft());
-            }
-            _sync();
-          },
-          child: Text(
-            moduleDisplayName(module),
-            style: dbMono(12, module == _module ? Db.chalk : Db.chalkDim),
-          ),
-        ),
+      for (var g = 0; g < BallotGroup.values.length; g++) ...[
+        if (g > 0) const SizedBox(height: 16),
+        _label(BallotGroup.values[g].label),
+        const SizedBox(height: 8),
+        for (final module in BallotGroup.values[g].modules) ...[
+          _ballotCard(module),
+          const SizedBox(height: 8),
+        ],
+      ],
     ],
+  );
+
+  Widget _ballotCard(OrganizerModule module) {
+    final selected = module == _ballotType;
+    final badge = isRecommendedBallot(module)
+        ? 'Recommended'
+        : (isAdvancedBallot(module) ? 'Advanced' : null);
+    return InkWell(
+      key: Key('ballot-${module.wireName}'),
+      onTap: () => _selectBallot(module),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? Db.slate2 : null,
+          border: Border.all(color: selected ? Db.segnale : Db.rule),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 1, right: 10),
+              child: Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                size: 16,
+                color: selected ? Db.segnale : Db.mute,
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          moduleDisplayName(module),
+                          style: dbMono(13, selected ? Db.chalk : Db.chalkDim),
+                        ),
+                      ),
+                      if (badge != null) ...[
+                        const SizedBox(width: 8),
+                        _badge(badge),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    moduleBlurb(module),
+                    style: dbSans(12, 400, Db.chalkDim, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _badge(String text) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(border: Border.all(color: Db.segnale)),
+    child: Text(text.toUpperCase(), style: dbMono(9, Db.segnale)),
+  );
+
+  void _selectBallot(OrganizerModule module) {
+    _ballotType = module;
+    if (module.usesQuestions && _questions.isEmpty) {
+      _questions.add(_QuestionDraft());
+    }
+    _sync();
+  }
+
+  /// Sealing toggle — shown ONLY under "Pick one". When on, the effective
+  /// deployed module is [OrganizerModule.blindVote] and the reveal-window
+  /// picker appears.
+  Widget _sealingToggle() => _toggleRow(
+    key: const Key('seal-toggle'),
+    title: 'Hide results until voting closes',
+    explanation: "Early votes can't sway later ones.",
+    value: _sealed,
+    onChanged: (value) {
+      _sealed = value;
+      _sync();
+    },
   );
 
   Widget _revealWindowPicker() => Row(
@@ -310,7 +406,7 @@ class _CreateFlowViewState extends State<CreateFlowView> {
   );
 
   Widget _optionsBuilder() {
-    final capped = _module.capsOptionsAtEight && _options.length >= 8;
+    final capped = _effectiveModule.capsOptionsAtEight && _options.length >= 8;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -130,6 +130,11 @@ Future<void> _fillMinimalForm(WidgetTester tester) async {
   await tester.pump();
 }
 
+// Stable picker keys for the new goal-grouped cards.
+const _anonCard = Key('ballot-anon-vote');
+const _rankedCard = Key('ballot-ranked-vote');
+const _sealToggle = Key('seal-toggle');
+
 void main() {
   testWidgets('untouched form deploys PRIVATE: toggles start OFF and reach '
       'the relayer wire as visibility=0 / resultsPolicy=0', (tester) async {
@@ -254,5 +259,151 @@ void main() {
     );
     // This test device has no NFC: the tile is dropped, not greyed.
     expect(find.byKey(DistributeSheet.nfcTileKey), findsNothing);
+  });
+
+  // ── goal-grouped vote-type picker (2026-06-13 redesign) ──────────────────
+
+  group('vote-type picker', () {
+    testWidgets('every differentiator is visible on first render — the '
+        'organizer can compare BEFORE selecting anything', (tester) async {
+      final (_, port) = _port();
+      await _pump(tester, port: port);
+
+      // All five ballot-type blurbs are on screen with nothing tapped.
+      for (final module in selectableBallotTypes) {
+        expect(
+          find.text(moduleBlurb(module)),
+          findsOneWidget,
+          reason: '${module.wireName} differentiator must be always visible',
+        );
+      }
+    });
+
+    testWidgets('the three goal group headers render', (tester) async {
+      final (_, port) = _port();
+      await _pump(tester, port: port);
+
+      for (final group in BallotGroup.values) {
+        expect(find.text(group.label), findsOneWidget);
+      }
+    });
+
+    testWidgets('Pick one is selected by default', (tester) async {
+      final (gateway, port) = _port();
+      await _pump(tester, port: port);
+
+      // No ballot tap; a minimal fill + deploy proves anon-vote is the default
+      // effective module.
+      await _fillMinimalForm(tester);
+      await tester.tap(find.byKey(CreateFlowView.deployButtonKey));
+      await tester.pumpAndSettle();
+
+      expect(gateway.moduleType, 'anon-vote');
+    });
+
+    testWidgets('the sealing toggle appears only under Pick one, never under '
+        'another ballot type (no-ghost: contracts only seal single-choice)', (
+      tester,
+    ) async {
+      final (_, port) = _port();
+      await _pump(tester, port: port);
+
+      // Default is Pick one → the toggle is offered.
+      expect(find.byKey(_sealToggle), findsOneWidget);
+      expect(find.text('Hide results until voting closes'), findsOneWidget);
+
+      // Switch to Rank them → the toggle is gone (not disabled — absent).
+      await tester.tap(find.byKey(_rankedCard));
+      await tester.pump();
+      expect(find.byKey(_sealToggle), findsNothing);
+      expect(find.text('Hide results until voting closes'), findsNothing);
+
+      // Back to Pick one → it returns.
+      await tester.tap(find.byKey(_anonCard));
+      await tester.pump();
+      expect(find.byKey(_sealToggle), findsOneWidget);
+    });
+
+    testWidgets('Pick one + sealing toggle ON builds the blind-vote module '
+        'and reveals the reveal-window picker', (tester) async {
+      final (gateway, port) = _port();
+      await _pump(tester, port: port);
+
+      // No reveal window before sealing.
+      expect(find.text('REVEAL WINDOW'), findsNothing);
+
+      await tester.tap(find.byKey(_sealToggle));
+      await tester.pump();
+
+      // Sealing reveals the existing reveal-window control — proof the
+      // effective module flipped to blind-vote (the only module that shows it).
+      expect(find.text('REVEAL WINDOW'), findsOneWidget);
+
+      await _fillMinimalForm(tester);
+      await tester.tap(find.byKey(CreateFlowView.deployButtonKey));
+      await tester.pumpAndSettle();
+
+      // The port deliberately refuses sealed creation for now (sponsored
+      // allow-list excludes it), so the blind-vote spec lands on the honest
+      // typed failure — which is itself proof the toggle built a blind-vote
+      // spec, not an anon-vote one (anon-vote deploys cleanly above).
+      expect(gateway.moduleType, isNull, reason: 'never reaches the wire');
+      expect(
+        find.textContaining('Sealed-until-reveal polls can’t be created'),
+        findsOneWidget,
+        reason: 'sealing Pick one maps to the commit-reveal module',
+      );
+    });
+
+    testWidgets('Rank them deploys ranked-vote and never offers a toggle', (
+      tester,
+    ) async {
+      final (gateway, port) = _port();
+      await _pump(tester, port: port);
+
+      await tester.tap(find.byKey(_rankedCard));
+      await tester.pump();
+      expect(find.byKey(_sealToggle), findsNothing);
+
+      await _fillMinimalForm(tester);
+      await tester.tap(find.byKey(CreateFlowView.deployButtonKey));
+      await tester.pumpAndSettle();
+
+      expect(gateway.moduleType, 'ranked-vote');
+    });
+
+    testWidgets('switching to Questionnaire seeds a question and builds the '
+        'survey-vote module', (tester) async {
+      final (gateway, port) = _port();
+      await _pump(tester, port: port);
+
+      await tester.tap(find.byKey(const Key('ballot-survey-vote')));
+      await tester.pump();
+
+      // The question builder replaced the flat options builder.
+      expect(find.byKey(const Key('question-0-prompt')), findsOneWidget);
+
+      await tester.enterText(
+        find.byKey(CreateFlowView.titleFieldKey),
+        'Team retro',
+      );
+      await tester.enterText(
+        find.byKey(const Key('question-0-prompt')),
+        'How did the sprint feel?',
+      );
+      await tester.enterText(
+        find.byKey(const Key('question-0-option-0')),
+        'Great',
+      );
+      await tester.enterText(
+        find.byKey(const Key('question-0-option-1')),
+        'Rough',
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(CreateFlowView.deployButtonKey));
+      await tester.pumpAndSettle();
+
+      expect(gateway.moduleType, 'survey-vote');
+    });
   });
 }
