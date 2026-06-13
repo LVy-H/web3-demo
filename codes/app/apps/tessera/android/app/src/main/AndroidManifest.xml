@@ -32,10 +32,10 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
             <!-- Tessera deep links (tessera://poll/…, /live/…, /verify) opened
-                 from a scanned QR, a shared link, or an NFC tag. The Dart
-                 DeepLinkService consumes the URI through the JOIN grammar
-                 (parseJoinInput → locationForJoinTarget); launchMode singleTop
-                 (above) keeps a warm re-entry in the same task. -->
+                 from a scanned QR or a shared link. The Dart DeepLinkService
+                 consumes the URI through the JOIN grammar (parseJoinInput →
+                 locationForJoinTarget); launchMode singleTop (above) keeps a
+                 warm re-entry in the same task. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
