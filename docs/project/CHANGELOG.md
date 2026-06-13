@@ -5,6 +5,19 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ## [Unreleased]
 
 ### Added
+- **Vote-type picker redesign — goal-grouped, self-explaining (2026-06-13)** —
+  the create flow listed all voting methods as a flat, undifferentiated chip
+  cloud with the one-line explanation shown ONLY for the already-selected one,
+  so organizers couldn't compare methods or tell them apart. Now they're grouped
+  by the organizer's GOAL (DECIDE ON A WINNER · GATHER OPINIONS · PRIORITIZE &
+  ALLOCATE), every card shows its plain-language differentiator up-front (not
+  just when selected), "Pick one" is the recommended default, and Quadratic
+  carries an "Advanced" badge. Research-backed (goal-grouping + always-visible
+  differentiators + a default beats a flat list or a hidden wizard at six
+  options). The old "Sealed until reveal" option was a GHOST — the relayer's
+  deploy refuses blind-vote creation — so it's removed from create (no-ghost
+  fix; blind-create deferred to R5). Spec:
+  `docs/superpowers/specs/2026-06-13-vote-type-selection-design.md`.
 - **Wave 3 — native share + blind-flow honesty (2026-06-13)** —
   - **Native OS share** (`share_plus`): the distribute sheet gains a SHARE
     action that opens the OS share sheet with honest text ("Join my poll on
