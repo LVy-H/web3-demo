@@ -367,4 +367,84 @@ void main() {
 
     handle.dispose();
   });
+
+  testWidgets(
+    'reveal countdown does not overflow on a multi-day window at large text '
+    'scale and narrow width',
+    (tester) async {
+      // A render-time regression invisible to logic tests: a multi-hour /
+      // multi-day window (H:MM:SS with unbounded hours) plus a large OS text
+      // scale would stripe a RenderFlex overflow across the deadline — the
+      // single most consequential fact on this screen.
+      tester.view.physicalSize = const Size(320, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final now = DateTime(2026, 6, 12, 12);
+      final port = FakeBlindPort(
+        phase: 2,
+        registered: true,
+        committed: true,
+        deadline: now.add(const Duration(hours: 120)),
+      );
+      final machine = BlindJourneyMachine(port: port, clock: () => now);
+      addTearDown(machine.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
+            child: BlindJourneyScreen(
+              machine: machine,
+              title: 'Budget vote',
+              loadOptions: () async => const ['Alpha', 'Beta'],
+            ),
+          ),
+        ),
+      );
+      // No pumpAndSettle: the countdown's periodic timer never settles.
+      await tester.pump();
+      await tester.pump();
+
+      expect(machine.state, isA<BlindRevealWindow>());
+      expect(find.byKey(BlindJourneyScreen.countdownKey), findsOneWidget);
+      // The unbounded-hours value is rendered (proves the wide-window path),
+      // and the row lays out without a RenderFlex overflow exception.
+      expect(find.textContaining('120:00:00'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      // Tear the widget down so no countdown timer outlives the test.
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'salt-ack control meets the 48dp tap target and still acknowledges',
+    (tester) async {
+      // The irreversible "I backed up my vote key" gate must clear the 48dp
+      // minimum (it was a fixed 40dp box that also clipped its label at large
+      // font scale) — and tapping it must still advance the journey.
+      final port = FakeBlindPort(phase: 1, registered: true);
+      final machine = await pumpScreen(tester, port);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Beta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('LOCK IN YOUR VOTE'));
+      await tester.pumpAndSettle();
+
+      final ackSize = tester.getSize(find.byKey(BlindJourneyScreen.saltAckKey));
+      expect(
+        ackSize.height,
+        greaterThanOrEqualTo(48.0),
+        reason: 'the vote-key backup gate must hold the 48dp minimum',
+      );
+
+      await tester.tap(find.byKey(BlindJourneyScreen.saltAckKey));
+      await tester.pumpAndSettle();
+      final state = machine.state;
+      expect(state, isA<BlindCommitted>());
+      expect((state as BlindCommitted).backupAcknowledged, isTrue);
+    },
+  );
 }
