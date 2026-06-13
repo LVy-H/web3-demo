@@ -398,12 +398,18 @@ class _QuadraticBallotState extends State<QuadraticBallot> {
                     disabledColor: Db.rule,
                   ),
                   SizedBox(
-                    width: 28,
+                    width: 40,
                     child: ExcludeSemantics(
-                      child: Text(
-                        '${_votes[i]}',
-                        textAlign: TextAlign.center,
-                        style: dbMono(15, Db.chalk, wght: 700),
+                      // Scale the count down rather than clip it: a wide box
+                      // covers two digits, and FittedBox keeps three (or a
+                      // large OS text scale) from being cut off.
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          '${_votes[i]}',
+                          textAlign: TextAlign.center,
+                          style: dbMono(15, Db.chalk, wght: 700),
+                        ),
                       ),
                     ),
                   ),
