@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'di/app_dependencies.dart';
+import 'routing/deep_link_service.dart';
 import 'routing/router.dart';
 
 class TesseraApp extends StatefulWidget {
@@ -18,10 +19,16 @@ class TesseraApp extends StatefulWidget {
   /// Test seam for deep-link smoke tests; production uses the default.
   final String initialLocation;
 
+  /// OS deep-link source. Production (`main`) passes an [AppLinksSource];
+  /// widget tests pass a fake to drive links, or omit it to leave deep linking
+  /// off (no platform channel is touched under test).
+  final DeepLinkSource? deepLinkSource;
+
   const TesseraApp({
     super.key,
     required this.dependencies,
     this.initialLocation = '/vote',
+    this.deepLinkSource,
   });
 
   @override
@@ -30,6 +37,7 @@ class TesseraApp extends StatefulWidget {
 
 class _TesseraAppState extends State<TesseraApp> {
   late final GoRouter _router;
+  DeepLinkService? _deepLinks;
 
   @override
   void initState() {
@@ -39,6 +47,17 @@ class _TesseraAppState extends State<TesseraApp> {
       pollModuleResolver: widget.dependencies.pollModuleResolver,
       initialLocation: widget.initialLocation,
     );
+    // OS deep links (tessera://…) → router. Started after the router exists so
+    // a cold-start link lands on a live navigator. Disabled when no source is
+    // injected (the default in widget tests that don't exercise deep linking).
+    final deepLinkSource = widget.deepLinkSource;
+    if (deepLinkSource != null) {
+      _deepLinks = DeepLinkService(
+        source: deepLinkSource,
+        navigate: _router.go,
+      );
+      unawaited(_deepLinks!.start());
+    }
     // Async probes (relayer reachability, identity presence). Capabilities
     // from the synchronous platform probe are already in place, so guards
     // are correct for the first frame; these refine and re-trigger redirects
@@ -48,6 +67,7 @@ class _TesseraAppState extends State<TesseraApp> {
 
   @override
   void dispose() {
+    unawaited(_deepLinks?.dispose());
     _router.dispose();
     super.dispose();
   }
