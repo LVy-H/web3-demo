@@ -1,44 +1,21 @@
 # DEV ONLY — not for production. Ports bound to loopback only.
+#
+# The 2026-06-19 redesign replaced the on-chain stack (hardhat contracts +
+# relayer + block explorer) with a single self-hosted server. The Flutter client
+# runs via `flutter run` (not docker). The local one-liner is `./dev-stack.sh up`.
+# The server is a skeleton today (health route); compose grows with Phases 2-3.
 
 services:
-  contracts:
+  server:
     build:
-      context: ./codes/contracts
-    ports:
-      - "127.0.0.1:8545:8545"
-    healthcheck:
-      # JSON-RPC readiness — `relayer` waits on this via `service_healthy`.
-      test: ["CMD-SHELL", "curl -sf -X POST -H 'content-type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}' http://127.0.0.1:8545 > /dev/null || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 30
-      start_period: 10s
-
-  # (The React frontend service was removed — the frontend is deleted; the
-  # canonical client is the Flutter app `codes/app` (run with `flutter run`,
-  # not docker). The local stack is `./dev-stack.sh up`.)
-
-  # T-D: relayer service wiring. The image is built from codes/relayer/.
-  # Defaults mirror codes/relayer/src/config.ts (port 3001, hardhat dev key).
-  relayer:
-    build:
-      context: ./codes/relayer
+      context: ./codes/server
     ports:
       - "127.0.0.1:3001:3001"
     environment:
-      - RPC_URL=http://contracts:8545
-      # Hardhat #0 default; override for any non-dev deploy.
-      - RELAYER_PRIVATE_KEY=${RELAYER_PRIVATE_KEY:-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80}
       - PORT=3001
-    depends_on:
-      contracts:
-        condition: service_healthy
-
-  explorer:
-    image: alethio/ethereum-lite-explorer
-    ports:
-      - "3728:80"
-    environment:
-      - APP_NODE_URL=http://localhost:8545
-    depends_on:
-      - contracts
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s

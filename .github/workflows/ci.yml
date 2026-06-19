@@ -14,9 +14,23 @@ jobs:
   # (The React/Vite frontend job was removed — the frontend is deprecated and
   # deleted; the Flutter app `app` job below is the canonical web/client gate.)
 
-  # (The relayer job was removed with codes/relayer in the 2026-06-19 redesign;
-  # gasless on-chain relaying is gone — votes POST to codes/server now. A
-  # `server` CI job replaces this in Task 1.6.)
+  # The self-hosted server (codes/server) — replaces the old contracts + relayer
+  # jobs. Skeleton for now (health route); grows with Phases 2-3.
+  server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codes/server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: codes/server/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
 
   # Tessera workspace (codes/app — the sole client since the cutover).
   # Pub workspace + melos: per-package analyze + tests, then the shell's web
