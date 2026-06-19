@@ -1,89 +1,49 @@
 # Current Focus
 
-> **Iteration window:** 2026-06-13 → *(set the end date when scoped)*
+> **Iteration window:** 2026-06-19 → *(set the end date when scoping Phase 1)*
 
-Use this file to answer "what should I open my laptop and work on right now?" — narrower than ROADMAP (a phase), broader than a single issue.
+Use this file to answer "what should I open my laptop and work on right now?" — narrower
+than ROADMAP (a phase), broader than a single issue.
 
 ## This iteration's goal
 
-*One sentence. Examples: "Land the P1 contract-hardening pass." / "Truth-up every doc to the current Tessera/Flutter reality." / "Stand up a Sepolia deploy."*
+**Goal:** Close out the design reset (Phase 0) and scope **Phase 1 — Dismantle & extract**:
+delete the old on-chain/ZK/relayer stack and quarantine the reusable packages behind clean
+interfaces, so the workspace is ready to build the new server on.
 
-**Goal:** R5 (cryptographic sealing) design spec + Sepolia readiness — the two halves of the merged `1.0` gate (ROADMAP Phase 14 + Phase 10), starting with the design work (threshold/timelock sealing options, receipt-freeness review) before any implementation.
-
-**Why now:** R1–R4 shipped (PRs #100–#122); `resultsPolicy` is honest metadata, not cryptography — the spec (§5/§7) explicitly defers real sealing to R5 and folds it into the Sepolia gate. Nothing else stands between the current state and planning `1.0`.
+**Why now:** the architecture was re-designed from scratch and hardened against adversarial
+review (see [STATUS](./STATUS.md) and the design doc). Nothing should be built on the new
+architecture until the dead stack is removed and the kept code is behind a clean seam —
+otherwise the old chain/relay/crypto coupling leaks into the new client.
 
 **Done when:**
-- [x] Legacy `codes/mobile/` cutover PR merged — done (#124); CI + `dev-stack.sh` + docs point at `codes/app/`
-- [ ] R5 design spec written and reviewed (sealing mechanism chosen: threshold vs timelock; receipt-freeness reviewed; migration story for the six modules)
-- [ ] Sepolia readiness checklist drafted (deploy script per-network addresses, real-verifier-only policy off-localhost, relayer funding/limits, faucet story)
-- [ ] Short-code resolver decision made (spec §8 open question 2 — relayer-hosted code→address table or cut)
-
-## Interim round — UX + headless-audit hardening (2026-06-13, PRs #125–#130, merged)
-
-Orthogonal to R5/Sepolia: a UX/feature + render-time-quality pass driven by owner feedback ("niche UX, things we can't test headlessly, no ghost features"). Shipped:
-- **Android share/JOIN loop closed** (#125): `tessera://` deep links now open the app (intent-filter + `DeepLinkService` + release-manifest `INTERNET` + `network_security_config`); web-guarded.
-- **Honest device-fencing** (#125): the NFC "tap-to-share" ghost (Android Beam, removed in Android 10+) disabled; QR camera-denied fallback.
-- **Accessibility + honest states** (#126/#127): ballot/results/organize/you a11y; receipts empty-vs-error; blind-flow error states + spoken reveal countdown; native OS share (`share_plus`) with copy fallback.
-- **Vote-type picker redesign** (#128): flat undifferentiated chip list → goal-grouped, self-explaining cards with a recommended default.
-- **Render-time fixes headless verification missed** (#129/#130): sub-WCAG-AA contrast (`mute`/`muteDim`) + a contrast guard test; reveal-countdown & credit-meter overflow; 48dp salt-ack gate; verify-verdict live region.
-
-**Concrete follow-ups this round surfaced (feed the next iterations):**
-- **Blind-create is an R5 dependency** — `RelayOrganizerPort.deployPoll` *refuses* `blindVote` (sponsored allow-list excludes it), so the app cannot offer sealed-poll *creation* (kept out as a no-ghost decision; see [[blind-create-is-a-ghost-until-r5]]). Fold into **R5-SPEC**: enable blind-vote in the relayer allow-list end-to-end.
-- **On-device deep-link smoke** — add a cold+warm `adb am start tessera://…` check to `dev-stack.sh e2e` (the one #125 claim a headless run can't confirm).
-- **Golden visual-audit harness** — institutionalize as committed, CI-excluded infra (`@Tags(['golden'])` + a `test:golden` melos script) so render-time regressions stay catchable (technique in agent memory).
-- **Vote-type P2** — optional "what's your goal?" chooser + a voter-ballot preview (`docs/superpowers/specs/2026-06-13-vote-type-selection-design.md`).
+- [ ] Owner has reviewed the system design doc + roadmap + implementation plan.
+- [ ] Phase 1 scoped into concrete deletion/extraction tasks (the implementation plan has
+      the bucket-level map; turn it into ordered PR-sized steps).
+- [ ] The "strong mode now vs post-1.0" decision is confirmed (default: post-1.0).
+- [ ] Remote-branch cleanup on the shared repo run or declined (`.out/remote-branch-cleanup.sh`).
 
 ## Active work items
 
-Pull from `improvements/findings.md` (or wherever the work originates). One row per item, max ~5 — if you have more, narrow the focus.
-
-| ID | Title | Owner | Status | Notes |
-|----|-------|-------|--------|-------|
-| CUTOVER | Delete `codes/mobile/`, repoint CI + dev-stack + docs | — | done (#124) | one-PR cutover per the Revolution spec §6 |
-| UX-HARDEN | Android share loop + a11y + vote-type picker + render-time fixes | autonomous round | done (#125–#130) | see "Interim round" above; surfaced the blind-create R5 dependency |
-| R5-SPEC | Cryptographic sealing design spec | — | not started | spec §5/§7; separate spec file under `docs/superpowers/specs/` |
-| SEP-CHK | Sepolia readiness checklist | — | not started | feeds ROADMAP Phase 10 |
+| ID | Title | Status | Notes |
+|----|-------|--------|-------|
+| P0 | Design reset + repo cleanup | done | system design doc v2; repo pruned |
+| P1-SCOPE | Scope Phase 1 dismantle into PR-sized steps | next | from the impl plan's bucket map |
+| STRONG-MODE | Confirm registrar-separation / ZK is post-1.0 | decision | flagged in STATUS |
 
 ## Out of scope this iteration
-
-Things you are explicitly **not** doing right now, even though they're tempting. Captures decisions so you don't relitigate.
-
-- R5 *implementation* — design first (plan-before-implement rule)
-- New voting modules, mainnet, DAO governance (spec non-goals)
-- iOS proving, pagination/event-driven poll list (tracked debt, not this window)
+- Writing any new-architecture server/credential/anchor code (that's Phase 2+ — design and
+  scope first).
+- Pulling "strong mode" into 1.0 unless the owner calls for it.
+- Reviving any of the dropped stack (contracts/relayer/ZK provers).
 
 ## Decisions needed
 
-Open questions blocking progress. One row per question, with who owns the call.
-
 | Question | Owner | By when |
 |----------|-------|---------|
-| R5 mechanism: threshold (Shutter-style) vs timelock? | owner, after spec drafts options | end of iteration |
-| Short-code resolver: ship the relayer-hosted table or cut codes for 1.0? | owner | end of iteration |
-
-## Retrospective (filled in at iteration end)
-
-> Move the contents of this section into the next iteration's lessons-learned, then clear it.
-
-**Iteration 2026-06-11 → 2026-06-12: the Tessera Revolution (R1–R4).**
-
-**What shipped:** all four "Done when" boxes of the previous iteration, minus the cut R0 (owner decision: no interim-usability work — the R0 fixes landed in their final homes instead). PRs #100–#122: relayer ballot-log privacy (#100); `codes/app/` pub workspace, 10 packages + `apps/tessera` (#101); journey contract + voter/blind/organizer/live state machines with real flow enforcement (#102–#107); guarded router + capabilities (#109); the VOTE/ORGANIZE/JOIN/You three-space IA (#110–#114, #116); R4 privacy defaults on-chain + relayer shim + client-core migration (#108, #117) — contracts 268→296 tests, relayer 121; plus web perf −19.7% with the web-proving fix (#115), Tessera brand (#122), nav fix (#121), format CI gate (#119), env-configurable relayer limits (#118, #120).
-
-**What slipped (and why):** the `codes/mobile/` cutover PR (still in flight — deliberately last, one PR, after parity); the short-code *resolver* (only the grammar + honest "codes aren't live yet" UI shipped — the lookup is spec §8 open question 2, never decided); R5 cryptographic sealing (always roadmap, not slipped per se — but worth restating that today's "sealed" is client-honored metadata).
-
-**What we learned:**
-- *Process:* **parallel agent fan-out works only with explicit file-ownership rules** — R2's four journey-machine PRs (#104–#107) and R3's four feature-package PRs (#111–#114) merged near-simultaneously without conflicts because each agent owned a disjoint package/file set; the one collision risk (shared `core_domain`) was serialized via the journey-contract PR (#102) landing first.
-- *Process:* **watchdog wakeups** kept long autonomous runs honest — periodic check-ins caught stalled/looping agents early instead of discovering dead work hours later.
-- *Process:* **worktree recovery** — keep the primary tree on `main` and do all branch work in disposable worktrees; when an agent's worktree got wedged, recovery was "discard the worktree, respawn from origin", never surgery on the main tree.
-- *Design:* defaults belong **in the contract, not in callers** (the 4-arg `createPoll` overload IS the privacy default) — and honest NatSpec about what `visibility`/`resultsPolicy` do *not* protect prevented over-claiming.
-- *Wire formats:* an additive server-side shim (relayer re-encoding pre-R4 initData) let old clients keep working *and* inherit privacy — but it also means the sponsored wire format is now pinned pre-R4 in `core_relay`; moving to native R4 needs a wire-version change first.
-- *Verification:* live acceptance tests against the running stack (chain + relayer) caught what golden-vector unit tests could not (the `InitFailed` overload mismatch in #117).
-
----
+| Strong mode (privacy vs a live malicious host): post-1.0 as planned, or pull forward? | owner | before Phase 3 |
+| Anchor: ship broadcast-default for 1.0 and chain as upgrade, or invest in a witnessed-log adapter sooner? | owner | before Phase 3 |
 
 ## How to use this file
-
-- Pick **one** clear goal per iteration. If you can't, the iteration is too long.
-- Cap active work items at ~5. Anything more = focus is wrong.
-- Update STATUS.md when items move, but the source of truth for *what's active* lives here.
-- At iteration end, copy the retro into a dated entry in CHANGELOG.md and reset this file.
+- One clear goal per iteration. Cap active items at ~5. Update STATUS when items move; at
+  iteration end, copy a retro into a dated CHANGELOG entry and reset this file.
