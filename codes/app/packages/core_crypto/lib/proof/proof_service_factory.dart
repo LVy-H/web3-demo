@@ -1,14 +1,13 @@
 import 'proof_service.dart';
-// Web build pulls the js_interop implementation; every other target gets the
-// native stub. Keeps dart:js_interop out of native compiles.
-import 'proof_service_stub.dart'
-    if (dart.library.js_interop) 'proof_service_web.dart';
+import 'proof_service_stub.dart';
 
-/// Returns the right [ProofService] for the current platform: web → snarkjs via
-/// js_interop; native → unsupported stub (until the native prover is scoped).
+/// Returns the [ProofService] for the current platform.
+///
+/// The 2026-06-19 redesign removed the Semaphore provers (web/mobile/desktop);
+/// all platforms now get the fenced stub until secret ballots move to
+/// server-issued blind-signature credentials (Phase 4). The conditional-import
+/// machinery (web vs native) is gone with the platform implementations.
 ProofService createProofService() => createPlatformProofService();
 
-/// Whether client-side proving (i.e. voting) is available on this platform.
-/// Web: true. Native: false until the mobile WebView prover lands (desktop is
-/// read-only by design). The vote UI gates on this.
+/// Whether client-side proving is available. False everywhere now.
 bool get proofServiceAvailable => platformProofServiceAvailable;
