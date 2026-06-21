@@ -7,6 +7,30 @@ import { participantRouter } from "./routes/participant";
 import { publicRouter } from "./routes/public";
 
 /**
+ * Per-route rate-limit window (§10). `windowMs` is the rolling window, `max` the
+ * permitted requests per client IP within it.
+ */
+export interface RateLimitConfig {
+  windowMs: number;
+  max: number;
+}
+
+/** Tunable server policy (separate from wiring). */
+export interface AppConfig {
+  /**
+   * Rate-limit for `POST /ballots` (§10). `undefined` → a sensible default
+   * (60/min per IP); `null` → DISABLED (used by tests/e2e that cast fast).
+   */
+  ballotRateLimit?: RateLimitConfig | null;
+}
+
+/** The Phase-2 default ballot rate-limit: 60 casts/minute per client IP. */
+export const DEFAULT_BALLOT_RATE_LIMIT: RateLimitConfig = {
+  windowMs: 60_000,
+  max: 60,
+};
+
+/**
  * Everything the HTTP layer needs, injected so tests are deterministic and the
  * bootstrap (index.ts) owns process-level concerns (env, listen, key dir).
  */
@@ -16,6 +40,8 @@ export interface AppDeps {
   serverKey: ServerKey;
   /** Monotone clock; injectable for deterministic tests. */
   now?: () => number;
+  /** Tunable policy (rate-limit, …); defaults applied per field. */
+  config?: AppConfig;
 }
 
 /**
@@ -43,12 +69,19 @@ export function createApp(deps: AppDeps): express.Express {
   app.use(
     convenerRouter({ repos: deps.repos, serverKey: deps.serverKey, now }),
   );
+  // Ballot rate-limit (§10): default 60/min per IP; `null` disables it.
+  const ballotRateLimit =
+    deps.config?.ballotRateLimit === undefined
+      ? DEFAULT_BALLOT_RATE_LIMIT
+      : deps.config.ballotRateLimit;
+
   app.use(
     participantRouter({
       db: deps.db,
       repos: deps.repos,
       serverKey: deps.serverKey,
       now,
+      ballotRateLimit,
     }),
   );
   app.use(publicRouter({ repos: deps.repos }));

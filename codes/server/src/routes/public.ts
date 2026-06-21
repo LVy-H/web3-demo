@@ -67,8 +67,14 @@ export function publicRouter(deps: PublicDeps): Router {
       ballots.length === lim && ballots.length > 0
         ? ballots[ballots.length - 1].logSeq
         : null;
+    // M3: an explicit end-of-stream flag so a verifier recomputing the §11.5
+    // chain knows when it has drained the log. `complete` is true once this page
+    // reached the end (fewer than `limit` rows, or no further cursor) — never
+    // recompute the head from a single page when `complete` is false (a >limit
+    // log would diverge from /root).
+    const complete = nextCursor === null;
 
-    res.status(200).json({ ballots, leafCount, nextCursor });
+    res.status(200).json({ ballots, leafCount, nextCursor, complete });
   });
 
   // GET /root?decisionId= — current chain head + leaf count. -----------------

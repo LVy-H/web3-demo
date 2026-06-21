@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll } from "vitest";
-import { createApp } from "../../src/app";
+import { createApp, type AppConfig } from "../../src/app";
 import { openDb, migrate, makeRepos, type Db, type Repos } from "../../src/db";
 import { loadOrCreateServerKey, type ServerKey } from "../../src/crypto";
 import { bootstrapAdmin } from "../../src/auth";
@@ -21,6 +21,12 @@ export interface TestApp {
 export interface TestAppOverrides {
   /** Override the deterministic clock; default is a fixed monotonic counter. */
   now?: () => number;
+  /**
+   * Server config (e.g. ballot rate-limit). DEFAULT: the /ballots rate-limit is
+   * DISABLED for tests so the existing suite + e2e can cast many ballots fast
+   * without tripping the limiter. Pass a `ballotRateLimit` to test enforcement.
+   */
+  config?: AppConfig;
 }
 
 /**
@@ -48,7 +54,11 @@ export function makeTestApp(overrides: TestAppOverrides = {}): TestApp {
     throw new Error("bootstrapAdmin returned no token on a fresh db");
   }
 
-  const app = createApp({ db, repos, serverKey, now });
+  // Default config DISABLES the ballot rate-limit (ballotRateLimit: null) so the
+  // existing tests + e2e cast ballots in tight loops without 429s. Override via
+  // `config` to exercise the limiter.
+  const config: AppConfig = overrides.config ?? { ballotRateLimit: null };
+  const app = createApp({ db, repos, serverKey, now, config });
 
   // Best-effort cleanup of the temp key dir + connection after the suite.
   afterAll(() => {

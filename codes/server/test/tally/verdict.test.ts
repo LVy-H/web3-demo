@@ -96,6 +96,37 @@ describe("verdict — supermajority threshold (>= percent% of non-abstain cast)"
     };
     expect(verdict(t, rule, 6).outcome).toBe("carried");
   });
+
+  it("H1: unanimous (3/3) under a 60% rule → carried", () => {
+    const t = single([0, 0, 0], 2); // option0 = 3/3 = 100%
+    const rule: Rule = {
+      threshold: { kind: "supermajority", percent: 60 },
+      tieBreak: "declare",
+    };
+    expect(verdict(t, rule, 3).outcome).toBe("carried");
+  });
+
+  it("H1: a clear leader below the bar (2 of 4 = 50%) under a 60% rule → failed", () => {
+    // scores [2,1,1] → option0 is the unique leader at 2/4 = 50% < 60% → failed.
+    const t = single([0, 0, 1, 2], 3);
+    const rule: Rule = {
+      threshold: { kind: "supermajority", percent: 60 },
+      tieBreak: "declare",
+    };
+    expect(verdict(t, rule, 4).outcome).toBe("failed");
+  });
+
+  it("H1: a supermajority rule with NO percent throws (fail loud, not silently false)", () => {
+    const t = single([0, 0, 0], 2); // unanimous — would have to carry if percent existed
+    // The oracle is reused by the Phase-3 verifier on arbitrary data, so an
+    // ill-formed rule must fail loud instead of computing max*100 >= NaN (false)
+    // and silently reporting 'failed' on a unanimous vote.
+    const rule = {
+      threshold: { kind: "supermajority" },
+      tieBreak: "declare",
+    } as unknown as Rule;
+    expect(() => verdict(t, rule, 3)).toThrow(/supermajority/i);
+  });
 });
 
 describe("verdict — plurality threshold (top option wins, ties → tieBreak)", () => {

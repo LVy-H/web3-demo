@@ -132,7 +132,14 @@ function passesThreshold(rule: Rule, max: number, base: number): boolean {
       return 2 * max > base;
     case "supermajority": {
       // Inclusive at the boundary: max/base >= percent/100  ⇔  max*100 >= percent*base.
+      // H1: fail LOUD on an ill-formed rule. This oracle is replayed by the
+      // Phase-3 verifier on arbitrary data; a missing/non-finite percent must
+      // throw, not compute max*100 >= NaN (always false) and silently report a
+      // unanimous vote as 'failed'. The schema enforces percent at create time.
       const percent = rule.threshold.percent;
+      if (typeof percent !== "number" || !Number.isFinite(percent)) {
+        throw new Error("supermajority rule requires a finite percent");
+      }
       return max * 100 >= percent * base;
     }
   }

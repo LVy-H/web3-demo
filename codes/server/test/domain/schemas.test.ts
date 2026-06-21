@@ -109,6 +109,32 @@ describe("DecisionCreateSchema — rejects malformed input", () => {
     expect(r.success).toBe(false);
   });
 
+  it("L2: rejects stray keys on an eligibility config (strict, no passthrough)", () => {
+    // A stray key must NOT be tolerated — otherwise two semantically identical
+    // eligibilities could commit different rosterCommitments.
+    const r = DecisionCreateSchema.safeParse({
+      ...validCreate(),
+      eligibility: { method: "open", surprise: "stowaway" },
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("L2: rejects a passcode eligibility missing its passcode field", () => {
+    const r = DecisionCreateSchema.safeParse({
+      ...validCreate(),
+      eligibility: { method: "passcode" },
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("L2: rejects a domain eligibility carrying a passcode field", () => {
+    const r = DecisionCreateSchema.safeParse({
+      ...validCreate(),
+      eligibility: { method: "domain", domain: "example.org", passcode: "x" },
+    });
+    expect(r.success).toBe(false);
+  });
+
   it("rejects an unknown anchorMode", () => {
     const r = DecisionCreateSchema.safeParse({
       ...validCreate(),
@@ -145,6 +171,54 @@ describe("DecisionCreateSchema — rejects malformed input", () => {
     const r = DecisionCreateSchema.safeParse({
       ...validCreate(),
       rule: { threshold: { kind: "consensus" }, tieBreak: "declare" },
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("H1: rejects a supermajority threshold missing percent", () => {
+    const r = DecisionCreateSchema.safeParse({
+      ...validCreate(),
+      rule: { threshold: { kind: "supermajority" }, tieBreak: "declare" },
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(
+        r.error.issues.some(
+          (i) => i.path.join(".") === "rule.threshold.percent",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("H1: accepts a supermajority threshold WITH a valid percent", () => {
+    const r = DecisionCreateSchema.safeParse({
+      ...validCreate(),
+      rule: {
+        threshold: { kind: "supermajority", percent: 66.7 },
+        tieBreak: "declare",
+      },
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("H1: rejects a supermajority percent of 0 (must be in (0, 100])", () => {
+    const r = DecisionCreateSchema.safeParse({
+      ...validCreate(),
+      rule: {
+        threshold: { kind: "supermajority", percent: 0 },
+        tieBreak: "declare",
+      },
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("H1: rejects a supermajority percent above 100", () => {
+    const r = DecisionCreateSchema.safeParse({
+      ...validCreate(),
+      rule: {
+        threshold: { kind: "supermajority", percent: 100.1 },
+        tieBreak: "declare",
+      },
     });
     expect(r.success).toBe(false);
   });

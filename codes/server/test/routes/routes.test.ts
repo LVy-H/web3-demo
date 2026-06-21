@@ -81,6 +81,33 @@ describe("convener routes", () => {
     expect(res.body.to).toBe("published");
   });
 
+  it("C1: re-opening an already-open decision is 409 and does NOT reset /root", async () => {
+    const t = makeTestApp();
+    const id = await createOpen(t);
+    // Cast 3 ballots so the chain advances to leafCount 3.
+    for (let i = 0; i < 3; i++) {
+      await request(t.app)
+        .post("/ballots")
+        .send({ decisionId: id, payload: { kind: "single", choice: 0 }, idempotencyKey: `c1-${i}` });
+    }
+    const before = await request(t.app).get(`/root`).query({ decisionId: id });
+    expect(before.body.leafCount).toBe(3);
+    const headBefore = before.body.head as string;
+    expect(headBefore).not.toBe("");
+
+    // A SECOND /open must be rejected (open is no longer a self-transition) and
+    // must NOT re-init the head to genesis/leafCount-0 (the C1 chain-fork bug).
+    const reopen = await auth(t, request(t.app).post(`/decisions/${id}/open`));
+    expect(reopen.status).toBe(409);
+    expect(reopen.body.code).toBe("ILLEGAL_TRANSITION");
+    expect(reopen.body.from).toBe("open");
+    expect(reopen.body.to).toBe("open");
+
+    const after = await request(t.app).get(`/root`).query({ decisionId: id });
+    expect(after.body.leafCount).toBe(3);
+    expect(after.body.head).toBe(headBefore);
+  });
+
   it("extend keeps state open and signs the amendment", async () => {
     const t = makeTestApp();
     const id = await createOpen(t);
@@ -256,6 +283,63 @@ describe("participant cast", () => {
     });
   });
 
+  it("M1: rate-limits POST /ballots with 429 once the per-window cap is hit", async () => {
+    // Cap at 2 casts per window; the 3rd distinct ballot is throttled.
+    const t = makeTestApp({ config: { ballotRateLimit: { windowMs: 60_000, max: 2 } } });
+    const id = await createOpen(t);
+    const cast = (k: string) =>
+      request(t.app)
+        .post("/ballots")
+        .send({ decisionId: id, payload: { kind: "single", choice: 0 }, idempotencyKey: k });
+    expect((await cast("rl-1")).status).toBe(201);
+    expect((await cast("rl-2")).status).toBe(201);
+    const throttled = await cast("rl-3");
+    expect(throttled.status).toBe(429);
+  });
+
+  it("M2: rejects a cast once maxParticipants is reached (signed 409 MAX_PARTICIPANTS)", async () => {
+    const t = makeTestApp();
+    const id = await createOpen(t, { maxParticipants: 2 });
+    const cast = (k: string) =>
+      request(t.app)
+        .post("/ballots")
+        .send({ decisionId: id, payload: { kind: "single", choice: 0 }, idempotencyKey: k });
+    expect((await cast("m2-1")).status).toBe(201);
+    expect((await cast("m2-2")).status).toBe(201);
+    const full = await cast("m2-3");
+    expect(full.status).toBe(409);
+    expect(full.body.code).toBe("MAX_PARTICIPANTS");
+    expect(full.body.error).toBe("decision-full");
+    // Signed, like decision-closed — an exhibitable refusal.
+    const preimage = canonicalize({ error: "decision-full", decisionId: id });
+    expect(verifySig(t.serverKey.publicKeyPem, preimage, full.body.signature)).toBe(true);
+  });
+
+  it("M2: rejects a cast after the scheduled close has passed (signed DECISION_CLOSED)", async () => {
+    // Fixed clock at t=5000; schedule closesAt=1000 is already in the past.
+    const t = makeTestApp({ now: () => 5000 });
+    const id = await createOpen(t, { schedule: { closesAt: 1000 } });
+    const res = await request(t.app)
+      .post("/ballots")
+      .send({ decisionId: id, payload: { kind: "single", choice: 0 }, idempotencyKey: "late" });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe("DECISION_CLOSED");
+    const preimage = canonicalize({ error: "decision-closed", decisionId: id });
+    expect(verifySig(t.serverKey.publicKeyPem, preimage, res.body.signature)).toBe(true);
+  });
+
+  it("M2: an extend pushes the effective close out, re-admitting a cast", async () => {
+    // Clock at t=5000; original close 1000 (past) but an extend to 9000 (future)
+    // makes the effective close 9000 → the cast is admitted.
+    const t = makeTestApp({ now: () => 5000 });
+    const id = await createOpen(t, { schedule: { closesAt: 1000 } });
+    await auth(t, request(t.app).post(`/decisions/${id}/extend`).send({ closesAt: 9000 }));
+    const res = await request(t.app)
+      .post("/ballots")
+      .send({ decisionId: id, payload: { kind: "single", choice: 0 }, idempotencyKey: "ext-ok" });
+    expect(res.status).toBe(201);
+  });
+
   it("quadratic: over-budget votes → 400 BUDGET_EXCEEDED", async () => {
     const t = makeTestApp();
     const id = await createOpen(t, { method: "quadratic" });
@@ -314,10 +398,14 @@ describe("public routes", () => {
     expect(page1.body.ballots).toHaveLength(2);
     expect(page1.body.leafCount).toBe(3);
     expect(page1.body.nextCursor).toBe(1);
+    // M3: not the end of the stream yet.
+    expect(page1.body.complete).toBe(false);
     const page2 = await request(t.app)
       .get(`/ballots`)
       .query({ decisionId: id, after: page1.body.nextCursor, limit: 2 });
     expect(page2.body.ballots).toHaveLength(1);
     expect(page2.body.nextCursor).toBe(null);
+    // M3: the final page reaches the end.
+    expect(page2.body.complete).toBe(true);
   });
 });

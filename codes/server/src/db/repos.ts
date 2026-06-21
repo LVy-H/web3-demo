@@ -130,6 +130,8 @@ export interface LifecycleEvent {
   actor: string;
   ts: number;
   signedSig: string;
+  /** Re-anchored close time for an 'extend' amendment (else null). */
+  closesAt: number | null;
 }
 export interface LifecycleEventInput {
   decisionId: string;
@@ -137,6 +139,8 @@ export interface LifecycleEventInput {
   actor: string;
   ts: number;
   signedSig: string;
+  /** Only 'extend' amendments set this. */
+  closesAt?: number | null;
 }
 
 export interface EligibilityRecord {
@@ -263,6 +267,7 @@ interface LifecycleRow {
   actor: string;
   ts: number;
   signed_sig: string;
+  closes_at: number | null;
 }
 const toLifecycle = (r: LifecycleRow): LifecycleEvent => ({
   id: r.id,
@@ -271,6 +276,7 @@ const toLifecycle = (r: LifecycleRow): LifecycleEvent => ({
   actor: r.actor,
   ts: r.ts,
   signedSig: r.signed_sig,
+  closesAt: r.closes_at ?? null,
 });
 
 interface EligibilityRow {
@@ -342,7 +348,17 @@ export interface LifecycleRepo {
 export interface EligibilityRepo {
   create(e: EligibilityInput): EligibilityRecord;
   find(decisionId: string, identifierOrHash: string): EligibilityRecord | null;
-  /** Increment used_counter and flip status to 'used'. */
+  /**
+   * Increment used_counter and flip status to 'used'.
+   *
+   * RESERVED FOR PHASE-3 (H2): markUsed / used_counter / status are the
+   * single-use bookkeeping for Phase-3 per-invitee invite credentials (one
+   * record per voter). They are deliberately NOT called for Phase-2 open-mode
+   * eligibility — a shared passcode is ONE record for the whole roster, so
+   * marking it 'used' on the first cast would lock out every other voter. Open
+   * mode's anti-stuffing is friction (maxParticipants + rate-limit), not a
+   * single-use credential; see src/routes/participant.ts.
+   */
   markUsed(id: string): void;
 }
 
@@ -547,8 +563,8 @@ export function makeRepos(db: Database.Database): Repos {
 
   // lifecycle --------------------------------------------------------------
   const lcInsert = db.prepare(
-    `INSERT INTO lifecycle_events (id, decision_id, transition, actor, ts, signed_sig)
-     VALUES (@id, @decisionId, @transition, @actor, @ts, @signedSig)`,
+    `INSERT INTO lifecycle_events (id, decision_id, transition, actor, ts, signed_sig, closes_at)
+     VALUES (@id, @decisionId, @transition, @actor, @ts, @signedSig, @closesAt)`,
   );
   const lcByDecision = db.prepare(
     `SELECT * FROM lifecycle_events WHERE decision_id = ?
@@ -557,7 +573,11 @@ export function makeRepos(db: Database.Database): Repos {
 
   const lifecycle: LifecycleRepo = {
     append(e) {
-      const row: LifecycleEvent = { id: randomUUID(), ...e };
+      const row: LifecycleEvent = {
+        id: randomUUID(),
+        ...e,
+        closesAt: e.closesAt ?? null,
+      };
       lcInsert.run(row);
       return row;
     },
@@ -628,6 +648,18 @@ export function makeRepos(db: Database.Database): Repos {
       return r ? toHead(r) : null;
     },
     set(decisionId, headHash, leafCount) {
+      // Defense-in-depth (C1): the running head is append-only — a normal cast
+      // only ever INCREASES leafCount, and the draft→open init sets 0 when no
+      // row exists yet. Refuse any write that would LOWER an existing leafCount
+      // (e.g. a buggy re-open resetting the chain to genesis/leafCount-0), which
+      // would silently fork the §11.5 root binding while ballot rows remain.
+      const existing = headGet.get(decisionId) as HeadRow | undefined;
+      if (existing && existing.leaf_count > leafCount) {
+        throw new Error(
+          `refusing to lower decision_head leafCount for ${decisionId}: ` +
+            `${existing.leaf_count} → ${leafCount} (append-only chain head)`,
+        );
+      }
       headSet.run(decisionId, headHash, leafCount);
     },
   };

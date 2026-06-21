@@ -1,4 +1,5 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
+import rateLimit from "express-rate-limit";
 import type { Db, Repos } from "../db";
 import { DuplicateBallotError } from "../db";
 import type { ServerKey } from "../crypto";
@@ -7,12 +8,16 @@ import { ballotPayloadSchema } from "../domain";
 import { creditsSpent, QUADRATIC_CREDITS, type Method } from "../tally";
 import { hashToken } from "../auth";
 import { parseDecision } from "./decisionView";
+import { effectiveClose } from "./effectiveClose";
+import type { RateLimitConfig } from "../app";
 
 export interface ParticipantDeps {
   db: Db;
   repos: Repos;
   serverKey: ServerKey;
   now: () => number;
+  /** §10 ballot rate-limit; `null` disables it (tests/e2e cast fast). */
+  ballotRateLimit?: RateLimitConfig | null;
 }
 
 /** Domain-separated canonical hash of a ballot (the leaf in the receipt chain). */
@@ -31,7 +36,22 @@ export function participantRouter(deps: ParticipantDeps): Router {
   const { db, repos, serverKey } = deps;
   const router = Router();
 
-  router.post("/ballots", (req, res) => {
+  // §10 abuse control: rate-limit ballot casts per client IP. `null` disables it
+  // (tests/e2e). A 429 is the standard throttle response. NOTE (H2): open mode
+  // has no per-voter credential, so a determined eligible voter can still cast
+  // multiple ballots by varying idempotencyKey — the true one-ballot-per-voter
+  // guarantee arrives with Phase-3 blind-sig credentials. maxParticipants (the
+  // cast-path cap below) + this rate-limit are the Phase-2 FRICTION controls.
+  const ballotLimiter: RequestHandler = deps.ballotRateLimit
+    ? rateLimit({
+        windowMs: deps.ballotRateLimit.windowMs,
+        max: deps.ballotRateLimit.max,
+        standardHeaders: true,
+        legacyHeaders: false,
+      })
+    : (_req, _res, next) => next();
+
+  router.post("/ballots", ballotLimiter, (req, res) => {
     const { decisionId, payload, idempotencyKey, passcode, email } =
       req.body ?? {};
 
@@ -42,8 +62,10 @@ export function participantRouter(deps: ParticipantDeps): Router {
     }
     const decision = parseDecision(row);
 
-    // Late / not-yet-open cast → SIGNED rejection (§10/§12.5, exhibitable).
-    if (decision.state !== "open") {
+    // A SIGNED, exhibitable 'decision-closed' refusal — a late ballot must get
+    // proof it was refused (§10/§12.5). Shared by the state check + the
+    // effective-close check below.
+    const rejectClosed = () => {
       const signature = serverKey.sign(
         canonicalize({ error: "decision-closed", decisionId }),
       );
@@ -53,10 +75,60 @@ export function participantRouter(deps: ParticipantDeps): Router {
         decisionId,
         signature,
       });
+    };
+
+    // Late / not-yet-open cast → SIGNED rejection (§10/§12.5, exhibitable).
+    if (decision.state !== "open") {
+      rejectClosed();
+      return;
+    }
+
+    // M2 — maxParticipants cap. NOTE (H2): in open mode there is no per-voter
+    // credential, so this caps DISTINCT ballots, not distinct voters; a
+    // determined eligible voter could still vary idempotencyKey. It (with the
+    // rate-limit) is the Phase-2 FRICTION control; true one-ballot-per-voter
+    // arrives with Phase-3 blind-sig credentials. Checked before accepting.
+    if (
+      decision.maxParticipants !== null &&
+      decision.maxParticipants !== undefined &&
+      repos.ballots.count(decisionId) >= decision.maxParticipants
+    ) {
+      const signature = serverKey.sign(
+        canonicalize({ error: "decision-full", decisionId }),
+      );
+      res.status(409).json({
+        error: "decision-full",
+        code: "MAX_PARTICIPANTS",
+        decisionId,
+        signature,
+      });
+      return;
+    }
+
+    // M2 — scheduled / extended close enforcement (§12.5). The EFFECTIVE close is
+    // the latest 'extend' amendment's closesAt, else the decision schedule's
+    // closesAt. A ballot arriving after it gets the SAME signed decision-closed
+    // proof (the server may have been down past the scheduled close).
+    const closeAt = effectiveClose(
+      repos.lifecycle.byDecision(decisionId),
+      decision.schedule,
+    );
+    if (closeAt !== null && deps.now() > closeAt) {
+      rejectClosed();
       return;
     }
 
     // Eligibility (open mode: open | passcode | domain) — signed refusals. -----
+    //
+    // H2 (disclosed limitation, §6): open mode — INCLUDING a shared passcode —
+    // has NO per-voter credential, so a determined eligible voter can cast
+    // multiple ballots by varying idempotencyKey. This is the deliberate "open
+    // mode trades stuffing-resistance for friction" trade-off; the true
+    // one-ballot-per-voter guarantee arrives with Phase-3 blind-sig credentials.
+    // maxParticipants (above) + the rate-limit are the Phase-2 friction controls.
+    // We intentionally do NOT call repos.eligibility.markUsed for a shared
+    // passcode here: a shared secret is one record for the whole roster, so
+    // marking it 'used' would lock out everyone after the FIRST cast.
     const elig = decision.eligibility;
     const ineligible = () => {
       const signature = serverKey.sign(
