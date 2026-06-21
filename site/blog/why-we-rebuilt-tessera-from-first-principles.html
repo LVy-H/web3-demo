@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Why we rebuilt Tessera from first principles — Tessera</title>
+  <meta name="description" content="We questioned every foundation — blockchain, zero-knowledge proofs, a relayer — and kept only what the threat model earned. Three of four didn't survive. The result: a verifiable bulletin board.">
+  <meta name="theme-color" content="#0A0C10">
+  <link rel="icon" type="image/svg+xml" href="../assets/tessera-mark.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="../index.html">
+        <img src="../assets/tessera-mark.svg" alt="" width="30" height="30">
+        <span>Tessera</span>
+      </a>
+      <span class="nav-spacer"></span>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="../index.html">Home</a>
+        <a href="../index.html#how">How it works</a>
+        <a href="../honesty.html">Honesty</a>
+        <a href="index.html">Blog</a>
+        <a href="https://github.com/" rel="external">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <article class="article">
+      <header>
+        <p><a class="backlink" href="index.html">&larr; All posts</a></p>
+        <p class="post-meta mt-1">Design &middot; first principles</p>
+        <h1>Why we rebuilt Tessera from first principles</h1>
+        <p class="lead">The old system rested on four big commitments. We re-opened every one of them and kept each only if the requirements earned it. Three didn&rsquo;t survive intact.</p>
+      </header>
+
+      <p>The first version of Tessera was built feature-first, and its design was reverse-engineered into documents afterwards. That ordering quietly bakes in assumptions: a foundation gets chosen early, everything is built on top of it, and no one goes back to ask whether the foundation was ever the right one.</p>
+
+      <p>So we did the inverse. We wrote one coherent design from the top&mdash;requirements, then threat model, then architecture&mdash;and re-opened the four hard commitments the old system rested on: <strong>a blockchain backend, Semaphore zero-knowledge proofs, a gas-paying relayer, and one Flutter client.</strong> Each one had to re-earn its place against the actual requirements. Three of the four did not survive intact.</p>
+
+      <h2>The headline: it&rsquo;s a trust problem, not a scale problem</h2>
+
+      <blockquote>
+        <p>Tessera is not a scale problem, it is a trust problem.</p>
+      </blockquote>
+
+      <p>Once you admit that, a lot of heavy machinery turns out to be solving a problem this product doesn&rsquo;t have. The decisions Tessera is for&mdash;a club, a board, a co-op, a working group&mdash;involve tens to a few thousand voters. Every ballot ever cast fits in <em>megabytes</em>. Peak load is a fraction of a vote per second. Throughput, sharding, caching, storage tiers: all non-issues.</p>
+
+      <p>All the real pressure is on three things&mdash;<strong>integrity, privacy, and trust</strong>&mdash;and none of those is a scale axis. A smart-contract chain, Groth16 proving, and a gas-paying relayer are powerful tools, but they were answering a scaling and trustlessness question we weren&rsquo;t actually being asked.</p>
+
+      <h2>The threat model that did the cutting</h2>
+
+      <p>What <em>are</em> we being asked? We settled the threat model first, in one line:</p>
+
+      <blockquote>
+        <p>Trust the organiser for integrity, but prove the count to everyone.</p>
+      </blockquote>
+
+      <p>That is the honest situation for most groups. You generally do trust whoever set up the vote not to be running an active attack&mdash;but everyone else still wants to <em>check</em> the result, not just be told it. That&rsquo;s a far weaker requirement than &ldquo;assume the organiser is malicious,&rdquo; and the weaker requirement is what let us delete most of the stack.</p>
+
+      <h2>The verdict on the four foundations</h2>
+
+      <ul>
+        <li><strong>Blockchain backend &rarr; demoted to a notary, and not even the default.</strong> A chain was only ever needed for one narrow thing: host-independent <em>non-equivocation</em> of the checkpoint roots&mdash;and only when a host is willing to fund a wallet. The default anchor is now a zero-wallet signed-root broadcast that&rsquo;s tamper-evident if any voter keeps it. The chain becomes an optional equivocation-resistance upgrade. That drops roughly two thousand lines of Solidity.</li>
+        <li><strong>Semaphore / Groth16 zero-knowledge &rarr; dropped from 1.0, parked as &ldquo;strong mode.&rdquo;</strong> A blind-signature credential meets the chosen threat model with no circuit and no prover. ZK&rsquo;s real residual value&mdash;permissionless membership and anonymity that doesn&rsquo;t rest on the host&mdash;maps exactly onto a future &ldquo;strong mode.&rdquo; So we parked the proven code as an option rather than deleting it.</li>
+        <li><strong>Relayer &rarr; dropped.</strong> It existed for one reason: to pay gas for on-chain votes. With no on-chain votes, ballots just POST to the server. The relayer&rsquo;s job vanished with the chain.</li>
+        <li><strong>One Flutter client &rarr; kept, but gated on a hard web-payload budget.</strong> Reusing the design system and product code is worth a lot, but the voter path has to load fast on a throttled phone. So the voter-path payload is a CI gate, with a thin web voter shell as a pre-planned fallback&mdash;not an emergency&mdash;if Flutter web can&rsquo;t hit the budget.</li>
+      </ul>
+
+      <h2>Where it landed: a verifiable bulletin board</h2>
+
+      <p>Two requirements collide and force the whole design: <em>self-host it yourself</em>, and <em>verify the result without trusting the host</em>. If the host controls the server, the record can&rsquo;t live only on that server&mdash;we need one thing the host can&rsquo;t forge.</p>
+
+      <p>That is the classic <strong>verifiable bulletin-board</strong> pattern, from the Helios/Belenios lineage, with a self-host twist: the board lives on the host&rsquo;s own server, but its checkpoints are pinned to a public, host-independent anchor. The pieces are deliberately classical&mdash;an append-only ballot log, blind-signature credentials for anonymous-yet-eligible ballots, and an anchored commitment&mdash;and they satisfy the requirements <em>provided we are honest about exactly which trust they do and don&rsquo;t remove.</em></p>
+
+      <h2>Honesty as the load-bearing part</h2>
+
+      <p>That last clause is the whole game. A first design draft is easy to oversell. So we ran it through a four-lens adversarial review&mdash;security, systems, product, red-team&mdash;and the most important output wasn&rsquo;t new features. It was making the honesty <em>load-bearing</em> rather than aspirational: naming, in the spec itself, that secret-ballot privacy doesn&rsquo;t hold against a live malicious host, that a host who controls the roster can stuff up to its roster-control budget, and that censorship-by-silence is detectable only as deletion-after-acknowledgement.</p>
+
+      <p>Those aren&rsquo;t footnotes we hide&mdash;they&rsquo;re on the <a href="../honesty.html">honesty page</a>, in the product&rsquo;s trust-level labels, and in the design doc&rsquo;s threat model. The differentiator that survives is genuine but narrow: <strong>anonymous-yet-eligible ballots with a publicly recomputable tally and a tamper-evident history&mdash;not &ldquo;trustless.&rdquo;</strong></p>
+
+      <hr>
+      <p class="note">This post summarises the system design (sections 0 and 8) and the roadmap&rsquo;s &ldquo;what changed and why.&rdquo; The full design doc, including the adversarial-review log, lives in the repository. The dismantle-and-rebuild work is in progress&mdash;the design and server foundations are landing first; the trust core (credentials, checkpoints, anchor, verifier) and the client rewire follow.</p>
+      <p class="mt-2"><a class="backlink" href="how-you-can-check-the-result-yourself.html">Next: how you can check the result yourself &rarr;</a></p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap foot-bottom" style="border-top:0">
+      <span><a href="index.html">&larr; Blog</a> &middot; <a href="../index.html">Home</a> &middot; <a href="../honesty.html">Honesty</a></span>
+      <span>Open source · self-hostable · no wallet by default</span>
+    </div>
+  </footer>
+</body>
+</html>
