@@ -32,6 +32,10 @@ export type {
   Checkpoint,
   CheckpointInput,
   CheckpointRepo,
+  SigningKey,
+  SigningKeyInput,
+  SigningKeyRepo,
+  IssuedCredentialRepo,
 } from "./repos";
 
 /** The better-sqlite3 connection type, re-exported for callers' signatures. */

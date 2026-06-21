@@ -7,13 +7,14 @@ import {
   type DecisionState,
 } from "../../src/domain";
 
-// The legal transitions per the Phase-2 contract (open mode skips 'registration').
-//   draft → open
+// The legal transitions per the contract.
+//   OPEN mode:    draft → open
+//   SECRET mode:  draft → registration → open   (registration-before-voting, §11.0)
 //   open → closed
 //   closed → challenge
 //   challenge → published
 //   closed → published          (challenge optional)
-//   {draft,open,closed,challenge} → cancelled
+//   {draft,registration,open,closed,challenge} → cancelled (pre-publish cancel)
 // Everything else is illegal — especially anything OUT of a terminal
 // state ('published' | 'cancelled') and lifecycle skips.
 //
@@ -24,11 +25,14 @@ import {
 // (§11.5 root-binding fork), so the self-loop is now rejected.
 const LEGAL: ReadonlyArray<[DecisionState, DecisionState]> = [
   ["draft", "open"],
+  ["draft", "registration"],
+  ["registration", "open"],
   ["open", "closed"],
   ["closed", "challenge"],
   ["challenge", "published"],
   ["closed", "published"],
   ["draft", "cancelled"],
+  ["registration", "cancelled"],
   ["open", "cancelled"],
   ["closed", "cancelled"],
   ["challenge", "cancelled"],
@@ -37,9 +41,9 @@ const LEGAL: ReadonlyArray<[DecisionState, DecisionState]> = [
 const LEGAL_SET = new Set(LEGAL.map(([f, t]) => `${f}->${t}`));
 
 describe("DECISION_STATES", () => {
-  it("enumerates exactly the six lifecycle states", () => {
+  it("enumerates exactly the seven lifecycle states (incl. secret-mode 'registration')", () => {
     expect([...DECISION_STATES].sort()).toEqual(
-      ["cancelled", "challenge", "closed", "draft", "open", "published"].sort(),
+      ["cancelled", "challenge", "closed", "draft", "open", "published", "registration"].sort(),
     );
   });
 });
@@ -71,14 +75,20 @@ describe("canTransition — representative illegal transitions are rejected", ()
     ["draft", "published"],
     ["open", "challenge"],
     ["open", "published"],
+    ["registration", "closed"],
+    ["registration", "challenge"],
+    ["registration", "published"],
     // backwards
     ["closed", "open"],
     ["challenge", "closed"],
     ["closed", "draft"],
+    ["open", "registration"],
+    ["registration", "draft"],
     // self-loops are all illegal (C1: 'extend' is an amendment, not a
     // state transition, so open → open must NOT be a legal edge).
     ["open", "open"],
     ["draft", "draft"],
+    ["registration", "registration"],
     ["closed", "closed"],
     ["challenge", "challenge"],
     ["published", "published"],
@@ -107,6 +117,12 @@ describe("assertTransition", () => {
     expect(() => assertTransition("draft", "open")).not.toThrow();
     expect(() => assertTransition("open", "closed")).not.toThrow();
     expect(() => assertTransition("closed", "published")).not.toThrow();
+  });
+
+  it("does not throw on the secret-mode registration edges", () => {
+    expect(() => assertTransition("draft", "registration")).not.toThrow();
+    expect(() => assertTransition("registration", "open")).not.toThrow();
+    expect(() => assertTransition("registration", "cancelled")).not.toThrow();
   });
 
   it("throws on open → open (C1: extend is an amendment, not a transition)", () => {

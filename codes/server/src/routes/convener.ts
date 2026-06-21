@@ -8,6 +8,7 @@ import {
 } from "../crypto";
 import { merkleRoot } from "../merkle";
 import { buildCheckpoint } from "../anchor";
+import { newIssuer } from "../credentials";
 import {
   DecisionCreateSchema,
   assertTransition,
@@ -107,6 +108,17 @@ export function convenerRouter(deps: ConvenerDeps): Router {
     // into the setupCommitment; `open` still commits its (method-only) shape.
     const rosterCommitment = sha256hex(canonicalize(d.eligibility));
 
+    // SECRET mode: mint a fresh per-decision RFC 9474 RSABSSA-PSS issuer (§12.2).
+    // Its `pubKeyHash` is folded into the setupCommitment and anchored before
+    // registration, so the host cannot swap signing keys mid-decision (§6/§11.1).
+    // Open mode has no issuer → issuerPubKeyHash stays null. The decision also
+    // enters at a different lifecycle state: secret starts at 'registration' (so
+    // credential issuance opens before voting), open starts at 'draft'.
+    const isSecret = d.ballotMode === "secret";
+    const issuer = isSecret ? newIssuer() : null;
+    const issuerPubKeyHash = issuer ? issuer.pubKeyHash : null;
+    const initialState: DecisionState = isSecret ? "registration" : "draft";
+
     const setupCommitment = computeSetupCommitment({
       options: d.options,
       method: d.method,
@@ -114,7 +126,7 @@ export function convenerRouter(deps: ConvenerDeps): Router {
       ballotMode: d.ballotMode,
       resultsPolicy: d.resultsPolicy,
       rosterCommitment,
-      issuerPubKeyHash: null,
+      issuerPubKeyHash,
       schedule: d.schedule,
     });
 
@@ -132,8 +144,20 @@ export function convenerRouter(deps: ConvenerDeps): Router {
       anchorMode: d.anchorMode,
       maxParticipants: d.maxParticipants ?? null,
       setupCommitment,
-      state: "draft",
+      state: initialState,
     });
+
+    // Persist the issuer keypair (the PRIVATE key never leaves the server: only
+    // POST /register's blindSign touches it). Done after insert so it FKs the
+    // decision row.
+    if (issuer) {
+      repos.signingKeys.put({
+        decisionId: decision.id,
+        publicKeyPem: issuer.publicKeySpkiPem,
+        privateKeyPem: issuer.privateKeyPkcs8Pem,
+        pubKeyHash: issuer.pubKeyHash,
+      });
+    }
 
     // Eligibility record (open mode): passcode stores the passcode HASH; domain
     // stores the allowed domain; `open` stores nothing (no gate at cast time).
@@ -158,8 +182,12 @@ export function convenerRouter(deps: ConvenerDeps): Router {
 
     res.status(201).json({
       id: decision.id,
-      state: "draft",
+      state: initialState,
       setupCommitment,
+      // SECRET mode advertises the issuer pubkey + its anchored hash so a
+      // registering client can `blind()` under it; null in open mode.
+      issuerPubKeyHash,
+      issuerPublicKeyPem: issuer ? issuer.publicKeySpkiPem : null,
     });
   });
 
@@ -191,11 +219,13 @@ export function convenerRouter(deps: ConvenerDeps): Router {
       });
       repos.decisions.setState(decision.id, to, at);
 
-      if (to === "open" && from === "draft") {
-        // Initialise the running head to the EMPTY RFC 6962 Merkle root ONLY on
-        // the real first open (draft → open). open → open is now an illegal
-        // transition (rejected above) so this never re-runs after ballots exist
-        // — guarding C1, the head reset that forked the §11.5 root binding.
+      if (to === "open" && (from === "draft" || from === "registration")) {
+        // Initialise the running head to the EMPTY RFC 6962 Merkle root on the
+        // real first open — draft → open (open mode) or registration → open
+        // (secret mode, closing registration). open → open is an illegal
+        // transition (rejected above) so this never re-runs after ballots exist;
+        // and head.set REFUSES to lower an existing leafCount — together guarding
+        // C1, the head reset that forked the §11.5 root binding.
         repos.head.set(decision.id, merkleRoot([]), 0);
       }
       res.status(200).json({ id: decision.id, state: to });

@@ -23,6 +23,16 @@ function rosterCommitmentOf(d: ParsedDecision): string {
   return sha256hex(canonicalize(d.eligibility));
 }
 
+/**
+ * The decision's anchored issuer pubkey hash, or null. SECRET mode mints a
+ * per-decision RSABSSA-PSS issuer at create; its `pubKeyHash` is in the
+ * setupCommitment, so a verifier needs the SAME value to rebuild it. Open mode
+ * has no issuer → null.
+ */
+function issuerPubKeyHashOf(repos: PublicDeps["repos"], decisionId: string): string | null {
+  return repos.signingKeys.get(decisionId)?.pubKeyHash ?? null;
+}
+
 export function publicRouter(deps: PublicDeps): Router {
   const { repos, serverKey } = deps;
   const router = Router();
@@ -58,7 +68,11 @@ export function publicRouter(deps: PublicDeps): Router {
       anchorMode: d.anchorMode,
       // Public commitments a verifier needs to rebuild the setupCommitment.
       rosterCommitment: rosterCommitmentOf(d),
-      issuerPubKeyHash: null, // open mode has no blind-sig issuer (later iteration)
+      // SECRET mode: the anchored per-decision issuer pubkey hash (§12.2); null
+      // in open mode. A verifier folds this into its recomputed setupCommitment.
+      issuerPubKeyHash: issuerPubKeyHashOf(repos, d.id),
+      // §6 stuffing audit: how many blind-sig credentials were issued (≤ roster).
+      issuedCount: repos.issuedCredentials.count(d.id),
       setupCommitment: d.setupCommitment,
       // The signing identity the verifier checks the anchor signature against.
       serverPubKeyPem: serverKey.publicKeyPem,
@@ -246,7 +260,8 @@ export function publicRouter(deps: PublicDeps): Router {
         visibility: d.visibility,
         anchorMode: d.anchorMode,
         rosterCommitment: rosterCommitmentOf(d),
-        issuerPubKeyHash: null, // open mode — no blind-sig issuer (later iteration)
+        // SECRET mode binds the real anchored issuer pubkey hash; open mode null.
+        issuerPubKeyHash: issuerPubKeyHashOf(repos, d.id),
       },
       setupCommitment: d.setupCommitment,
       serverPubKeyPem: serverKey.publicKeyPem,
