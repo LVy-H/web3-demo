@@ -4,6 +4,7 @@
 // this file did (R2f contract).
 import 'package:core_chain/chain_reader.dart';
 import 'package:core_relay/relay_client.dart';
+import 'package:core_relay/server_client.dart';
 import 'package:core_storage/created_polls_store.dart';
 import 'package:design_system/theme.dart';
 import 'package:feature_organize/feature_organize.dart';
@@ -23,14 +24,15 @@ class OrganizeSpaceScreen extends StatefulWidget {
 }
 
 class _OrganizeSpaceScreenState extends State<OrganizeSpaceScreen> {
-  Future<RelayOrganizerPort>? _port;
+  Future<OrganizerConsolePort>? _port;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _port ??= buildOrganizerPort(
+    _port ??= buildConsolePort(
       relay: context.read<RelayClient>(),
       reader: context.read<ChainReader>(),
+      server: context.read<ServerClient>(),
       createdPolls: context.read<CreatedPollsStore>(),
     );
   }
@@ -38,7 +40,7 @@ class _OrganizeSpaceScreenState extends State<OrganizeSpaceScreen> {
   @override
   Widget build(BuildContext context) {
     final capabilities = context.watch<AppState>().capabilities;
-    return FutureBuilder<RelayOrganizerPort>(
+    return FutureBuilder<OrganizerConsolePort>(
       future: _port,
       builder: (context, snapshot) {
         final port = snapshot.data;

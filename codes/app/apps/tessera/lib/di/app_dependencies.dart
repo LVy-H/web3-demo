@@ -15,6 +15,7 @@ import 'package:core_crypto/proof/proof_service.dart';
 import 'package:core_crypto/proof/proof_service_factory.dart';
 import 'package:core_domain/models/poll_info.dart';
 import 'package:core_relay/relay_client.dart';
+import 'package:core_relay/server_client.dart';
 import 'package:core_storage/blind_commit_store.dart';
 import 'package:core_storage/created_polls_store.dart';
 import 'package:core_storage/identity_store.dart';
@@ -38,6 +39,12 @@ String _abiArray(String artifactJson) {
 class AppDependencies {
   final ChainReader chainReader;
   final RelayClient relayClient;
+
+  /// Phase-2 self-hosted bulletin-board server client (open-ballot path). Its
+  /// convener token is read from [AppConfig.convenerToken] at call time (the
+  /// field is mutable), so pasting the token in Settings takes effect without
+  /// rebuilding this client.
+  final ServerClient serverClient;
   final IdentityStore identityStore;
   final CreatedPollsStore createdPollsStore;
   final BlindCommitStore blindCommitStore;
@@ -51,6 +58,7 @@ class AppDependencies {
   const AppDependencies({
     required this.chainReader,
     required this.relayClient,
+    required this.serverClient,
     required this.identityStore,
     required this.createdPollsStore,
     required this.blindCommitStore,
@@ -127,6 +135,10 @@ class AppDependencies {
     return AppDependencies(
       chainReader: chainReader,
       relayClient: RelayClient(baseUrl: AppConfig.relayerUrl),
+      serverClient: ServerClient(
+        baseUrl: AppConfig.serverUrl,
+        token: AppConfig.convenerToken,
+      ),
       identityStore: ids,
       createdPollsStore: createdPollsStore ?? SecureCreatedPollsStore(),
       blindCommitStore: blindCommitStore ?? SecureBlindCommitStore(),
@@ -148,6 +160,7 @@ class AppDependencies {
 List<SingleChildWidget> buildAppProviders(AppDependencies deps) => [
   Provider<ChainReader>.value(value: deps.chainReader),
   Provider<RelayClient>.value(value: deps.relayClient),
+  Provider<ServerClient>.value(value: deps.serverClient),
   Provider<IdentityStore>.value(value: deps.identityStore),
   Provider<CreatedPollsStore>.value(value: deps.createdPollsStore),
   Provider<BlindCommitStore>.value(value: deps.blindCommitStore),

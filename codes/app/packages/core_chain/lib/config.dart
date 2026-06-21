@@ -34,6 +34,23 @@ abstract class AppDefaults {
     defaultValue: 'http://localhost:3001',
   );
 
+  /// Phase-2 self-hosted bulletin-board server (open-ballot REST API). The app
+  /// drives an OPEN-BALLOT decision end-to-end against this. Defaults to the
+  /// loopback port the server prints on startup.
+  static const serverUrl = String.fromEnvironment(
+    'SERVER_URL',
+    defaultValue: 'http://127.0.0.1:3001',
+  );
+
+  /// Open-ballot server mode is the Phase-4 default path: the kept screens
+  /// drive the REST server (create → open → vote → close → publish → results)
+  /// instead of the chain/relayer. Build with `--dart-define=SERVER_MODE=false`
+  /// to fall back to the chain adapters (kept, not deleted).
+  static const serverMode = bool.fromEnvironment(
+    'SERVER_MODE',
+    defaultValue: true,
+  );
+
   /// Semaphore verifier address — needed to encode ZkAnonVoting.initialize when
   /// creating a poll. Matches deployed-addresses.json (chainId 31337).
   static const semaphoreAddress = String.fromEnvironment(
@@ -50,14 +67,22 @@ abstract class AppConfig {
   static String rpcUrl = AppDefaults.rpcUrl;
   static String registryAddress = AppDefaults.registryAddress;
   static String relayerUrl = AppDefaults.relayerUrl;
+  static String serverUrl = AppDefaults.serverUrl;
   static String semaphoreAddress = AppDefaults.semaphoreAddress;
   static int chainId = AppDefaults.chainId;
+
+  /// Phase-2 server convener (admin) Bearer token — the token the server
+  /// prints on startup, pasted in-app for the open-ballot demo. In-memory
+  /// only (cleared on restart); the operator re-pastes it. Not part of the
+  /// persisted [NetworkConfig] (it's a credential, not a backend pointer).
+  static String? convenerToken;
 
   /// Overlay a saved override onto the defaults. Pass `null` to reset to
   /// defaults. Call ONLY from `main()` — see the file header.
   static void apply(NetworkConfig? c) {
     rpcUrl = c?.rpcUrl ?? AppDefaults.rpcUrl;
     relayerUrl = c?.relayerUrl ?? AppDefaults.relayerUrl;
+    serverUrl = c?.serverUrl ?? AppDefaults.serverUrl;
     registryAddress = c?.registryAddress ?? AppDefaults.registryAddress;
     semaphoreAddress = c?.semaphoreAddress ?? AppDefaults.semaphoreAddress;
     chainId = c?.chainId ?? AppDefaults.chainId;
@@ -67,6 +92,7 @@ abstract class AppConfig {
   static NetworkConfig get defaults => const NetworkConfig(
     rpcUrl: AppDefaults.rpcUrl,
     relayerUrl: AppDefaults.relayerUrl,
+    serverUrl: AppDefaults.serverUrl,
     registryAddress: AppDefaults.registryAddress,
     semaphoreAddress: AppDefaults.semaphoreAddress,
     chainId: AppDefaults.chainId,
@@ -76,6 +102,7 @@ abstract class AppConfig {
   static NetworkConfig get effective => NetworkConfig(
     rpcUrl: rpcUrl,
     relayerUrl: relayerUrl,
+    serverUrl: serverUrl,
     registryAddress: registryAddress,
     semaphoreAddress: semaphoreAddress,
     chainId: chainId,
@@ -127,6 +154,12 @@ abstract class AppConfig {
   /// Desktop proving is enabled only when the sidecar + bundle paths are set.
   static bool get desktopProverEnabled =>
       desktopProverSidecar.isNotEmpty && desktopProverBundle.isNotEmpty;
+
+  /// Phase-4 open-ballot server mode: the kept screens drive the REST server
+  /// (create → open → vote → close → publish → results) instead of the
+  /// chain/relayer. ON by default; the chain adapters stay constructible
+  /// behind it. Build `--dart-define=SERVER_MODE=false` to use the chain path.
+  static const serverMode = AppDefaults.serverMode;
 }
 
 /// An overridable network configuration — the backend pointers a hosted build
@@ -134,6 +167,7 @@ abstract class AppConfig {
 class NetworkConfig {
   final String rpcUrl;
   final String relayerUrl;
+  final String serverUrl;
   final String registryAddress;
   final String semaphoreAddress;
   final int chainId;
@@ -141,6 +175,7 @@ class NetworkConfig {
   const NetworkConfig({
     required this.rpcUrl,
     required this.relayerUrl,
+    required this.serverUrl,
     required this.registryAddress,
     required this.semaphoreAddress,
     required this.chainId,
@@ -149,12 +184,14 @@ class NetworkConfig {
   NetworkConfig copyWith({
     String? rpcUrl,
     String? relayerUrl,
+    String? serverUrl,
     String? registryAddress,
     String? semaphoreAddress,
     int? chainId,
   }) => NetworkConfig(
     rpcUrl: rpcUrl ?? this.rpcUrl,
     relayerUrl: relayerUrl ?? this.relayerUrl,
+    serverUrl: serverUrl ?? this.serverUrl,
     registryAddress: registryAddress ?? this.registryAddress,
     semaphoreAddress: semaphoreAddress ?? this.semaphoreAddress,
     chainId: chainId ?? this.chainId,
@@ -163,6 +200,7 @@ class NetworkConfig {
   Map<String, dynamic> toJson() => {
     'rpcUrl': rpcUrl,
     'relayerUrl': relayerUrl,
+    'serverUrl': serverUrl,
     'registryAddress': registryAddress,
     'semaphoreAddress': semaphoreAddress,
     'chainId': chainId,
@@ -179,6 +217,9 @@ class NetworkConfig {
       relayerUrl: j['relayerUrl'] is String
           ? j['relayerUrl'] as String
           : d.relayerUrl,
+      serverUrl: j['serverUrl'] is String
+          ? j['serverUrl'] as String
+          : d.serverUrl,
       registryAddress: j['registryAddress'] is String
           ? j['registryAddress'] as String
           : d.registryAddress,
@@ -210,6 +251,7 @@ class NetworkConfig {
   bool get isValidFormat =>
       isHttpUrl(rpcUrl) &&
       isHttpUrl(relayerUrl) &&
+      isHttpUrl(serverUrl) &&
       isAddress(registryAddress) &&
       isAddress(semaphoreAddress) &&
       chainId > 0;
@@ -219,6 +261,7 @@ class NetworkConfig {
       other is NetworkConfig &&
       other.rpcUrl == rpcUrl &&
       other.relayerUrl == relayerUrl &&
+      other.serverUrl == serverUrl &&
       other.registryAddress == registryAddress &&
       other.semaphoreAddress == semaphoreAddress &&
       other.chainId == chainId;
@@ -227,6 +270,7 @@ class NetworkConfig {
   int get hashCode => Object.hash(
     rpcUrl,
     relayerUrl,
+    serverUrl,
     registryAddress,
     semaphoreAddress,
     chainId,
