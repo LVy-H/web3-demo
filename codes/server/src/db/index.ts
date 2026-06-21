@@ -29,6 +29,9 @@ export type {
   EligibilityRepo,
   DecisionHead,
   HeadRepo,
+  Checkpoint,
+  CheckpointInput,
+  CheckpointRepo,
 } from "./repos";
 
 /** The better-sqlite3 connection type, re-exported for callers' signatures. */
