@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How you can check the result yourself — Tessera</title>
+  <meta name="description" content="The verifier's job, step by step: recompute the tally and the verdict, recompute the Merkle root and bind it to the anchored root, check serials and inclusion. Honest about the 1.0 scope.">
+  <meta name="theme-color" content="#0A0C10">
+  <link rel="icon" type="image/svg+xml" href="../assets/tessera-mark.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="../index.html">
+        <img src="../assets/tessera-mark.svg" alt="" width="30" height="30">
+        <span>Tessera</span>
+      </a>
+      <span class="nav-spacer"></span>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="../index.html">Home</a>
+        <a href="../index.html#how">How it works</a>
+        <a href="../honesty.html">Honesty</a>
+        <a href="index.html">Blog</a>
+        <a href="https://github.com/" rel="external">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <article class="article">
+      <header>
+        <p><a class="backlink" href="index.html">&larr; All posts</a></p>
+        <p class="post-meta mt-1">Verification &middot; how-to</p>
+        <h1>How you can check the result yourself</h1>
+        <p class="lead">The whole point of Tessera is that you don&rsquo;t have to take the organiser&rsquo;s word for the result. So how do you actually check it? Here&rsquo;s the verifier&rsquo;s job, step by step&mdash;and an honest account of what each step proves.</p>
+      </header>
+
+      <p>In Tessera, the <strong>verifier is a first-class actor</strong>, not an afterthought. A verifier is anyone&mdash;a voter, the organiser, or a complete outsider&mdash;who wants to confirm the published result matches the ballots, without trusting the host or any service the Tessera authors run. The verification reads two public things: the <em>published ballots</em> from the server, and the <em>anchored roots</em> from the host-independent anchor. It trusts neither blindly; it cross-checks them.</p>
+
+      <p>Here are the six checks, in the order they run.</p>
+
+      <h2>0. Registration closed before voting opened</h2>
+      <p>This isn&rsquo;t a check you run so much as a property you rely on: registration closes before voting begins. That fixes the set of issued credentials before any ballot is cast, which is what makes the later stuffing audit meaningful, and it breaks the timing link between &ldquo;who registered&rdquo; and &ldquo;who cast.&rdquo;</p>
+
+      <h2>1. The setup can&rsquo;t have shifted</h2>
+      <p>You recompute the <code>setupCommitment</code>&mdash;a hash over the question, options, decision rule, ballot mode, roster commitment, the signing key, and the schedule&mdash;from the published metadata, and compare it to the value that was anchored before registration. If they match, the host did not quietly change the question or swap the credential key after the fact.</p>
+
+      <h2>2. Every ballot carries a valid credential</h2>
+      <p>Each ballot in the published set carries a credential whose blind signature verifies against the <em>anchored</em> per-decision public key, and that credential is bound to this decision (so it can&rsquo;t be replayed from another vote). You also check that the number of issued credentials is no greater than the roster size.</p>
+      <blockquote>
+        <p>Honest caveat: &ldquo;issued &le; roster&rdquo; is <em>necessary, not sufficient.</em> The host defines the roster, so this check is a detection aid against over-issuance&mdash;not a proof against a host determined to stuff. Open, passcode, and domain rosters are published or member-challengeable so a member can dispute the count; that&rsquo;s the real defence, and it rests on members watching.</p>
+      </blockquote>
+
+      <h2>3. No double-votes</h2>
+      <p>You confirm there are no duplicate credential serials in the published set. That catches a voter trying to vote twice. (Host over-issuance is the roster limit from check 2, not this one&mdash;we&rsquo;re careful not to conflate them.)</p>
+
+      <h2>4. The tally <em>and the verdict</em> are honest</h2>
+      <p>You recompute the result from the published ballots using the same open counting rule the server used&mdash;and crucially, you recompute the <strong>verdict</strong>, not just the raw count. &ldquo;Carried,&rdquo; &ldquo;failed,&rdquo; &ldquo;tie,&rdquo; &ldquo;quorum-not-met&rdquo;: the decision rule (threshold, quorum, tie-break) is part of what you re-derive and compare against the published result. A correct count under the wrong rule is still a wrong result, and the verifier catches that.</p>
+
+      <h2>5. Nothing was dropped after it was acknowledged</h2>
+      <p>This is the binding step that gives receipts their teeth. The final root is anchored; receipts are a signed hash-chain over the running log. <strong>You recompute the Merkle root over the served ballots and assert it equals the anchored root.</strong> Each receipt then yields an inclusion proof under that root. A valid receipt that does <em>not</em> resolve under the anchored root is exhibitable evidence of host misconduct&mdash;the kind of thing a single voter can hold up.</p>
+
+      <h2>6. The challenge window</h2>
+      <p>Between &ldquo;closed&rdquo; and &ldquo;published,&rdquo; there&rsquo;s a window where receipt-holders submit receipts for inclusion proofs and roster members raise count challenges. A valid fraud proof flags the decision as <strong>disputed</strong>&mdash;anchored, so the dispute itself is on the record&mdash;even when there&rsquo;s no central authority to adjudicate a self-hosted instance.</p>
+
+      <hr>
+
+      <h2>What this does &mdash; and doesn&rsquo;t &mdash; prove</h2>
+      <p>All six checks hold <strong>without any zero-knowledge proofs.</strong> That&rsquo;s the design&rsquo;s whole bet: the classical bulletin-board machinery is enough for the chosen threat model. But staying honest means being clear about the edges:</p>
+      <ul>
+        <li>Checks 4 and 5 hold even against a malicious host&mdash;the tally is recomputable and tampering-after-acknowledgement is detectable.</li>
+        <li>Checks 2 and 3 are strong against voters but reduce to <em>detection aids</em> against a host that controls the roster. That limit is named, not hidden.</li>
+        <li>And every result carries a <strong>trust level</strong> so a receipt can never be mistaken for a stronger guarantee than it actually carries: <code>anchored</code> (chain), <code>broadcast</code> (signed root distributed), or <code>casual</code> (host-attested only, branded as trust-the-host).</li>
+      </ul>
+
+      <p>That&rsquo;s the honest version of &ldquo;check it yourself&rdquo;: a tally and verdict anyone can recompute, a history anyone can confirm wasn&rsquo;t altered after the fact, and a clear label on exactly how much each result&rsquo;s integrity rests on the host. For the full picture of where the line sits, read <a href="../honesty.html">what Tessera does and doesn&rsquo;t guarantee</a>.</p>
+
+      <hr>
+      <p class="note">This post summarises the verification protocol and the honest-guarantees table from the system design (sections 11 and 13). The public verifier and the secret-ballot trust core are in progress; the design and server foundations land first, then credentials, checkpoints, the anchor, and the verifier.</p>
+      <p class="mt-2"><a class="backlink" href="why-we-rebuilt-tessera-from-first-principles.html">&larr; Back: why we rebuilt from first principles</a></p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap foot-bottom" style="border-top:0">
+      <span><a href="index.html">&larr; Blog</a> &middot; <a href="../index.html">Home</a> &middot; <a href="../honesty.html">Honesty</a></span>
+      <span>Open source · self-hostable · no wallet by default</span>
+    </div>
+  </footer>
+</body>
+</html>

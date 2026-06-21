@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What Tessera does and doesn&rsquo;t guarantee — Tessera</title>
+  <meta name="description" content="The honest threat model. What holds even against a malicious host, what rests on host honesty, and what is out of scope. No 'trustless', no overclaiming.">
+  <meta name="theme-color" content="#0A0C10">
+  <link rel="icon" type="image/svg+xml" href="assets/tessera-mark.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="index.html">
+        <img src="assets/tessera-mark.svg" alt="" width="30" height="30">
+        <span>Tessera</span>
+      </a>
+      <span class="nav-spacer"></span>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="index.html">Home</a>
+        <a href="index.html#how">How it works</a>
+        <a href="honesty.html" aria-current="page">Honesty</a>
+        <a href="blog/index.html">Blog</a>
+        <a href="https://github.com/" rel="external">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" style="padding-block: clamp(3rem,7vw,5rem)">
+      <div class="wrap">
+        <p class="label label--accent">The credibility anchor</p>
+        <h1>What Tessera does &mdash; and doesn&rsquo;t &mdash; guarantee.</h1>
+        <p class="lead">Most voting tools market the strong-sounding version and stay quiet on the limits. We do the opposite. This page is the honest threat model, stated as plainly as we can: where &ldquo;you can check it&rdquo; has real teeth, and where it reduces to trusting the host.</p>
+        <p class="whatis">Tessera&rsquo;s threat model is <strong>&ldquo;trust the organiser for integrity, but prove the count to everyone.&rdquo;</strong> The convener/host is trusted for integrity but <em>checked</em>. The honest work below is being precise about where that check is a mechanism the host can&rsquo;t cheat, and where it&rsquo;s a detection aid that ultimately rests on host honesty.</p>
+      </div>
+    </section>
+
+    <!-- ══ HOLDS AGAINST A MALICIOUS HOST ════════════════════════════════ -->
+    <section>
+      <div class="wrap">
+        <p class="label"><span class="tag tag--holds">Holds</span>even against a malicious host</p>
+        <h2>Mechanism, not policy.</h2>
+        <p>These properties hold because of how the system is built&mdash;not because we ask the host to behave. A dishonest host cannot break them without producing evidence anyone can exhibit.</p>
+
+        <div class="guard guard--holds mt-2">
+          <h3>Guaranteed by mechanism</h3>
+          <ul>
+            <li>
+              <strong>Tally correctness.</strong>
+              Anyone can recompute the result <em>and</em> the verdict (carried / failed / quorum-not-met) from the published ballots, using the same open counting rule. If the published result doesn&rsquo;t match what the ballots produce, the discrepancy is visible to everyone.
+            </li>
+            <li>
+              <strong>Ballot-set tamper-evidence after acknowledgement.</strong>
+              Receipts are a signed hash-chain over the running log, and the log&rsquo;s roots are anchored (interim and final). Dropping, reordering, or altering an acknowledged ballot breaks a chain that a receipt-holder can exhibit. A verifier <em>must</em> recompute the Merkle root from the served ballots and assert it equals the anchored root&mdash;that binding step is what gives the receipt its force.
+            </li>
+            <li>
+              <strong>Setup immutability.</strong>
+              The question, options, decision rule, roster commitment, and the per-decision signing key are committed in a <code>setupCommitment</code> and anchored <em>before</em> registration opens. The host can&rsquo;t quietly change the question or swap the credential key after the fact.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ RESTS ON HOST HONESTY ═════════════════════════════════════════ -->
+    <section>
+      <div class="wrap">
+        <p class="label"><span class="tag tag--rests">Rests</span>on host honesty &mdash; named limits</p>
+        <h2>Where the check becomes a detection aid, not a proof.</h2>
+        <p>These are real limits. We do not overclaim them. Tessera includes detection aids that make abuse <em>harder and more visible</em>&mdash;but a determined, dishonest host can still operate inside these gaps. If your group cannot trust the organiser this far, 1.0 is the wrong tool (see the post-1.0 &ldquo;strong mode&rdquo; below).</p>
+
+        <div class="guard guard--rests mt-2">
+          <h3>Named limits &mdash; do not overclaim</h3>
+          <ul>
+            <li>
+              <strong>Eligibility &amp; ballot-stuffing.</strong>
+              The host <em>defines</em> the roster, so it can stuff via fake-eligible identities or by casting the credentials of no-shows. In secret mode, blind signatures make stuffed ballots indistinguishable from real ones. <em>Mitigations:</em> open / passcode / domain rosters are published or member-challengeable (a member can publicly dispute &ldquo;you say 47 registered but only 30 of us did&rdquo;); secret mode publishes per-identity issuance counts for member audit. <em>Residual:</em> a determined host can stuff up to its roster-control budget. The &ldquo;no double-vote&rdquo; and &ldquo;issued &le; roster&rdquo; checks are <em>detection aids</em>, not proofs against the host on eligibility.
+            </li>
+            <li>
+              <strong>Secret-ballot privacy against a <em>live</em> malicious host.</strong>
+              One self-hosted process does eligibility, blind-signing, and the ballot box, so it could correlate register&hairsp;&harr;&hairsp;cast by timing, IP, or session. Blind signatures hide the <em>token</em>, not the <em>act</em>. <em>Mitigations:</em> registration closes before voting opens (breaks the issuance&hairsp;&harr;&hairsp;cast ordering), casts use a fresh session, turnout is coarse. <em>Residual:</em> a host that logs metadata can narrow the anonymity set&mdash;badly in small groups. Secret mode protects against <strong>participants, outside observers, and after-the-fact forensics&mdash;not a live malicious host.</strong>
+            </li>
+            <li>
+              <strong>Censorship by silence.</strong>
+              A host can drop a ballot and simply return no receipt; the voter then has nothing to exhibit. Receipts prove <em>deletion-after-acknowledgement</em>, not <em>refusal-to-acknowledge</em>. (Partial mitigation: a server-signed acknowledgement of submission before commit gives the voter something to hold.)
+            </li>
+          </ul>
+        </div>
+        <div class="callout callout--info mt-2">
+          <p><strong>Every result carries its trust level.</strong> <code>anchored</code> (chain, equivocation-resistant) &middot; <code>broadcast</code> (signed root distributed, tamper-evident if kept) &middot; <code>casual</code> (host-attested only, branded &ldquo;trust-the-host&rdquo;). A receipt can never be mistaken for a stronger guarantee than it actually carries.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ OUT OF SCOPE ══════════════════════════════════════════════════ -->
+    <section>
+      <div class="wrap">
+        <p class="label"><span class="tag tag--out">Out of scope</span>by the core job</p>
+        <h2>What Tessera deliberately does not try to do.</h2>
+        <div class="guard guard--out mt-2">
+          <h3>Not in scope (1.0)</h3>
+          <ul>
+            <li><strong>Coercion-resistance / vote-buying.</strong> Receipt-freeness (the MACI class of problems) is a different product with much heavier machinery. Tessera&rsquo;s self-contained receipts are explicitly <em>not</em> coercion-resistant.</li>
+            <li><strong>Anonymity against global blockchain validators.</strong> No ballots ever go on-chain&mdash;the chain, when used, is a notary for checkpoint roots only.</li>
+            <li><strong>Nation-state availability.</strong> Tessera is sized for clubs, boards, co-ops, and working groups&mdash;tens to thousands of voters per decision&mdash;not for resisting a state-level adversary.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ STRONG MODE / POST 1.0 ════════════════════════════════════════ -->
+    <section>
+      <div class="wrap">
+        <p class="label">The upgrade path &mdash; named, not vague</p>
+        <h2>If you need privacy against the host itself.</h2>
+        <p>The honest limits above are not permanent. The two host-trust gaps&mdash;stuffing and live-host privacy&mdash;have a named fix on the roadmap: a <strong>&ldquo;strong mode&rdquo;</strong> that splits trust so no single party can break secrecy or stuff the roster.</p>
+        <ul class="feat-list mt-2">
+          <li><span class="mk">&#9656;</span><span><strong>Separate registrar &perp; ballot box (Belenios-style).</strong> <span class="body">Recovers an &ldquo;either-party-honest&rdquo; guarantee&mdash;privacy holds unless <em>both</em> parties collude.</span></span></li>
+          <li><span class="mk">&#9656;</span><span><strong>Parked Semaphore zero-knowledge credential.</strong> <span class="body">For permissionless, host-independent membership anonymity. The proven code is parked, not deleted&mdash;kept as an option, not a promise.</span></span></li>
+          <li><span class="mk">&#9656;</span><span><strong>Witnessed-log anchor.</strong> <span class="body">No-wallet non-equivocation&mdash;stronger than broadcast mode without needing a funded wallet.</span></span></li>
+        </ul>
+        <p class="note mt-2">These are <em>post-1.0</em>: an upgrade path, not something 1.0 silently claims. We&rsquo;d rather name the limit and the fix than blur the line.</p>
+        <div class="btn-row">
+          <a class="btn" href="index.html#vs">See the honest comparison</a>
+          <a class="btn btn--primary" href="blog/how-you-can-check-the-result-yourself.html">How to check a result yourself</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="index.html">
+          <img src="assets/tessera-mark.svg" alt="" width="28" height="28">
+          <span>Tessera</span>
+        </a>
+        <p>An open-source, self-hostable verifiable bulletin board for trustworthy group decisions. Honest about its limits&mdash;that honesty is the point.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="index.html#how">How it works</a></li>
+          <li><a href="honesty.html">Honest guarantees</a></li>
+          <li><a href="blog/index.html">Blog</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Build it</h4>
+        <ul>
+          <li><a href="https://github.com/" rel="external">Source on GitHub</a></li>
+          <li><a href="index.html#selfhost">Self-host</a></li>
+          <li><a href="blog/how-you-can-check-the-result-yourself.html">Verify a result</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="wrap foot-bottom">
+      <span>Open source · self-hostable · no wallet by default</span>
+      <span>This page mirrors the system design&rsquo;s honest threat model.</span>
+    </div>
+  </footer>
+</body>
+</html>

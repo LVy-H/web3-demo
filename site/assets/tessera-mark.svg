@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Tessera mark - a mosaic of square tiles; one segnale tile breaks the grid:
+       the one anonymous voice. Pure rects, no gradients, no curves.
+       Tokens (codes/app/packages/design_system/lib/theme.dart):
+       void #0A0C10, chalk #F5F7FA, mute #7A8599, segnale #FF3B5C. -->
+  <rect width="512" height="512" fill="#0A0C10"/>
+  <!-- row 0 -->
+  <rect x="64" y="64" width="112" height="112" fill="#F5F7FA"/>
+  <rect x="200" y="64" width="112" height="112" fill="#F5F7FA"/>
+  <rect x="346" y="50" width="112" height="112" fill="#FF3B5C" transform="rotate(8 402 106)"/>
+  <!-- row 1 -->
+  <rect x="64" y="200" width="112" height="112" fill="#F5F7FA"/>
+  <rect x="200" y="200" width="112" height="112" fill="#7A8599"/>
+  <rect x="336" y="200" width="112" height="112" fill="#F5F7FA"/>
+  <!-- row 2 -->
+  <rect x="64" y="336" width="112" height="112" fill="#7A8599"/>
+  <rect x="200" y="336" width="112" height="112" fill="#F5F7FA"/>
+  <rect x="336" y="336" width="112" height="112" fill="#F5F7FA"/>
+</svg>

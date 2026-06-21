@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blog — Tessera</title>
+  <meta name="description" content="Notes from building Tessera: the first-principles rebuild, and how you can check a result yourself.">
+  <meta name="theme-color" content="#0A0C10">
+  <link rel="icon" type="image/svg+xml" href="../assets/tessera-mark.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="../index.html">
+        <img src="../assets/tessera-mark.svg" alt="" width="30" height="30">
+        <span>Tessera</span>
+      </a>
+      <span class="nav-spacer"></span>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="../index.html">Home</a>
+        <a href="../index.html#how">How it works</a>
+        <a href="../honesty.html">Honesty</a>
+        <a href="index.html" aria-current="page">Blog</a>
+        <a href="https://github.com/" rel="external">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" style="padding-block: clamp(3rem,7vw,5rem)">
+      <div class="wrap">
+        <p class="label label--accent">Blog</p>
+        <h1>Notes from building Tessera.</h1>
+        <p class="lead">How we think about trust, why we tore the old architecture down, and how anyone can check a result for themselves.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <ul class="post-list">
+          <li class="post-card">
+            <p class="post-meta">Design &middot; first principles</p>
+            <h2><a class="post-title" href="why-we-rebuilt-tessera-from-first-principles.html">Why we rebuilt Tessera from first principles</a></h2>
+            <p>We questioned every foundation the old system rested on&mdash;a blockchain backend, zero-knowledge proofs, a gas-paying relayer&mdash;and kept only what the threat model earned. Three of the four didn&rsquo;t survive. Here&rsquo;s the reasoning, and where it landed: a verifiable bulletin board.</p>
+            <p class="mt-1"><a class="backlink" href="why-we-rebuilt-tessera-from-first-principles.html">Read the post &rarr;</a></p>
+          </li>
+          <li class="post-card">
+            <p class="post-meta">Verification &middot; how-to</p>
+            <h2><a class="post-title" href="how-you-can-check-the-result-yourself.html">How you can check the result yourself</a></h2>
+            <p>The whole pitch is that you don&rsquo;t have to trust whoever ran the vote. So how do you actually check? This walks through the verifier&rsquo;s job&mdash;recompute the tally and the verdict, confirm the ballot set wasn&rsquo;t altered via the anchored root&mdash;and stays honest about the 1.0 scope.</p>
+            <p class="mt-1"><a class="backlink" href="how-you-can-check-the-result-yourself.html">Read the post &rarr;</a></p>
+          </li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="../index.html">
+          <img src="../assets/tessera-mark.svg" alt="" width="28" height="28">
+          <span>Tessera</span>
+        </a>
+        <p>An open-source, self-hostable verifiable bulletin board for trustworthy group decisions. Honest about its limits&mdash;that honesty is the point.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="../index.html#how">How it works</a></li>
+          <li><a href="../honesty.html">Honest guarantees</a></li>
+          <li><a href="index.html">Blog</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Build it</h4>
+        <ul>
+          <li><a href="https://github.com/" rel="external">Source on GitHub</a></li>
+          <li><a href="../index.html#selfhost">Self-host</a></li>
+          <li><a href="how-you-can-check-the-result-yourself.html">Verify a result</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="wrap foot-bottom">
+      <span>Open source · self-hostable · no wallet by default</span>
+      <span>Dark Bauhaus</span>
+    </div>
+  </footer>
+</body>
+</html>
