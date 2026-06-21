@@ -120,4 +120,15 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    id: 2,
+    name: "lifecycle-closes-at",
+    // Persist the 'extend' amendment's re-anchored close time so the cast path
+    // and the startup reconcile can compute the EFFECTIVE close (latest extend's
+    // closesAt, else the decision schedule) without re-deriving it from the
+    // signed preimage (M2). Nullable: only 'extend' rows carry it.
+    sql: /* sql */ `
+      ALTER TABLE lifecycle_events ADD COLUMN closes_at INTEGER;
+    `,
+  },
 ];

@@ -82,15 +82,26 @@ describe("e2e: open-ballot decision flow", () => {
     expect(root.status).toBe(200);
     expect(root.body.leafCount).toBe(3);
 
-    // ── /ballots: 3 ballots returned ─────────────────────────────────────────
-    const list = await request(app).get(`/ballots`).query({ decisionId: id });
-    expect(list.status).toBe(200);
-    expect(list.body.ballots).toHaveLength(3);
-    expect(list.body.leafCount).toBe(3);
+    // ── /ballots: DRAIN the cursor (M3) before recomputing the head ──────────
+    // A verifier must page until `complete` so a >limit log can't silently
+    // truncate the recomputation. Use a small limit to exercise pagination.
+    const drained: Array<{ ballotHash: string }> = [];
+    let cursor: number | null = -1;
+    let complete = false;
+    while (!complete) {
+      const page = await request(app)
+        .get(`/ballots`)
+        .query({ decisionId: id, after: cursor, limit: 2 });
+      expect(page.status).toBe(200);
+      drained.push(...page.body.ballots);
+      complete = page.body.complete === true;
+      cursor = page.body.nextCursor;
+    }
+    expect(drained).toHaveLength(3);
 
-    // ── §11.5 binding: independently recompute the chain ─────────────────────
+    // ── §11.5 binding: independently recompute the chain from the drained log ─
     let head = genesisHead(id);
-    for (const b of list.body.ballots) {
+    for (const b of drained) {
       head = chainNext(head, b.ballotHash);
     }
     expect(head).toBe(root.body.head);
@@ -114,6 +125,67 @@ describe("e2e: open-ballot decision flow", () => {
     expect(results.body.tally.optionScores).toEqual([2, 1]);
     expect(results.body.verdict.outcome).toBe("carried");
     expect(results.body.verdict.winner).toBe(0);
+  });
+
+  it("M3: a drained >limit page recomputation equals /root (no silent truncation)", async () => {
+    const { app, adminToken } = makeTestApp();
+    const auth = (r: request.Test) => r.set("Authorization", `Bearer ${adminToken}`);
+
+    const createRes = await auth(
+      request(app)
+        .post("/decisions")
+        .send({
+          title: "Many ballots",
+          options: ["Yes", "No"],
+          method: "single",
+          ballotMode: "open",
+          resultsPolicy: "live",
+          eligibility: { method: "open" },
+          rule: { threshold: { kind: "majority" }, tieBreak: "declare" },
+          schedule: {},
+          visibility: "listed",
+          anchorMode: "broadcast",
+        }),
+    );
+    const id: string = createRes.body.id;
+    await auth(request(app).post(`/decisions/${id}/open`));
+
+    // Cast 3 ballots; page with limit 2 (so the first page is NOT complete).
+    for (let i = 0; i < 3; i++) {
+      const res = await request(app)
+        .post("/ballots")
+        .send({ decisionId: id, payload: { kind: "single", choice: i % 2 }, idempotencyKey: `m3-${i}` });
+      expect(res.status).toBe(201);
+    }
+
+    // First page (limit 2) must report complete=false and a nextCursor.
+    const page1 = await request(app).get(`/ballots`).query({ decisionId: id, limit: 2 });
+    expect(page1.body.ballots).toHaveLength(2);
+    expect(page1.body.complete).toBe(false);
+    expect(page1.body.nextCursor).toBe(1);
+
+    // A naive single-page recomputation would DIVERGE from /root.
+    const root = await request(app).get(`/root`).query({ decisionId: id });
+    let truncated = genesisHead(id);
+    for (const b of page1.body.ballots) truncated = chainNext(truncated, b.ballotHash);
+    expect(truncated).not.toBe(root.body.head);
+
+    // Draining the cursor until complete recomputes the SAME head as /root.
+    const drained: Array<{ ballotHash: string }> = [];
+    let cursor: number | null = -1;
+    let complete = false;
+    while (!complete) {
+      const page: request.Response = await request(app)
+        .get(`/ballots`)
+        .query({ decisionId: id, after: cursor, limit: 2 });
+      drained.push(...page.body.ballots);
+      complete = page.body.complete === true;
+      cursor = page.body.nextCursor;
+    }
+    expect(drained).toHaveLength(3);
+    let head = genesisHead(id);
+    for (const b of drained) head = chainNext(head, b.ballotHash);
+    expect(head).toBe(root.body.head);
   });
 
   it("rejects an unauth cast on a closed decision with a signed 409", async () => {

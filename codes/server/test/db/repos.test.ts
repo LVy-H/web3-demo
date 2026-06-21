@@ -250,4 +250,17 @@ describe("repos round-trip", () => {
     expect(repos.head.get(d.id)?.head).toBe("head-2");
     expect(repos.head.get(d.id)?.leafCount).toBe(2);
   });
+
+  it("head: refuses to LOWER an existing leafCount (C1 append-only guard)", () => {
+    const a = newAccount(repos);
+    const d = newDecision(repos, a.id);
+    repos.head.set(d.id, "head-3", 3);
+    // A re-open that tries to reset the chain to genesis/leafCount-0 must throw,
+    // never silently fork the §11.5 root binding.
+    expect(() => repos.head.set(d.id, "", 0)).toThrow();
+    // Same leafCount (idempotent re-write) is allowed; higher advances.
+    expect(() => repos.head.set(d.id, "head-3", 3)).not.toThrow();
+    repos.head.set(d.id, "head-4", 4);
+    expect(repos.head.get(d.id)?.leafCount).toBe(4);
+  });
 });

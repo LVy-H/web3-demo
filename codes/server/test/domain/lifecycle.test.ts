@@ -14,9 +14,14 @@ import {
 //   challenge → published
 //   closed → published          (challenge optional)
 //   {draft,open,closed,challenge} → cancelled
-//   open → open                  (the 'extend' amendment)
 // Everything else is illegal — especially anything OUT of a terminal
 // state ('published' | 'cancelled') and lifecycle skips.
+//
+// C1 FIX: open → open is NOT a state transition. 'extend' is an AMENDMENT
+// (state stays 'open'; it appends a signed lifecycle event and never calls
+// assertTransition). Keeping open → open in the machine let a 2nd /open reset
+// the running hash-chain head to genesis/leafCount-0 after ballots existed
+// (§11.5 root-binding fork), so the self-loop is now rejected.
 const LEGAL: ReadonlyArray<[DecisionState, DecisionState]> = [
   ["draft", "open"],
   ["open", "closed"],
@@ -27,7 +32,6 @@ const LEGAL: ReadonlyArray<[DecisionState, DecisionState]> = [
   ["open", "cancelled"],
   ["closed", "cancelled"],
   ["challenge", "cancelled"],
-  ["open", "open"],
 ];
 
 const LEGAL_SET = new Set(LEGAL.map(([f, t]) => `${f}->${t}`));
@@ -71,7 +75,9 @@ describe("canTransition — representative illegal transitions are rejected", ()
     ["closed", "open"],
     ["challenge", "closed"],
     ["closed", "draft"],
-    // self-loops that are NOT the extend amendment
+    // self-loops are all illegal (C1: 'extend' is an amendment, not a
+    // state transition, so open → open must NOT be a legal edge).
+    ["open", "open"],
     ["draft", "draft"],
     ["closed", "closed"],
     ["challenge", "challenge"],
@@ -99,8 +105,14 @@ describe("canTransition — exhaustive cross-product matches the legal set", () 
 describe("assertTransition", () => {
   it("does not throw on a legal transition", () => {
     expect(() => assertTransition("draft", "open")).not.toThrow();
-    expect(() => assertTransition("open", "open")).not.toThrow();
+    expect(() => assertTransition("open", "closed")).not.toThrow();
     expect(() => assertTransition("closed", "published")).not.toThrow();
+  });
+
+  it("throws on open → open (C1: extend is an amendment, not a transition)", () => {
+    expect(() => assertTransition("open", "open")).toThrow(
+      IllegalTransitionError,
+    );
   });
 
   it("throws IllegalTransitionError on an illegal transition", () => {

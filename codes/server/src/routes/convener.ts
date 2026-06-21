@@ -39,6 +39,8 @@ function appendSignedLifecycle(
     transition?: string;
     /** Extra fields folded into the signed preimage (e.g. closesAt). */
     extra?: Record<string, unknown>;
+    /** Persisted re-anchored close time for an 'extend' amendment (M2). */
+    closesAt?: number | null;
   },
 ): number {
   const timestamp = deps.now();
@@ -57,6 +59,7 @@ function appendSignedLifecycle(
     actor: args.actor,
     ts: timestamp,
     signedSig,
+    closesAt: args.closesAt ?? null,
   });
   return timestamp;
 }
@@ -187,8 +190,11 @@ export function convenerRouter(deps: ConvenerDeps): Router {
       });
       repos.decisions.setState(decision.id, to, at);
 
-      if (to === "open") {
-        // Initialise the running head at genesis for this decision.
+      if (to === "open" && from === "draft") {
+        // Initialise the running head at genesis ONLY on the real first open
+        // (draft → open). open → open is now an illegal transition (rejected
+        // above) so this never re-runs after ballots exist — guarding C1, the
+        // chain-head reset that forked the §11.5 root binding.
         repos.head.set(decision.id, genesisHead(decision.id), 0);
       }
       res.status(200).json({ id: decision.id, state: to });
@@ -257,6 +263,7 @@ export function convenerRouter(deps: ConvenerDeps): Router {
       actor: req.account!.id,
       transition: "extend",
       extra: { transition: "extend", closesAt },
+      closesAt,
     });
     // (preimage carries transition:'extend' + closesAt so the amendment is
     //  tamper-evident; the row's `transition` column stores 'extend' too.)

@@ -7,7 +7,13 @@
 //   challenge → published
 //   closed    → published                 (challenge optional)
 //   {draft, open, closed, challenge} → cancelled
-//   open      → open                       (the 'extend' amendment)
+//
+// NOTE: 'extend' is an AMENDMENT, not a state transition. Extending an open
+// decision keeps the state 'open' — it appends a signed lifecycle event (the
+// re-anchored close time) and never calls assertTransition. open → open is
+// therefore NOT a legal edge here. (Treating it as a self-transition let a 2nd
+// POST /open reset the running hash-chain head to genesis/leafCount-0 after
+// ballots existed, forking the §11.5 root binding — finding C1.)
 //
 // Everything else is illegal — especially anything OUT of a terminal state
 // ('published' | 'cancelled'), and lifecycle skips (e.g. draft → closed).
@@ -20,8 +26,8 @@ import type { DecisionState } from "./types";
  */
 const TRANSITIONS: Readonly<Record<DecisionState, ReadonlySet<DecisionState>>> = {
   draft: new Set<DecisionState>(["open", "cancelled"]),
-  // open → open is the 'extend' amendment (re-anchored close time).
-  open: new Set<DecisionState>(["open", "closed", "cancelled"]),
+  // 'extend' is an amendment, not a transition: open does NOT map to open.
+  open: new Set<DecisionState>(["closed", "cancelled"]),
   closed: new Set<DecisionState>(["challenge", "published", "cancelled"]),
   challenge: new Set<DecisionState>(["published", "cancelled"]),
   published: new Set<DecisionState>(),

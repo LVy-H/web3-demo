@@ -31,7 +31,6 @@ const ballotModeEnum = z.enum(["open", "secret"]);
 const resultsPolicyEnum = z.enum(["sealed", "live"]);
 const anchorModeEnum = z.enum(["casual", "broadcast", "chain"]);
 const visibilityEnum = z.enum(["listed", "link-only"]);
-const eligibilityMethodEnum = z.enum(["open", "passcode", "domain", "invite"]);
 const thresholdKindEnum = z.enum(["plurality", "majority", "supermajority"]);
 const tieBreakEnum = z.enum(["declare", "runoff", "casting", "random-seed"]);
 
@@ -39,10 +38,27 @@ const tieBreakEnum = z.enum(["declare", "runoff", "casting", "random-seed"]);
 // DecisionCreateSchema (§3 C1/C-rules)
 // ---------------------------------------------------------------------------
 
-const thresholdSchema = z.object({
-  kind: thresholdKindEnum,
-  percent: z.number().min(0).max(100).optional(),
-});
+// `percent` only has meaning for 'supermajority'. It is REQUIRED there and must
+// be in (0, 100]; for plurality/majority it is ignored (and may be omitted).
+// (H1: an optional percent untied to kind committed a supermajority rule that
+// could never carry — verdict computed max*100 >= NaN → always false → a
+// unanimous vote reported 'failed'.)
+const thresholdSchema = z
+  .object({
+    kind: thresholdKindEnum,
+    percent: z.number().min(0).max(100).optional(),
+  })
+  .superRefine((t, ctx) => {
+    if (t.kind === "supermajority") {
+      if (typeof t.percent !== "number" || t.percent <= 0 || t.percent > 100) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["percent"],
+          message: "supermajority requires a percent in (0, 100]",
+        });
+      }
+    }
+  });
 
 const ruleSchema = z.object({
   threshold: thresholdSchema,
@@ -55,12 +71,20 @@ const scheduleSchema = z.object({
   closesAt: z.number().int().optional(),
 });
 
-// Eligibility: discriminated on `method` but the extra per-method fields
-// (passcode, domain, ...) are tolerated. Unknown methods are rejected by the
-// enum; unknown extra keys pass through (the route layer reads what it needs).
-const eligibilitySchema = z
-  .object({ method: eligibilityMethodEnum })
-  .passthrough();
+// Eligibility: a discriminated union on `method` with STRICT per-method fields.
+// (L2: `.passthrough()` let stray keys into the config, so two semantically
+// identical eligibilities could commit DIFFERENT rosterCommitments. Each
+// variant is `.strict()` so only the known field set is accepted.)
+//   open     → {} (no gate at cast time)
+//   passcode → { passcode }      (the route hashes & stores it)
+//   domain   → { domain }        (the route lower-cases & stores it)
+//   invite   → {}                (Phase-3 single-use credentials; no inline data)
+const eligibilitySchema = z.discriminatedUnion("method", [
+  z.object({ method: z.literal("open") }).strict(),
+  z.object({ method: z.literal("passcode"), passcode: z.string().min(1) }).strict(),
+  z.object({ method: z.literal("domain"), domain: z.string().min(1) }).strict(),
+  z.object({ method: z.literal("invite") }).strict(),
+]);
 
 export const DecisionCreateSchema = z.object({
   title: z.string().min(1),
