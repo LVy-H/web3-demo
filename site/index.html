@@ -194,20 +194,34 @@
       </div>
     </section>
 
-    <!-- ══ DEMO PLACEHOLDER ══════════════════════════════════════════════ -->
+    <!-- ══ DEMO ══════════════════════════════════════════════════════════ -->
     <section id="see-it">
       <div class="wrap">
         <p class="label">See it in action</p>
         <h2>A live decision, end to end.</h2>
-        <p>The Tessera client (a Flutter web app) covers the whole journey&mdash;create, vote, close, and verify. The interactive demo will embed right here.</p>
+        <p>The Tessera client is one Flutter app (web, desktop, mobile) covering the whole journey&mdash;create, distribute, vote, close, publish. These are real screens, driving a real self-hosted server.</p>
 
-        <!-- ▼ DEMO DROP-IN: replace the inner placeholder with the live iframe / link. -->
-        <div id="demo" class="mt-2" role="img" aria-label="Live demo placeholder — coming soon">
-          <div class="play" aria-hidden="true">&#9654;</div>
-          <p class="demo-title">Live demo coming here</p>
-          <p>The Flutter web app embeds or links into this spot. Drop the demo <code>&lt;iframe&gt;</code> or a launch link inside <code>#demo</code> when it&rsquo;s ready.</p>
+        <div id="demo" class="screens mt-2">
+          <figure>
+            <img src="assets/screens/share.png" alt="Tessera share screen: a QR code and a tessera:// link to open the poll, with copy and share buttons" loading="lazy" />
+            <figcaption>Distribute &mdash; one QR / link, no account or wallet to join.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/screens/results.png" alt="Tessera results screen: a tally with the leading option highlighted and per-option percentages" loading="lazy" />
+            <figcaption>Results &mdash; a tally anyone can recompute from the published ballots.</figcaption>
+          </figure>
         </div>
-        <p class="note mt-1">Placeholder marked at <code>&lt;div id="demo"&gt;</code> in <code>index.html</code>.</p>
+
+        <p class="note mt-1">Proven end to end: the client drives a live server through <code>create &rarr; open &rarr; cast &rarr; close &rarr; publish</code> &mdash; returning <code>carried</code>, the right tally, and a Merkle-rooted ballot log.</p>
+
+        <h3 class="mt-2">Run it yourself</h3>
+        <pre class="code"><code># start the self-hosted server (prints an admin token once, no wallet needed)
+cd codes/server &amp;&amp; npm install &amp;&amp; npm run build &amp;&amp; node dist/index.js
+
+# build the Flutter web client, then point it at your server
+cd codes/app/apps/tessera &amp;&amp; flutter build web
+# open the app  →  Settings → Network → Server URL + paste the admin token</code></pre>
+        <p class="note mt-1">Coming next: an independent <strong>verifier</strong> you run yourself &mdash; it recomputes the tally and binds it to the anchored root, so you never take the host&rsquo;s word for the result. <a href="blog/how-you-can-check-the-result-yourself.html">How that works &rarr;</a></p>
       </div>
     </section>
 

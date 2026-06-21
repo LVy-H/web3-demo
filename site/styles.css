@@ -224,15 +224,23 @@ td { color: var(--chalk-dim); }
 .tag--rests { background: var(--amber); }
 .tag--out   { background: var(--mute); }
 
-/* ── demo placeholder ────────────────────────────────────────────────────── */
-#demo {
-  border: 2px dashed var(--rule); background: var(--slate3);
-  min-height: 360px; display: grid; place-content: center; text-align: center;
-  padding: 2rem; gap: .6rem;
+/* ── demo: real-screen gallery + run-it-yourself ─────────────────────────── */
+#demo.screens {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--gap); align-items: start;
 }
-#demo .play { font-size: 2.4rem; color: var(--segnale); line-height: 1; }
-#demo .demo-title { font-family: var(--mono); font-size: 1rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--chalk); font-weight: 700; }
-#demo p { color: var(--mute); max-width: 48ch; margin-inline: auto; }
+#demo.screens figure { margin: 0; }
+#demo.screens img {
+  display: block; width: 100%; height: auto;
+  border: 1px solid var(--rule); border-radius: 8px; background: var(--void);
+}
+#demo.screens figcaption { margin-top: .6rem; font-size: .86rem; color: var(--chalk-dim); }
+pre.code {
+  background: var(--slate3); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 1rem 1.1rem; overflow-x: auto;
+  font-family: var(--mono); font-size: .82rem; line-height: 1.6; color: var(--chalk-dim);
+}
+pre.code code { color: inherit; font: inherit; }
 
 /* ── feature list with mono markers ──────────────────────────────────────── */
 .feat-list { list-style: none; padding: 0; display: grid; gap: 1rem; }
