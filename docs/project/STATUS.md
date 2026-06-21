@@ -1,6 +1,6 @@
 # Status
 
-> **Snapshot:** 2026-06-19 — keep this date current when editing.
+> **Snapshot:** 2026-06-21 — keep this date current when editing.
 
 ## TL;DR
 
@@ -16,10 +16,13 @@ hardened against a four-lens adversarial review (security / systems / product / 
 its claims are deliberately honest about single-party trust (§6/§13). The new
 [ROADMAP](./ROADMAP.md) is a clean Phase 0–6 path to **1.0**.
 
-**This is a planning milestone, not a shipped product change yet.** No new architecture
-code has been written; the old stack still exists in the tree and is slated for removal in
-Phase 1 (dismantle & extract). See the implementation plan under
-`docs/superpowers/plans/`.
+**Phases 1–2 are now built.** Phase 1 dismantled the on-chain / ZK / relayer stack (PR #133);
+Phase 2 built the self-hosted TypeScript server end-to-end for **open-ballot** decisions —
+SQLite append-only log, convener auth, the decision lifecycle, the six-method tally oracle +
+verdict, idempotent cast with signed hash-chained receipts, and the public read API. The server
+builds, starts with one command, and runs create→open→cast→close→publish (245 tests + a
+running-server smoke). Blind-sig credentials, Merkle/anchor, and the independent verifier are
+Phase 3. See the implementation plan under `docs/superpowers/plans/`.
 
 ## Where things actually stand
 
@@ -32,23 +35,31 @@ Phase 1 (dismantle & extract). See the implementation plan under
   `.tmp` artifacts cleared; devenv WIP preserved on `chore/devenv-migration-wip`; a
   remote-branch prune script generated for the shared repo (`.out/remote-branch-cleanup.sh`).
 
-### Exists but slated for removal (Phase 1)
-- `codes/contracts/` — 6 ZK voting modules + `PollRegistry` + verifiers + `ZkAirdrop`
-  (~2,000 LOC Solidity, 268 tests). **To delete.**
-- `codes/relayer/` — Express gasless-relay + sponsored lifecycle (~2,500 LOC, 96 tests).
-  **To delete** (its Express/Vitest scaffolding seeds the new server).
-- `codes/app/packages/core_crypto/proof/` — 3 provers + 4.7 MB SNARK artifacts. **To delete**
-  (Semaphore ZK is *parked* as the post-1.0 "strong mode", not lost).
-- Client `ChainWriter` / dev-signer / port adapters. **To delete / rewire to server HTTP.**
+### Removed (Phase 1 — DONE, PR #133)
+- `codes/contracts/` (on-chain ZK voting + verifiers + `ZkAirdrop`), `codes/relayer/` (gasless
+  relay), and `core_crypto/proof/` (provers + 5.5 MB SNARK artifacts) — all deleted; the proof
+  seam is fenced behind a throwing stub. Semaphore ZK is *parked* as the post-1.0 "strong mode",
+  not lost. CI repointed to `app` + `android` + a new `server` job.
+
+### Built (Phase 2 — DONE: server, open-ballot end-to-end)
+- `codes/server/` (TypeScript + Express + better-sqlite3): SQLite WAL append-only log + typed
+  repos; convener bootstrap-token auth; the decision lifecycle (state machine + signed events);
+  the six-method **tally oracle + verdict** (ported from `core_domain/voting`); idempotent
+  single-transaction **cast** with server-signed **hash-chained receipts**; the public read API
+  (`/decisions`, `/ballots`, `/root`, `/results`, `/anchor`). 245 tests + a running-server smoke;
+  one-command build/start; Docker + `dev-stack.sh up`.
 
 ### Kept (survives the pivot — backend-agnostic)
 - `design_system` (Dark Bauhaus tokens + widgets); `core_domain` journey state machines +
   `voting/` off-chain tally (IRV/quadratic/survey); `core_storage`; the `feature_*` voting
-  UI screens + ballot widgets; the join-code grammar.
+  UI screens + ballot widgets; the join-code grammar. (Client rewire to the server is Phase 4.)
 
-### Not started
-- The new server, blind-sig credentials, Merkle/checkpoint/anchor, public verifier, client
-  rewire, the product FRs, the WCAG-AA + web-payload work (Phases 2–6).
+### Remaining (Phases 3–6)
+- **Phase 3** trust core: blind-sig credentials (secret ballots), RFC 6962 Merkle + checkpoints,
+  the anchor adapter (broadcast/chain), the independent public verifier.
+- **Phase 4** client rewire to the server + the voter web-payload budget gate. **Phase 5**
+  product FRs (result semantics, notifications, lifecycle edits, abstain, sharing, a11y/i18n).
+  **Phase 6** 1.0 hardening + one-command self-host packaging.
 
 ## Known open decision (flagged for the owner)
 - **Privacy against a *live* malicious host** is a post-1.0 "strong mode" (separate
