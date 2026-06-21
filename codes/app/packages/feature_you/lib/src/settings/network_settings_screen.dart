@@ -34,6 +34,8 @@ class _NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _rpc;
   late final TextEditingController _relayer;
+  late final TextEditingController _server;
+  late final TextEditingController _convenerToken;
   late final TextEditingController _registry;
   late final TextEditingController _semaphore;
   late final TextEditingController _chainId;
@@ -45,6 +47,8 @@ class _NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
     final c = AppConfig.effective;
     _rpc = TextEditingController(text: c.rpcUrl);
     _relayer = TextEditingController(text: c.relayerUrl);
+    _server = TextEditingController(text: c.serverUrl);
+    _convenerToken = TextEditingController(text: AppConfig.convenerToken ?? '');
     _registry = TextEditingController(text: c.registryAddress);
     _semaphore = TextEditingController(text: c.semaphoreAddress);
     _chainId = TextEditingController(text: c.chainId.toString());
@@ -54,6 +58,8 @@ class _NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
   void dispose() {
     _rpc.dispose();
     _relayer.dispose();
+    _server.dispose();
+    _convenerToken.dispose();
     _registry.dispose();
     _semaphore.dispose();
     _chainId.dispose();
@@ -70,6 +76,7 @@ class _NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
   NetworkConfig _read() => NetworkConfig(
     rpcUrl: _rpc.text.trim(),
     relayerUrl: _relayer.text.trim(),
+    serverUrl: _server.text.trim(),
     registryAddress: _registry.text.trim(),
     semaphoreAddress: _semaphore.text.trim(),
     chainId: int.parse(_chainId.text.trim()),
@@ -78,6 +85,11 @@ class _NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     final config = _read();
+    // The convener Bearer token is a credential, not a backend pointer — it
+    // lives in-memory only (re-pasted after a restart), set here so the demo
+    // operator can paste the admin token the server prints on startup.
+    final token = _convenerToken.text.trim();
+    AppConfig.convenerToken = token.isEmpty ? null : token;
     await _persist(() => widget.store.save(config), 'Custom backend saved.');
   }
 
@@ -205,6 +217,20 @@ class _NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
                       TextInputType.url,
                     ),
                     _field(
+                      'SERVER URL (open-ballot)',
+                      _server,
+                      'http://127.0.0.1:3001',
+                      _url,
+                      TextInputType.url,
+                    ),
+                    _field(
+                      'CONVENER TOKEN (admin)',
+                      _convenerToken,
+                      'paste the token the server prints on startup',
+                      null,
+                      TextInputType.text,
+                    ),
+                    _field(
                       'REGISTRY ADDRESS',
                       _registry,
                       '0x…',
@@ -272,7 +298,7 @@ class _NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
     String label,
     TextEditingController c,
     String hint,
-    String? Function(String?) validator,
+    String? Function(String?)? validator,
     TextInputType keyboard, {
     bool digitsOnly = false,
   }) => Padding(
