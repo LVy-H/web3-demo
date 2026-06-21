@@ -131,4 +131,41 @@ export const MIGRATIONS: readonly Migration[] = [
       ALTER TABLE lifecycle_events ADD COLUMN closes_at INTEGER;
     `,
   },
+  {
+    id: 3,
+    name: "phase3-checkpoints",
+    // Phase-3 (§11 checkpoints / §12.1 anchor): the server signs the RFC 6962
+    // Merkle root over the published ballotHash leaves and persists each signed
+    // checkpoint here. The FINAL checkpoint (built on /publish) is the broadcast
+    // anchor `/anchor` serves so a verifier can bind the served ballots to a
+    // host-independent signed root (root-binding, §11 step 5).
+    //
+    // Append-only audit log: one row per built checkpoint, ordered by tree_size.
+    // `signed_root` is the detached Ed25519 signature (base64) over
+    // canonicalize({ root, treeSize, decisionId }) — the EXACT verifier preimage.
+    sql: /* sql */ `
+      CREATE TABLE checkpoints (
+        id          TEXT    PRIMARY KEY,
+        decision_id TEXT    NOT NULL REFERENCES decisions(id),
+        root        TEXT    NOT NULL,
+        tree_size   INTEGER NOT NULL,
+        prev_root   TEXT,
+        signed_root TEXT    NOT NULL,
+        created_at  INTEGER NOT NULL
+      );
+      CREATE INDEX idx_checkpoints_decision ON checkpoints(decision_id, tree_size);
+
+      -- checkpoints are an append-only audit trail: forbid mutation/removal.
+      CREATE TRIGGER trg_checkpoints_no_update
+        BEFORE UPDATE ON checkpoints
+      BEGIN
+        SELECT RAISE(ABORT, 'checkpoints are append-only');
+      END;
+      CREATE TRIGGER trg_checkpoints_no_delete
+        BEFORE DELETE ON checkpoints
+      BEGIN
+        SELECT RAISE(ABORT, 'checkpoints are append-only');
+      END;
+    `,
+  },
 ];

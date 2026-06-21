@@ -84,7 +84,7 @@ export function createApp(deps: AppDeps): express.Express {
       ballotRateLimit,
     }),
   );
-  app.use(publicRouter({ repos: deps.repos }));
+  app.use(publicRouter({ repos: deps.repos, serverKey: deps.serverKey }));
 
   return app;
 }

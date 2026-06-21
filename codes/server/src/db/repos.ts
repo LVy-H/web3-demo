@@ -166,6 +166,23 @@ export interface DecisionHead {
   leafCount: number;
 }
 
+export interface Checkpoint {
+  id: string;
+  decisionId: string;
+  root: string;
+  treeSize: number;
+  prevRoot: string | null;
+  signedRoot: string;
+  createdAt: number;
+}
+export interface CheckpointInput {
+  decisionId: string;
+  root: string;
+  treeSize: number;
+  prevRoot: string | null;
+  signedRoot: string;
+}
+
 // ---------------------------------------------------------------------------
 // Row shapes (raw snake_case rows from sqlite) + mappers
 // ---------------------------------------------------------------------------
@@ -309,6 +326,25 @@ const toHead = (r: HeadRow): DecisionHead => ({
   leafCount: r.leaf_count,
 });
 
+interface CheckpointRow {
+  id: string;
+  decision_id: string;
+  root: string;
+  tree_size: number;
+  prev_root: string | null;
+  signed_root: string;
+  created_at: number;
+}
+const toCheckpoint = (r: CheckpointRow): Checkpoint => ({
+  id: r.id,
+  decisionId: r.decision_id,
+  root: r.root,
+  treeSize: r.tree_size,
+  prevRoot: r.prev_root,
+  signedRoot: r.signed_root,
+  createdAt: r.created_at,
+});
+
 // ---------------------------------------------------------------------------
 // Repo interfaces
 // ---------------------------------------------------------------------------
@@ -333,6 +369,14 @@ export interface BallotRepo {
   count(decisionId: string): number;
   /** Current chain head (latest ballot_hash) for a decision, or genesis ''. */
   head(decisionId: string): string;
+  /**
+   * All ballotHash leaves for a decision in log_seq order (the RFC 6962 Merkle
+   * leaves). The whole set — the Merkle root commits to every leaf at once, so
+   * there is no incremental "append one leaf"; the verifier recomputes the same.
+   */
+  leafHashes(decisionId: string): string[];
+  /** The stored ballot for a (decisionId, idempotencyKey) pair, or null. */
+  findByIdempotency(decisionId: string, idempotencyKey: string): Ballot | null;
 }
 
 export interface ReceiptRepo {
@@ -367,6 +411,13 @@ export interface HeadRepo {
   set(decisionId: string, head: string, leafCount: number): void;
 }
 
+export interface CheckpointRepo {
+  /** Append a signed checkpoint (append-only audit trail). */
+  append(c: CheckpointInput): Checkpoint;
+  /** The newest checkpoint for a decision (largest tree_size), or null. */
+  latest(decisionId: string): Checkpoint | null;
+}
+
 export interface Repos {
   accounts: AccountRepo;
   decisions: DecisionRepo;
@@ -375,6 +426,7 @@ export interface Repos {
   lifecycle: LifecycleRepo;
   eligibility: EligibilityRepo;
   head: HeadRepo;
+  checkpoints: CheckpointRepo;
 }
 
 // ---------------------------------------------------------------------------
@@ -501,6 +553,13 @@ export function makeRepos(db: Database.Database): Repos {
     `SELECT ballot_hash FROM ballots WHERE decision_id = ?
      ORDER BY log_seq DESC LIMIT 1`,
   );
+  const balLeaves = db.prepare(
+    `SELECT ballot_hash FROM ballots WHERE decision_id = ?
+     ORDER BY log_seq ASC`,
+  );
+  const balByIdem = db.prepare(
+    `SELECT * FROM ballots WHERE decision_id = ? AND idempotency_key = ?`,
+  );
 
   const ballots: BallotRepo = {
     append(b) {
@@ -538,6 +597,16 @@ export function makeRepos(db: Database.Database): Repos {
     head(decisionId) {
       const r = balHead.get(decisionId) as { ballot_hash: string } | undefined;
       return r ? r.ballot_hash : "";
+    },
+    leafHashes(decisionId) {
+      const rows = balLeaves.all(decisionId) as { ballot_hash: string }[];
+      return rows.map((r) => r.ballot_hash);
+    },
+    findByIdempotency(decisionId, idempotencyKey) {
+      const r = balByIdem.get(decisionId, idempotencyKey) as
+        | BallotRow
+        | undefined;
+      return r ? toBallot(r) : null;
     },
   };
 
@@ -664,5 +733,41 @@ export function makeRepos(db: Database.Database): Repos {
     },
   };
 
-  return { accounts, decisions, ballots, receipts, lifecycle, eligibility, head };
+  // checkpoints ------------------------------------------------------------
+  const cpInsert = db.prepare(
+    `INSERT INTO checkpoints (
+        id, decision_id, root, tree_size, prev_root, signed_root, created_at)
+     VALUES (@id, @decisionId, @root, @treeSize, @prevRoot, @signedRoot, @createdAt)`,
+  );
+  const cpLatest = db.prepare(
+    `SELECT * FROM checkpoints WHERE decision_id = ?
+     ORDER BY tree_size DESC, created_at DESC, rowid DESC LIMIT 1`,
+  );
+
+  const checkpoints: CheckpointRepo = {
+    append(c) {
+      const row: Checkpoint = {
+        id: randomUUID(),
+        ...c,
+        createdAt: Date.now(),
+      };
+      cpInsert.run(row);
+      return row;
+    },
+    latest(decisionId) {
+      const r = cpLatest.get(decisionId) as CheckpointRow | undefined;
+      return r ? toCheckpoint(r) : null;
+    },
+  };
+
+  return {
+    accounts,
+    decisions,
+    ballots,
+    receipts,
+    lifecycle,
+    eligibility,
+    head,
+    checkpoints,
+  };
 }
