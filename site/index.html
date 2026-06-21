@@ -220,8 +220,11 @@ cd codes/server &amp;&amp; npm install &amp;&amp; npm run build &amp;&amp; node 
 
 # build the Flutter web client, then point it at your server
 cd codes/app/apps/tessera &amp;&amp; flutter build web
-# open the app  →  Settings → Network → Server URL + paste the admin token</code></pre>
-        <p class="note mt-1">Coming next: an independent <strong>verifier</strong> you run yourself &mdash; it recomputes the tally and binds it to the anchored root, so you never take the host&rsquo;s word for the result. <a href="blog/how-you-can-check-the-result-yourself.html">How that works &rarr;</a></p>
+# open the app  →  Settings → Network → Server URL + paste the admin token
+
+# anyone can check a published result — recompute the tally + bind it to the anchor
+cd codes/server &amp;&amp; npm run verify -- &lt;bundle.json&gt;   # → VERIFIED ✓ (all 6 checks)</code></pre>
+        <p class="note mt-1">You never take the host&rsquo;s word for it: the <strong>verifier</strong> ships in the box &mdash; it recomputes the tally and binds it to the anchored root (all six checks), so any published result is checkable by anyone. <a href="blog/how-you-can-check-the-result-yourself.html">How that works &rarr;</a></p>
       </div>
     </section>
 
