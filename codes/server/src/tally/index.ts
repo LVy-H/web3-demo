@@ -6,7 +6,7 @@
  * (IRV) and quadratic algorithms are ports of `core_domain/lib/voting/`.
  */
 
-export { tally, runIrv, creditsToVotes } from "./methods";
+export { tally, runIrv, creditsSpent, QUADRATIC_CREDITS } from "./methods";
 export { verdict } from "./verdict";
 
 export type {

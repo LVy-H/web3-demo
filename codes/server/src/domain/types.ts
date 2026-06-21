@@ -67,7 +67,7 @@ export type BallotPayload =
   | { kind: "single"; choice: number }
   | { kind: "approval"; choices: number[] }
   | { kind: "ranked"; ranking: number[] }
-  | { kind: "quadratic"; credits: number[] }
+  | { kind: "quadratic"; votes: number[] }
   | { kind: "survey"; choices: number[] }
   | { kind: "abstain" };
 

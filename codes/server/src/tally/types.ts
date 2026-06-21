@@ -26,7 +26,7 @@ export type BallotPayload =
   | { kind: "single"; choice: number } // one option index
   | { kind: "approval"; choices: number[] } // multi-select, one point each
   | { kind: "ranked"; ranking: number[] } // ordered indices, most-preferred first
-  | { kind: "quadratic"; credits: number[] } // credits[i] >= 0 spent on option i
+  | { kind: "quadratic"; votes: number[] } // votes[i] >= 0 cast for option i (cost Σvᵢ² ≤ QUADRATIC_CREDITS)
   | { kind: "survey"; choices: number[] } // multi-select aggregate (like approval)
   | { kind: "abstain" };
 
@@ -53,7 +53,7 @@ export interface IrvRound {
  *  - single   → first-choice count
  *  - approval → approval count
  *  - survey   → selection count
- *  - quadratic→ summed votes (credits mapped via floor(sqrt))
+ *  - quadratic→ summed votes (payload carries the votes vector directly)
  *  - ranked   → round-1 first-preference count (full runoff is in `rounds`)
  */
 export interface Tally {

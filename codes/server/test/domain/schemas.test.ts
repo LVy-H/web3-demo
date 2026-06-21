@@ -199,7 +199,7 @@ describe("ballotPayloadSchema — well-formed payloads accepted per method", () 
     single: { kind: "single", choice: 0 },
     approval: { kind: "approval", choices: [0, 2] },
     ranked: { kind: "ranked", ranking: [2, 0, 1] },
-    quadratic: { kind: "quadratic", credits: [1, 4, 0] },
+    quadratic: { kind: "quadratic", votes: [1, 4, 0] },
     survey: { kind: "survey", choices: [1] },
   };
 
@@ -240,7 +240,7 @@ describe("ballotPayloadSchema — wrong kind for the method is rejected", () => 
   it("ranked rejects a quadratic payload", () => {
     const r = ballotPayloadSchema("ranked").safeParse({
       kind: "quadratic",
-      credits: [1],
+      votes: [1],
     });
     expect(r.success).toBe(false);
   });
@@ -311,7 +311,7 @@ describe("ballotPayloadSchema — malformed payloads rejected", () => {
   it("quadratic rejects a negative credit", () => {
     const r = ballotPayloadSchema("quadratic").safeParse({
       kind: "quadratic",
-      credits: [1, -4],
+      votes: [1, -4],
     });
     expect(r.success).toBe(false);
   });
@@ -376,15 +376,15 @@ describe("ballotPayloadSchema — optional optionCount range check", () => {
     expect(r.success).toBe(true);
   });
 
-  it("quadratic credits length must equal optionCount when given", () => {
+  it("quadratic votes length must equal optionCount when given", () => {
     const ok = ballotPayloadSchema("quadratic", 3).safeParse({
       kind: "quadratic",
-      credits: [1, 0, 4],
+      votes: [1, 0, 4],
     });
     expect(ok.success).toBe(true);
     const bad = ballotPayloadSchema("quadratic", 3).safeParse({
       kind: "quadratic",
-      credits: [1, 0],
+      votes: [1, 0],
     });
     expect(bad.success).toBe(false);
   });

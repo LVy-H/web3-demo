@@ -123,13 +123,15 @@ export function ballotPayloadSchema(
         .strict();
       break;
     case "quadratic": {
-      let credits = z.array(optionIndex);
+      // Payload carries the votes vector directly (votes[i] = votes for option i,
+      // non-negative int; cost Σvᵢ² ≤ budget is the cast-time validity check).
+      let votes = z.array(optionIndex);
       if (hasCount) {
-        // One credit slot per option.
-        credits = credits.length(optionCount!);
+        // One vote slot per option.
+        votes = votes.length(optionCount!);
       }
       variant = z
-        .object({ kind: z.literal("quadratic"), credits })
+        .object({ kind: z.literal("quadratic"), votes })
         .strict();
       break;
     }

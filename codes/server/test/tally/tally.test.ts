@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { tally } from "../../src/tally";
+import { tally, creditsSpent } from "../../src/tally";
 import type { BallotPayload } from "../../src/tally";
 
 describe("tally — single (plurality counts)", () => {
@@ -84,33 +84,22 @@ describe("tally — approval / survey (multi-select aggregate)", () => {
   });
 });
 
-describe("tally — quadratic (credits → votes, ported from quadratic_alloc.dart)", () => {
-  // Dart model: a voter spends vᵢ² credits to cast vᵢ votes for option i.
-  // Our payload carries credits[i]; votes[i] = floor(sqrt(credits[i])).
-  it("maps credits to integer votes via floor(sqrt(credits))", () => {
-    const ballots: BallotPayload[] = [
-      // option0: 9 credits → 3 votes ; option1: 4 credits → 2 votes ; option2: 1 → 1
-      { kind: "quadratic", credits: [9, 4, 1] },
-    ];
+describe("tally — quadratic (votes vector, ported from quadratic_alloc.dart)", () => {
+  // A quadratic ballot is the votes vector vᵢ directly; casting vᵢ votes for
+  // option i costs vᵢ² credits (Σvᵢ² ≤ QUADRATIC_CREDITS, checked at cast time).
+  // The tally simply SUMS votes per option.
+  it("sums the votes vector per option", () => {
+    const ballots: BallotPayload[] = [{ kind: "quadratic", votes: [3, 2, 1] }];
     const t = tally("quadratic", ballots, 3);
     expect(t.optionScores).toEqual([3, 2, 1]);
     expect(t.totalCast).toBe(1);
   });
 
-  it("floors non-perfect-square credit amounts", () => {
-    const ballots: BallotPayload[] = [
-      // 8 credits → floor(sqrt 8)=2 ; 5 → 2 ; 3 → 1 ; 0 → 0
-      { kind: "quadratic", credits: [8, 5, 3, 0] },
-    ];
-    const t = tally("quadratic", ballots, 4);
-    expect(t.optionScores).toEqual([2, 2, 1, 0]);
-  });
-
   it("aggregates votes across many quadratic ballots", () => {
     const ballots: BallotPayload[] = [
-      { kind: "quadratic", credits: [100, 0] }, // 10, 0
-      { kind: "quadratic", credits: [0, 100] }, // 0, 10
-      { kind: "quadratic", credits: [49, 49] }, // 7, 7
+      { kind: "quadratic", votes: [10, 0] },
+      { kind: "quadratic", votes: [0, 10] },
+      { kind: "quadratic", votes: [7, 7] },
       { kind: "abstain" },
     ];
     const t = tally("quadratic", ballots, 2);
@@ -119,10 +108,16 @@ describe("tally — quadratic (credits → votes, ported from quadratic_alloc.da
     expect(t.totalCast).toBe(4);
   });
 
-  it("ignores credit entries beyond optionCount", () => {
-    const ballots: BallotPayload[] = [{ kind: "quadratic", credits: [4, 9, 16] }];
+  it("ignores vote entries beyond optionCount", () => {
+    const ballots: BallotPayload[] = [{ kind: "quadratic", votes: [2, 3, 9] }];
     const t = tally("quadratic", ballots, 2);
     expect(t.optionScores).toEqual([2, 3]);
+  });
+
+  it("creditsSpent computes Σvᵢ² for the cast-time budget check", () => {
+    expect(creditsSpent([3, 2, 1])).toBe(14); // 9 + 4 + 1
+    expect(creditsSpent([10, 0])).toBe(100);
+    expect(creditsSpent([7, 7])).toBe(98);
   });
 });
 

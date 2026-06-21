@@ -95,23 +95,20 @@ export function runIrv(
   }
 }
 
+/** The uniform quadratic vote-credit budget (mirror of `quadratic_alloc.dart` CREDITS). */
+export const QUADRATIC_CREDITS = 100;
+
 /**
- * Map a quadratic credit allocation to votes per option.
- *
- * Port of the cost relation in `quadratic_alloc.dart`: a voter spends `vᵢ²`
- * credits (`creditsSpent`) to cast `vᵢ` votes for option `i`. The wire payload
- * carries the credits spent, so the inverse is `votes[i] = floor(sqrt(credits[i]))`.
- * `floor` is the integer-safe inverse for any non-perfect-square amount and
- * matches the Dart invariant `creditsSpent(v) <= CREDITS` (votes are integers).
+ * Quadratic cost of a votes allocation: `Σ vᵢ²` — the mirror of `creditsSpent` in
+ * `quadratic_alloc.dart`. A quadratic ballot carries the **votes** vector directly
+ * (`votes[i]` = votes cast for option `i`); the tally sums those votes. A ballot is
+ * valid iff `creditsSpent(votes) <= QUADRATIC_CREDITS` — the cast-time validity check
+ * (and the figure the Phase-3 verifier reproduces from the published ballots).
  */
-export function creditsToVotes(credits: number[], optionCount: number): number[] {
-  const votes = new Array<number>(optionCount).fill(0);
-  for (let i = 0; i < Math.min(credits.length, optionCount); i++) {
-    const c = credits[i];
-    if (!Number.isFinite(c) || c <= 0) continue;
-    votes[i] = Math.floor(Math.sqrt(c));
-  }
-  return votes;
+export function creditsSpent(votes: number[]): number {
+  let sum = 0;
+  for (const v of votes) sum += v * v;
+  return sum;
 }
 
 /** Tally a decision under `method` over `ballots` for `optionCount` options. */
@@ -168,8 +165,11 @@ export function tally(
         break;
       }
       case "quadratic": {
-        const votes = creditsToVotes(b.credits, optionCount);
-        for (let i = 0; i < optionCount; i++) optionScores[i] += votes[i];
+        // Payload carries the votes vector directly; sum votes per in-range option.
+        for (let i = 0; i < Math.min(b.votes.length, optionCount); i++) {
+          const v = b.votes[i];
+          if (Number.isFinite(v) && v > 0) optionScores[i] += v;
+        }
         break;
       }
       case "ranked":
