@@ -503,7 +503,9 @@ export function makeRepos(db: Database.Database): Repos {
       }
       return row;
     },
-    byDecision(decisionId, afterSeq = 0, limit) {
+    // afterSeq default -1 returns from leaf 0 (log_seq is 0-indexed); an explicit
+    // cursor N returns log_seq > N. (A default of 0 would silently drop leaf 0.)
+    byDecision(decisionId, afterSeq = -1, limit) {
       const rows =
         limit === undefined
           ? (balByDecision.all(decisionId, afterSeq) as BallotRow[])

@@ -4,7 +4,7 @@
   "private": true,
   "description": "Tessera self-hosted server: append-only ballot log + verifiable bulletin board (design 2026-06-19).",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "test": "vitest run",

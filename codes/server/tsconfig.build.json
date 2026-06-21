@@ -1,0 +1,11 @@
+{
+  "//": "Production build config. The base tsconfig.json (rootDir '.', include src+test) is the TYPECHECK config; this one emits ONLY src to dist/ with rootDir 'src' so the entry lands at dist/index.js and no test files ship.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "noEmit": false
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "test", "**/*.test.ts"]
+}
