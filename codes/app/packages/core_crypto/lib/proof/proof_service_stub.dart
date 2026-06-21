@@ -22,8 +22,7 @@ class ProofServiceUnsupported implements ProofService {
     required List<String> memberCommitments,
     required int message,
     required String scope,
-  }) =>
-      throw UnsupportedError(_msg);
+  }) => throw UnsupportedError(_msg);
 
   @override
   Future<RelayProof> generateVoteProofWide({
@@ -31,8 +30,7 @@ class ProofServiceUnsupported implements ProofService {
     required List<String> memberCommitments,
     required String message,
     required String scope,
-  }) =>
-      throw UnsupportedError(_msg);
+  }) => throw UnsupportedError(_msg);
 
   @override
   Future<String> deriveCommitment(String identitySeed) =>
