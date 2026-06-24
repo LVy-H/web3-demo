@@ -5,6 +5,7 @@ export type { Migration } from "./migrations";
 export {
   makeRepos,
   DuplicateBallotError,
+  DuplicateSerialError,
 } from "./repos";
 export type {
   Repos,

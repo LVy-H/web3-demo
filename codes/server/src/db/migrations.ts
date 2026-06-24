@@ -219,4 +219,21 @@ export const MIGRATIONS: readonly Migration[] = [
       END;
     `,
   },
+  {
+    id: 6,
+    name: "secret-serial-unique",
+    // §11.3 no-double-vote, enforced at the DB level. The cast path already
+    // read-checks `serialExists` inside the txn, but that is TOCTOU and only
+    // holds under better-sqlite3's single-writer model — a multi-process
+    // deployment could interleave two casts of the same serial past the read.
+    // This UNIQUE index makes the second INSERT abort atomically. PARTIAL by
+    // design: open-ballot rows carry credential_serial = NULL and stay
+    // unconstrained (a voter may cast multiple open ballots by varying
+    // idempotencyKey — the deliberate "open ballot" model).
+    sql: /* sql */ `
+      CREATE UNIQUE INDEX idx_ballots_decision_serial
+        ON ballots(decision_id, credential_serial)
+        WHERE credential_serial IS NOT NULL;
+    `,
+  },
 ];

@@ -23,12 +23,46 @@ export class DuplicateBallotError extends Error {
   }
 }
 
+/**
+ * Thrown by `BallotRepo.append` when a ballot with the same
+ * (decision_id, credential_serial) already exists — the DB-level last line of
+ * defense for §11.3 no-double-vote (secret mode), behind the in-txn read-check.
+ * The route layer maps this to the same signed `serial-used` 409 as a serial
+ * caught by the pre-insert check.
+ */
+export class DuplicateSerialError extends Error {
+  readonly decisionId: string;
+  readonly credentialSerial: string;
+  constructor(decisionId: string, credentialSerial: string) {
+    super(
+      `ballot already exists for decision ${decisionId} credentialSerial ${credentialSerial}`,
+    );
+    this.name = "DuplicateSerialError";
+    this.decisionId = decisionId;
+    this.credentialSerial = credentialSerial;
+  }
+}
+
 /** better-sqlite3 tags UNIQUE violations with this code on the thrown error. */
 function isUniqueConstraint(err: unknown): boolean {
   return (
     typeof err === "object" &&
     err !== null &&
     (err as { code?: string }).code === "SQLITE_CONSTRAINT_UNIQUE"
+  );
+}
+
+/**
+ * True when a UNIQUE violation names `column` among the offending columns.
+ * better-sqlite3's message reads e.g. `UNIQUE constraint failed:
+ * ballots.decision_id, ballots.credential_serial` — we discriminate which of
+ * the two ballot UNIQUE constraints fired so each maps to the right response.
+ */
+function isUniqueConstraintOn(err: unknown, column: string): boolean {
+  return (
+    isUniqueConstraint(err) &&
+    typeof (err as { message?: string }).message === "string" &&
+    (err as { message: string }).message.includes(column)
   );
 }
 
@@ -630,6 +664,16 @@ export function makeRepos(db: Database.Database): Repos {
         balInsert.run(row);
       } catch (err) {
         if (isUniqueConstraint(err)) {
+          // Two ballot UNIQUE constraints can fire here: the partial
+          // (decision_id, credential_serial) index (secret-mode double-vote)
+          // and the (decision_id, idempotency_key) constraint (exactly-once
+          // replay). Discriminate so the route maps each to the right response.
+          if (
+            b.credentialSerial !== null &&
+            isUniqueConstraintOn(err, "credential_serial")
+          ) {
+            throw new DuplicateSerialError(b.decisionId, b.credentialSerial);
+          }
           throw new DuplicateBallotError(b.decisionId, b.idempotencyKey);
         }
         throw err;

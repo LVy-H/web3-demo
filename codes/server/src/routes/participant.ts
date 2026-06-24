@@ -1,7 +1,7 @@
 import { Router, type RequestHandler, type Request, type Response, type NextFunction } from "express";
 import rateLimit from "express-rate-limit";
 import type { Db, Repos } from "../db";
-import { DuplicateBallotError } from "../db";
+import { DuplicateBallotError, DuplicateSerialError } from "../db";
 import type { ServerKey } from "../crypto";
 import { canonicalize, sha256hex } from "../crypto";
 import { merkleRoot } from "../merkle";
@@ -498,11 +498,15 @@ export function participantRouter(deps: ParticipantDeps): Router {
       const receipt = commit();
       res.status(201).json({ receipt, decisionId });
     } catch (err) {
-      if (err instanceof SerialUsedError) {
-        // A concurrent/duplicate secret-mode serial caught inside the txn → the
-        // SAME signed 409 the pre-txn check returns (no double-vote, §11.3).
+      if (err instanceof SerialUsedError || err instanceof DuplicateSerialError) {
+        // A duplicate secret-mode serial — caught either by the pre-insert
+        // read-check (SerialUsedError) or by the DB UNIQUE index at INSERT time
+        // under a concurrent interleave (DuplicateSerialError). Both return the
+        // SAME signed 409 (no double-vote, §11.3).
+        const serial =
+          err instanceof SerialUsedError ? err.serial : err.credentialSerial;
         const signature = serverKey.sign(
-          canonicalize({ error: "serial-used", decisionId, serial: err.serial }),
+          canonicalize({ error: "serial-used", decisionId, serial }),
         );
         res.status(409).json({
           error: "serial-used",
