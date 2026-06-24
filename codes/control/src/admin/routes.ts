@@ -31,7 +31,7 @@ export function createAdminApp(deps: { repos: Repos; provisioner: Provisioner })
 
   const lifecycle = (fn: (slug: string) => Promise<void>) => async (req: express.Request, res: express.Response) => {
     if (!deps.repos.tenants.get(req.params.slug)) { res.status(404).json({ error: "no-such-org" }); return; }
-    try { await fn(req.params.slug); res.json({ slug: req.params.slug, status: deps.repos.tenants.get(req.params.slug)?.status ?? "deleted", deleted: !deps.repos.tenants.get(req.params.slug) }); }
+    try { await fn(req.params.slug); res.json({ slug: req.params.slug, status: deps.repos.tenants.get(req.params.slug)?.status }); }
     catch (e) { res.status(500).json({ error: (e as Error).message }); }
   };
   app.post("/tenants/:slug/suspend", lifecycle((s) => deps.provisioner.suspend(s)));
