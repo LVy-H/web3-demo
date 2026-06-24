@@ -1,0 +1,12 @@
+# Never copy host build artifacts into the image — the image runs `npm ci` +
+# `npm run build` itself. Critically, the host's node_modules is a glibc build;
+# this image is musl (alpine), so copying host node_modules over the image's
+# freshly-installed musl better-sqlite3 breaks it at runtime (__memmove_chk:
+# symbol not found / ERR_DLOPEN_FAILED).
+node_modules
+dist
+.out
+.superpowers
+*.log
+npm-debug.log*
+.git
