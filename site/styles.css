@@ -135,6 +135,14 @@ strong { color: var(--chalk); font-weight: 700; }
 .btn--primary:hover { background: var(--segnale-d); border-color: var(--segnale-d); color: var(--void); }
 .btn-row { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 2rem; }
 
+/* ── live-app launch (demo section) ──────────────────────────────────────── */
+.launch {
+  border: 1px solid var(--rule); border-left: 3px solid var(--segnale);
+  padding: 1.2rem 1.4rem; background: rgba(255,255,255,0.015);
+}
+.launch .btn--primary { font-size: .9rem; padding: .9rem 1.5rem; }
+.launch .note { margin-bottom: 0; max-width: 64ch; }
+
 /* ── hero ────────────────────────────────────────────────────────────────── */
 .hero { padding-block: clamp(3.5rem, 10vw, 7rem); position: relative; overflow: hidden; }
 .hero::after {
