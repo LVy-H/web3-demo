@@ -1,0 +1,33 @@
+# Tessera multi-tenant control plane (localhost v1).
+#  docker compose -f deploy/multi-tenant/docker-compose.yml up -d --build
+#  docker compose logs control      # OPERATOR TOKEN prints once
+# Then: TESSERA_OPERATOR_TOKEN=<tok> tessera-ctl create acme --display-name "Acme"
+# Open: http://acme.localhost:8787
+networks:
+  tessera-net:
+    name: tessera-net
+services:
+  # Build the per-org server image once so the control plane can `run` it by name.
+  server-image:
+    build: { context: ../../codes/server }
+    image: tessera-server:latest
+    command: ["true"]      # build-only; not a long-running service
+    restart: "no"
+  control:
+    build: { context: ../../codes/control }
+    image: tessera-control:latest
+    depends_on: [server-image]
+    networks: [tessera-net]
+    ports:
+      - "127.0.0.1:8787:8787"   # proxy (browser → <slug>.localhost:8787)
+      - "127.0.0.1:8786:8786"   # operator admin API
+    environment:
+      - TESSERA_RUNTIME=docker
+      - TESSERA_IMAGE=tessera-server:latest
+      - TESSERA_NETWORK=tessera-net
+      - TESSERA_BASE_DOMAIN=localhost
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # runtime control (root-equiv; prefer podman rootless)
+      - control-data:/app/control-data
+volumes:
+  control-data:
