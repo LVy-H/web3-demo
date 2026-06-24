@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import path from "node:path";
 const pexec = promisify(execFile);
 
 export interface RunOpts {
@@ -45,8 +46,12 @@ export function makeCliRuntime(bin: "docker" | "podman", exec: ExecFn = (b, a) =
     async logs(name) { return (await run1(["logs", name])).stdout; },
     async exportVolume(volume, outPath) {
       // tar the volume contents via a throwaway alpine container.
-      await run1(["run", "--rm", "-v", `${volume}:/data`, "-v", `${outPath}:/out`,
-        "alpine", "tar", "czf", "/out/export.tgz", "-C", "/data", "."]);
+      // outPath is a full host path (dir + filename); split so we bind-mount
+      // only the directory and tar to the exact requested filename.
+      const dir = path.dirname(outPath);
+      const file = path.basename(outPath);
+      await run1(["run", "--rm", "-v", `${volume}:/data`, "-v", `${dir}:/out`,
+        "alpine", "tar", "czf", `/out/${file}`, "-C", "/data", "."]);
     },
   };
 }

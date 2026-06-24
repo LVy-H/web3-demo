@@ -18,7 +18,7 @@ Each prints an **org admin (convener) token** — hand it to that org.
 ## Use it
 - Open `http://acme.localhost:8787` and `http://beta.localhost:8787` — distinct origins, distinct data, distinct keys.
 - Verify a published decision (anyone): `curl http://acme.localhost:8787/verify/<id>` → all six checks against **acme's** key.
-- Lifecycle: `… cli.js list | suspend acme | resume acme | delete acme --export /app/control-data`.
+- Lifecycle: `… cli.js list | suspend acme | resume acme | delete acme --export /tmp/acme-backup.tgz`. `--export` takes a path on the host (the Docker daemon's filesystem); the gzipped tar of the org's ballot log + key is written there.
 
 ## Isolation & trust (see the design spec §9–10)
 - DB-per-org volume, key-per-org, container-per-org (cgroup limits). No shared rows; cross-org reads are physically absent.

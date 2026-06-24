@@ -1,7 +1,7 @@
 export interface ControlConfig {
   port: number; adminPort: number;
   runtime: "docker" | "podman"; image: string; network: string;
-  instancePort: number; tenantMemory: string; tenantCpus: string;
+  tenantMemory: string; tenantCpus: string;
   dataDir: string; baseDomain: string;
 }
 export function loadConfig(env: NodeJS.ProcessEnv): ControlConfig {
@@ -15,7 +15,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): ControlConfig {
     runtime,
     image: env.TESSERA_IMAGE ?? "tessera-server:latest",
     network: env.TESSERA_NETWORK ?? "tessera-net",
-    instancePort: num(env.TESSERA_INSTANCE_PORT, 3001),
     tenantMemory: env.TESSERA_TENANT_MEM ?? "256m",
     tenantCpus: env.TESSERA_TENANT_CPUS ?? "0.5",
     dataDir: env.DATA_DIR ?? "/app/control-data",

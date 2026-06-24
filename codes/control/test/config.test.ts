@@ -8,7 +8,6 @@ describe("loadConfig", () => {
     expect(c.runtime).toBe("docker");
     expect(c.image).toBe("tessera-server:latest");
     expect(c.network).toBe("tessera-net");
-    expect(c.instancePort).toBe(3001);
     expect(c.tenantMemory).toBe("256m");
     expect(c.tenantCpus).toBe("0.5");
     expect(c.baseDomain).toBe("localhost");
