@@ -7,6 +7,7 @@ import { loadConfig } from "../../src/config";
 
 const RUN = !!process.env.RUN_INTEGRATION;
 const d = RUN ? describe : describe.skip;
+let acmeAdmin = "";
 
 // Drives the REAL runtime. Reaches tenant containers by their bridge IP so the
 // host-run test can talk to them (Linux bridge is host-reachable).
@@ -32,7 +33,7 @@ d("two-org isolation (real docker/podman)", () => {
   beforeAll(async () => {
     // create() resolves health/fp via container name; for host runs we pre-point
     // those at the IP by monkeypatching is avoided — instead we create, then talk by IP.
-    await prov.create("acme", "Acme");
+    acmeAdmin = (await prov.create("acme", "Acme")).adminToken ?? "";
     await prov.create("beta", "Beta");
   });
   afterAll(async () => { await prov.remove("acme").catch(()=>{}); await prov.remove("beta").catch(()=>{}); });
@@ -43,12 +44,23 @@ d("two-org isolation (real docker/podman)", () => {
     expect(aKey.serverPubKeyPem).not.toBe(bKey.serverPubKeyPem);   // distinct identities
   });
 
-  it("an acme decision is invisible to beta and verifies only against acme", async () => {
+  it("an acme decision is invisible to beta", async () => {
     const acme = await baseUrl("acme");
-    // (the full create→open→cast→close→publish→verify drive mirrors deploy/.../seed; abbreviated)
-    // Assert beta cannot see acme's decisions list and acme's /verify passes on acme.
-    const betaDecisions = await (await fetch(`${await baseUrl("beta")}/decisions/does-not-exist`)).status;
-    expect(betaDecisions).toBe(404);
-    expect((await fetch(`${acme}/health`)).status).toBe(200);
+    const beta = await baseUrl("beta");
+    const body = {
+      title: "Adopt?", options: ["Yes", "No"], method: "single",
+      ballotMode: "open", resultsPolicy: "live", eligibility: { method: "open" },
+      rule: { threshold: { kind: "majority" }, tieBreak: "declare" },
+      schedule: {}, visibility: "listed", anchorMode: "broadcast",
+    };
+    const created = await (await fetch(`${acme}/decisions`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${acmeAdmin}` },
+      body: JSON.stringify(body),
+    })).json();
+    const id = (created as { id: string }).id;
+    // acme can fetch its own decision; beta cannot see it at all.
+    expect((await fetch(`${acme}/decisions/${id}`)).status).toBe(200);
+    expect((await fetch(`${beta}/decisions/${id}`)).status).toBe(404);
   });
 });
