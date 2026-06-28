@@ -82,6 +82,9 @@ review:
 - System-wide threat model —
   [`docs/architecture/system-overview.md`](docs/architecture/system-overview.md).
 
+
+Chúng em đã biết làm web và hiểu hệ thống web hoạt động như thế nào.
+
 Public-network deployment requires the **real Groth16 `SemaphoreVerifier`**
 (not the local mock) and is gated on the Phase 10 testnet milestone; see
 [`docs/improvements/findings.md`](docs/improvements/findings.md) (`P4-23` /
