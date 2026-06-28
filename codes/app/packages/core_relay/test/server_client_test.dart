@@ -27,7 +27,11 @@ void main() {
           );
         }),
       );
-      final body = {'title': 'Lunch', 'options': ['A', 'B'], 'method': 'single'};
+      final body = {
+        'title': 'Lunch',
+        'options': ['A', 'B'],
+        'method': 'single',
+      };
       final res = await c.createDecision(body);
       expect(req.method, 'POST');
       expect(req.url.toString(), '$base/decisions');
@@ -142,7 +146,11 @@ void main() {
       await expectLater(
         c.openDecision(id),
         throwsA(
-          isA<ServerException>().having((e) => e.code, 'code', 'ILLEGAL_TRANSITION'),
+          isA<ServerException>().having(
+            (e) => e.code,
+            'code',
+            'ILLEGAL_TRANSITION',
+          ),
         ),
       );
     });
@@ -225,7 +233,8 @@ void main() {
           req = r;
           return http.Response(
             jsonEncode({
-              'issuerPublicKeyPem': '-----BEGIN PUBLIC KEY-----\nAA\n'
+              'issuerPublicKeyPem':
+                  '-----BEGIN PUBLIC KEY-----\nAA\n'
                   '-----END PUBLIC KEY-----\n',
               'issuerPubKeyHash': 'deadbeef',
             }),
@@ -260,30 +269,32 @@ void main() {
   });
 
   group('register (secret-mode blind-sign)', () {
-    test('POSTs {decisionId, blindedMessage} and parses the blind signature',
-        () async {
-      late http.Request req;
-      final c = ServerClient(
-        baseUrl: base,
-        client: MockClient((r) async {
-          req = r;
-          return http.Response(
-            jsonEncode({'decisionId': id, 'blindSignature': 'b64sig'}),
-            200,
-          );
-        }),
-      );
-      final res = await c.register(id, 'blinded-b64');
-      expect(req.method, 'POST');
-      expect(req.url.path, '/register');
-      // No Authorization header — register is a participant route.
-      expect(req.headers.containsKey('authorization'), isFalse);
-      expect(jsonDecode(req.body), {
-        'decisionId': id,
-        'blindedMessage': 'blinded-b64',
-      });
-      expect(res['blindSignature'], 'b64sig');
-    });
+    test(
+      'POSTs {decisionId, blindedMessage} and parses the blind signature',
+      () async {
+        late http.Request req;
+        final c = ServerClient(
+          baseUrl: base,
+          client: MockClient((r) async {
+            req = r;
+            return http.Response(
+              jsonEncode({'decisionId': id, 'blindSignature': 'b64sig'}),
+              200,
+            );
+          }),
+        );
+        final res = await c.register(id, 'blinded-b64');
+        expect(req.method, 'POST');
+        expect(req.url.path, '/register');
+        // No Authorization header — register is a participant route.
+        expect(req.headers.containsKey('authorization'), isFalse);
+        expect(jsonDecode(req.body), {
+          'decisionId': id,
+          'blindedMessage': 'blinded-b64',
+        });
+        expect(res['blindSignature'], 'b64sig');
+      },
+    );
 
     test('REGISTRATION_CLOSED 409 surfaces as a typed exception', () async {
       final c = ServerClient(
@@ -313,41 +324,43 @@ void main() {
   });
 
   group('castBallot', () {
-    test('POSTs {decisionId, payload, idempotencyKey} and parses the receipt',
-        () async {
-      late http.Request req;
-      final c = ServerClient(
-        baseUrl: base,
-        client: MockClient((r) async {
-          req = r;
-          return http.Response(
-            jsonEncode({
-              'receipt': {
-                'ballotHash': 'bh',
-                'logPosition': 0,
-                'runningRoot': 'rr',
-                'serverSig': 'sig',
-              },
-              'decisionId': id,
-            }),
-            201,
-          );
-        }),
-      );
-      final res = await c.castBallot(
-        decisionId: id,
-        payload: const {'kind': 'single', 'choice': 1},
-        idempotencyKey: 'key123',
-      );
-      expect(req.method, 'POST');
-      expect(req.url.path, '/ballots');
-      expect(jsonDecode(req.body), {
-        'decisionId': id,
-        'payload': {'kind': 'single', 'choice': 1},
-        'idempotencyKey': 'key123',
-      });
-      expect((res['receipt'] as Map)['ballotHash'], 'bh');
-    });
+    test(
+      'POSTs {decisionId, payload, idempotencyKey} and parses the receipt',
+      () async {
+        late http.Request req;
+        final c = ServerClient(
+          baseUrl: base,
+          client: MockClient((r) async {
+            req = r;
+            return http.Response(
+              jsonEncode({
+                'receipt': {
+                  'ballotHash': 'bh',
+                  'logPosition': 0,
+                  'runningRoot': 'rr',
+                  'serverSig': 'sig',
+                },
+                'decisionId': id,
+              }),
+              201,
+            );
+          }),
+        );
+        final res = await c.castBallot(
+          decisionId: id,
+          payload: const {'kind': 'single', 'choice': 1},
+          idempotencyKey: 'key123',
+        );
+        expect(req.method, 'POST');
+        expect(req.url.path, '/ballots');
+        expect(jsonDecode(req.body), {
+          'decisionId': id,
+          'payload': {'kind': 'single', 'choice': 1},
+          'idempotencyKey': 'key123',
+        });
+        expect((res['receipt'] as Map)['ballotHash'], 'bh');
+      },
+    );
 
     test('DECISION_CLOSED 409 throws with the code + signature', () async {
       final c = ServerClient(
@@ -395,8 +408,11 @@ void main() {
           idempotencyKey: 'k',
         ),
         throwsA(
-          isA<ServerException>()
-              .having((e) => e.isMaxParticipants, 'isMaxParticipants', isTrue),
+          isA<ServerException>().having(
+            (e) => e.isMaxParticipants,
+            'isMaxParticipants',
+            isTrue,
+          ),
         ),
       );
     });

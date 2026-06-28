@@ -110,8 +110,9 @@ class ServerOrganizerPortAdapter implements OrganizerConsolePort {
       // Open-ballot is THE Phase-4 path: ballotMode 'open', not 'secret'.
       'ballotMode': 'open',
       // Journey ResultsPolicy → server enum: livePublic→'live', else 'sealed'.
-      'resultsPolicy':
-          spec.resultsPolicy == ResultsPolicy.livePublic ? 'live' : 'sealed',
+      'resultsPolicy': spec.resultsPolicy == ResultsPolicy.livePublic
+          ? 'live'
+          : 'sealed',
       // Open eligibility: anyone with the link can cast (no gate at cast time).
       'eligibility': const {'method': 'open'},
       // Plurality + declare is the neutral default the journey doesn't model
@@ -122,8 +123,9 @@ class ServerOrganizerPortAdapter implements OrganizerConsolePort {
       },
       'schedule': const <String, dynamic>{},
       // Spec §5 default: link-only (unlisted) unless explicitly listed.
-      'visibility':
-          spec.visibility == PollVisibility.listed ? 'listed' : 'link-only',
+      'visibility': spec.visibility == PollVisibility.listed
+          ? 'listed'
+          : 'link-only',
       // Phase-2 has no on-chain anchor; 'casual' is the no-broadcast mode.
       'anchorMode': 'casual',
     };
@@ -236,7 +238,9 @@ class ServerOrganizerPortAdapter implements OrganizerConsolePort {
     try {
       final d = await client.getDecision(id);
       final opts = d['options'];
-      final list = opts is List ? opts.map((e) => e.toString()).toList() : <String>[];
+      final list = opts is List
+          ? opts.map((e) => e.toString()).toList()
+          : <String>[];
       _options[id] = list;
       return list;
     } catch (_) {
@@ -255,7 +259,9 @@ class ServerOrganizerPortAdapter implements OrganizerConsolePort {
       // an illegal transition from a non-draft state means voting is already
       // running, so swallow it rather than block the dashboard.
       if (e.code == 'ILLEGAL_TRANSITION') return;
-      throw OrganizeWireException(_phaseCopy(e, 'Voting could not be started.'));
+      throw OrganizeWireException(
+        _phaseCopy(e, 'Voting could not be started.'),
+      );
     }
   }
 
@@ -324,8 +330,7 @@ class ServerOrganizerPortAdapter implements OrganizerConsolePort {
     try {
       final d = await client.getDecision(id);
       final method = d['method'];
-      final module =
-          method is String ? moduleForServerMethod(method) : null;
+      final module = method is String ? moduleForServerMethod(method) : null;
       final opts = d['options'];
       if (opts is List) {
         _options[id] = opts.map((e) => e.toString()).toList();
@@ -368,7 +373,8 @@ ServerOrganizerPortAdapter buildServerOrganizerPort({
   ServerClient? client,
 }) {
   return ServerOrganizerPortAdapter(
-    client: client ??
+    client:
+        client ??
         ServerClient(
           baseUrl: AppConfig.serverUrl,
           token: AppConfig.convenerToken,

@@ -71,36 +71,47 @@ void main() {
   }
 
   group('RSABSSA-SHA384-PSS-Randomized round-trip (Dart issuer)', () {
-    test('blind → blindSign → finalize → verify holds for fresh randomness', () {
-      // Repeat: fresh randomizer + salt each blind() must still round-trip.
-      for (var i = 0; i < 4; i++) {
-        final message = 'dec_roundtrip_$i|serial-${i}deadbeefcafe0011';
-        final blinded = blind(roundTripPem, message);
-        final blindSig = localBlindSign(base64.decode(blinded.blindedB64));
-        final credential = finalize(
-          roundTripPem,
-          message,
-          base64.encode(blindSig),
-          blinded.state,
-        );
-        expect(
-          verifyCredentialLocally(roundTripPem, message, credential),
-          isTrue,
-          reason: 'iteration $i must verify',
-        );
-        // The credential is randomizer(32) ‖ rawSig(256) = 288 bytes.
-        expect(base64.decode(credential).length, 288);
-      }
-    });
+    test(
+      'blind → blindSign → finalize → verify holds for fresh randomness',
+      () {
+        // Repeat: fresh randomizer + salt each blind() must still round-trip.
+        for (var i = 0; i < 4; i++) {
+          final message = 'dec_roundtrip_$i|serial-${i}deadbeefcafe0011';
+          final blinded = blind(roundTripPem, message);
+          final blindSig = localBlindSign(base64.decode(blinded.blindedB64));
+          final credential = finalize(
+            roundTripPem,
+            message,
+            base64.encode(blindSig),
+            blinded.state,
+          );
+          expect(
+            verifyCredentialLocally(roundTripPem, message, credential),
+            isTrue,
+            reason: 'iteration $i must verify',
+          );
+          // The credential is randomizer(32) ‖ rawSig(256) = 288 bytes.
+          expect(base64.decode(credential).length, 288);
+        }
+      },
+    );
 
     test('a credential does NOT verify under a different message', () {
       const message = 'dec_bind|serial-aabbccddeeff00112233445566778899';
       final blinded = blind(roundTripPem, message);
       final blindSig = localBlindSign(base64.decode(blinded.blindedB64));
-      final credential =
-          finalize(roundTripPem, message, base64.encode(blindSig), blinded.state);
+      final credential = finalize(
+        roundTripPem,
+        message,
+        base64.encode(blindSig),
+        blinded.state,
+      );
       expect(
-        verifyCredentialLocally(roundTripPem, 'dec_bind|other-serial', credential),
+        verifyCredentialLocally(
+          roundTripPem,
+          'dec_bind|other-serial',
+          credential,
+        ),
         isFalse,
       );
     });
@@ -109,8 +120,12 @@ void main() {
       const message = 'dec_tamper|serial-00112233445566778899aabbccddeeff';
       final blinded = blind(roundTripPem, message);
       final blindSig = localBlindSign(base64.decode(blinded.blindedB64));
-      final credential =
-          finalize(roundTripPem, message, base64.encode(blindSig), blinded.state);
+      final credential = finalize(
+        roundTripPem,
+        message,
+        base64.encode(blindSig),
+        blinded.state,
+      );
       final bytes = base64.decode(credential);
       bytes[bytes.length - 1] ^= 0x01; // flip a signature byte
       expect(
@@ -136,11 +151,18 @@ void main() {
     });
 
     test('garbage credential bytes verify false, never throw', () {
-      expect(verifyCredentialLocally(roundTripPem, 'msg', 'not-base64-@@@'),
-          isFalse);
       expect(
-          verifyCredentialLocally(roundTripPem, 'msg', base64.encode(Uint8List(8))),
-          isFalse);
+        verifyCredentialLocally(roundTripPem, 'msg', 'not-base64-@@@'),
+        isFalse,
+      );
+      expect(
+        verifyCredentialLocally(
+          roundTripPem,
+          'msg',
+          base64.encode(Uint8List(8)),
+        ),
+        isFalse,
+      );
     });
   });
 
@@ -150,7 +172,8 @@ void main() {
     // the protocol changes. Dart MUST accept it byte-for-byte.
     // Built with explicit `\n` (and a trailing `\n`) so the string is
     // byte-identical to the server's PEM — the issuerKeyHash recipe hashes it.
-    const katPem = '-----BEGIN PUBLIC KEY-----\n'
+    const katPem =
+        '-----BEGIN PUBLIC KEY-----\n'
         'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwajNrBwz44aYzod07QcT\n'
         '4D134aBBzuuv5CfZNNF4JMF65FnRJtuqjDoh+v4oCdGJVT3nktPJ3tx6exZTiuN9\n'
         '9H6qJOagY7DXjz3AbO4g2brEYRmQzGSyMKwoWEtGZA7EC3eOOv1CrHfg6WIzSsJe\n'

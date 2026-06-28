@@ -111,15 +111,17 @@ class ServerVoterPortAdapter implements VoterJourneyPort {
   Future<VoterPollView> fetchSnapshot() async {
     final d = await client.getDecision(decisionId);
     final opts = d['options'];
-    final options =
-        opts is List ? opts.map((e) => e.toString()).toList() : <String>[];
+    final options = opts is List
+        ? opts.map((e) => e.toString()).toList()
+        : <String>[];
     final state = d['state'] is String ? d['state'] as String : 'draft';
     // SECRET vs OPEN: a secret decision casts with a blind-sig credential; an
     // open one carries no credential. Capture the anchored issuer hash so the
     // register step can check the served issuer key against it.
     _secret = d['ballotMode'] == 'secret';
-    _issuerPubKeyHash =
-        d['issuerPubKeyHash'] is String ? d['issuerPubKeyHash'] as String : null;
+    _issuerPubKeyHash = d['issuerPubKeyHash'] is String
+        ? d['issuerPubKeyHash'] as String
+        : null;
     final turnout = _asBigInt(d['turnout']);
     // Open ballots are individually published (the receipt chain), but the
     // per-option tally is the /results read, not part of the snapshot; the
@@ -202,8 +204,10 @@ class ServerVoterPortAdapter implements VoterJourneyPort {
       seed = generateIdentitySeed();
       await identityStore.write(seed);
     }
-    final idempotencyKey =
-        ballotIdempotencyKey(identitySeed: seed, decisionId: decisionId);
+    final idempotencyKey = ballotIdempotencyKey(
+      identitySeed: seed,
+      decisionId: decisionId,
+    );
 
     final Map<String, dynamic> response;
     try {

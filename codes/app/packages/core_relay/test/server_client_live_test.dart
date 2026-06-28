@@ -54,7 +54,8 @@ void main() {
       expect(
         adminToken != null && adminToken.isNotEmpty,
         isTrue,
-        reason: 'TESSERA_ADMIN_TOKEN must be set to the admin token the '
+        reason:
+            'TESSERA_ADMIN_TOKEN must be set to the admin token the '
             'server printed on startup',
       );
 

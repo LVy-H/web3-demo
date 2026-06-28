@@ -95,7 +95,8 @@ MockClient _issuerMock({
           'state': 'registration',
           'ballotMode': 'secret',
           'resultsPolicy': 'sealed',
-          'issuerPubKeyHash': overrideIssuerHash ?? blind_rsa.issuerKeyHash(issuerPem),
+          'issuerPubKeyHash':
+              overrideIssuerHash ?? blind_rsa.issuerKeyHash(issuerPem),
           'turnout': 0,
         }),
         200,
@@ -105,7 +106,8 @@ MockClient _issuerMock({
       return http.Response(
         jsonEncode({
           'issuerPublicKeyPem': issuerPem,
-          'issuerPubKeyHash': overrideIssuerHash ?? blind_rsa.issuerKeyHash(issuerPem),
+          'issuerPubKeyHash':
+              overrideIssuerHash ?? blind_rsa.issuerKeyHash(issuerPem),
         }),
         200,
       );
@@ -124,12 +126,17 @@ MockClient _issuerMock({
       final body = jsonDecode(r.body) as Map<String, dynamic>;
       final serial = body['serial'] as String?;
       final cred = body['credentialSig'] as String?;
-      final ok = serial != null &&
+      final ok =
+          serial != null &&
           cred != null &&
           blind_rsa.verifyCredentialLocally(issuerPem, '$decId|$serial', cred);
       if (serial != null && (usedSerials?.contains(serial) ?? false)) {
         return http.Response(
-          jsonEncode({'error': 'serial-used', 'code': 'SERIAL_USED', 'signature': 's'}),
+          jsonEncode({
+            'error': 'serial-used',
+            'code': 'SERIAL_USED',
+            'signature': 's',
+          }),
           409,
         );
       }
@@ -149,23 +156,29 @@ MockClient _issuerMock({
 
 void main() {
   group('SecretBallotRegistrar', () {
-    test('obtain() returns a credential that verifies under the issuer key', () async {
-      final client = ServerClient(baseUrl: 'http://s.test', client: _issuerMock());
-      final reg = SecretBallotRegistrar(client);
-      final cred = await reg.obtain(decId);
+    test(
+      'obtain() returns a credential that verifies under the issuer key',
+      () async {
+        final client = ServerClient(
+          baseUrl: 'http://s.test',
+          client: _issuerMock(),
+        );
+        final reg = SecretBallotRegistrar(client);
+        final cred = await reg.obtain(decId);
 
-      expect(cred.serial.length, 32, reason: '16 bytes hex');
-      expect(RegExp(r'^[0-9a-f]{32}$').hasMatch(cred.serial), isTrue);
-      expect(
-        blind_rsa.verifyCredentialLocally(
-          issuerPem,
-          '$decId|${cred.serial}',
-          cred.credentialSig,
-        ),
-        isTrue,
-        reason: 'the finalized credential must verify over the bound message',
-      );
-    });
+        expect(cred.serial.length, 32, reason: '16 bytes hex');
+        expect(RegExp(r'^[0-9a-f]{32}$').hasMatch(cred.serial), isTrue);
+        expect(
+          blind_rsa.verifyCredentialLocally(
+            issuerPem,
+            '$decId|${cred.serial}',
+            cred.credentialSig,
+          ),
+          isTrue,
+          reason: 'the finalized credential must verify over the bound message',
+        );
+      },
+    );
 
     test('rejects a tampered issuer key (served hash ≠ recomputed)', () async {
       final client = ServerClient(
@@ -179,14 +192,20 @@ void main() {
       );
     });
 
-    test('rejects an issuer hash that disagrees with the anchored hash', () async {
-      final client = ServerClient(baseUrl: 'http://s.test', client: _issuerMock());
-      final reg = SecretBallotRegistrar(client);
-      await expectLater(
-        reg.obtain(decId, expectedIssuerPubKeyHash: 'not-the-anchored-hash'),
-        throwsA(isA<SecretBallotCredentialError>()),
-      );
-    });
+    test(
+      'rejects an issuer hash that disagrees with the anchored hash',
+      () async {
+        final client = ServerClient(
+          baseUrl: 'http://s.test',
+          client: _issuerMock(),
+        );
+        final reg = SecretBallotRegistrar(client);
+        await expectLater(
+          reg.obtain(decId, expectedIssuerPubKeyHash: 'not-the-anchored-hash'),
+          throwsA(isA<SecretBallotCredentialError>()),
+        );
+      },
+    );
   });
 
   group('ServerVoterPortAdapter secret-mode', () {
@@ -196,44 +215,50 @@ void main() {
         identityStore: InMemoryIdentityStore('seed'),
         decisionId: decId,
         module: VoterModule.anon,
-        secretRegistrar:
-            SecretBallotRegistrar(ServerClient(baseUrl: 'http://s.test', client: mock)),
+        secretRegistrar: SecretBallotRegistrar(
+          ServerClient(baseUrl: 'http://s.test', client: mock),
+        ),
       );
       return adapter;
     }
 
-    test('register at join, then cast presents a valid (serial, credentialSig)',
-        () async {
-      Map<String, dynamic>? castBody;
-      bool? credentialOk;
-      final mock = _issuerMock(
-        onCast: (b, ok) {
-          castBody = b;
-          credentialOk = ok;
-        },
-        usedSerials: <String>{},
-      );
-      final adapter = await adapterForSecret(mock);
+    test(
+      'register at join, then cast presents a valid (serial, credentialSig)',
+      () async {
+        Map<String, dynamic>? castBody;
+        bool? credentialOk;
+        final mock = _issuerMock(
+          onCast: (b, ok) {
+            castBody = b;
+            credentialOk = ok;
+          },
+          usedSerials: <String>{},
+        );
+        final adapter = await adapterForSecret(mock);
 
-      // Snapshot must surface ballotMode=secret so the secret branch engages.
-      final view = await adapter.fetchSnapshot();
-      await adapter.requestJoin(view);
-      final receipt = await adapter.relayBallot(
-        const SingleChoice(1),
-        _placeholderProof,
-        view,
-        CancellationToken(),
-      );
+        // Snapshot must surface ballotMode=secret so the secret branch engages.
+        final view = await adapter.fetchSnapshot();
+        await adapter.requestJoin(view);
+        final receipt = await adapter.relayBallot(
+          const SingleChoice(1),
+          _placeholderProof,
+          view,
+          CancellationToken(),
+        );
 
-      expect(castBody, isNotNull);
-      expect(castBody!['payload'], {'kind': 'single', 'choice': 1});
-      expect(castBody!['serial'], isA<String>());
-      expect(castBody!['credentialSig'], isA<String>());
-      expect(castBody!['idempotencyKey'], 'cast-${castBody!['serial']}');
-      expect(credentialOk, isTrue,
-          reason: 'the server-side credential verify must pass');
-      expect(receipt.nullifier, 'bh-${castBody!['serial']}');
-    });
+        expect(castBody, isNotNull);
+        expect(castBody!['payload'], {'kind': 'single', 'choice': 1});
+        expect(castBody!['serial'], isA<String>());
+        expect(castBody!['credentialSig'], isA<String>());
+        expect(castBody!['idempotencyKey'], 'cast-${castBody!['serial']}');
+        expect(
+          credentialOk,
+          isTrue,
+          reason: 'the server-side credential verify must pass',
+        );
+        expect(receipt.nullifier, 'bh-${castBody!['serial']}');
+      },
+    );
 
     test('a reused serial surfaces a no-double-vote error', () async {
       final used = <String>{};
@@ -244,10 +269,18 @@ void main() {
 
       // First cast succeeds; a second cast reuses the cached credential serial.
       await adapter.relayBallot(
-          const SingleChoice(0), _placeholderProof, view, CancellationToken());
+        const SingleChoice(0),
+        _placeholderProof,
+        view,
+        CancellationToken(),
+      );
       await expectLater(
         adapter.relayBallot(
-            const SingleChoice(0), _placeholderProof, view, CancellationToken()),
+          const SingleChoice(0),
+          _placeholderProof,
+          view,
+          CancellationToken(),
+        ),
         throwsA(predicate((e) => '$e'.contains('double-vote'))),
       );
     });

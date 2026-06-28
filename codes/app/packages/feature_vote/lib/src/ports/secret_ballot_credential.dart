@@ -58,7 +58,7 @@ class SecretBallotRegistrar {
   final Random _rng;
 
   SecretBallotRegistrar(this.client, {Random? rng})
-      : _rng = rng ?? Random.secure();
+    : _rng = rng ?? Random.secure();
 
   /// Obtain a fresh credential for [decisionId].
   ///
@@ -105,8 +105,12 @@ class SecretBallotRegistrar {
       );
     }
 
-    final credentialSig =
-        blind_rsa.finalize(pem, message, blindSig, blinded.state);
+    final credentialSig = blind_rsa.finalize(
+      pem,
+      message,
+      blindSig,
+      blinded.state,
+    );
     return SecretBallotCredential(serial: serial, credentialSig: credentialSig);
   }
 
