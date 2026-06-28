@@ -1,232 +1,87 @@
 # System Architecture Overview
 
-## Contract Architecture
+> **Rewritten 2026-06-19** to match the ground-up redesign. The previous version
+> (EVM/Solidity registry + 6 ZK voting modules + Semaphore Groth16 verifier + Express
+> relayer) is **retired** and preserved in git history. **Canonical source of truth:**
+> [`docs/superpowers/specs/2026-06-19-tessera-system-design.md`](../superpowers/specs/2026-06-19-tessera-system-design.md).
+> This file is the orientation map; the design doc has the detail, threat model, and
+> honest-claims analysis.
 
-The system uses a modular contract architecture with a central registry.
+## One paragraph
 
-### PollRegistry (Factory)
-- **Address:** Deployed once per network. All integrations start here.
-- **Role:** Creates poll instances as EIP-1167 minimal proxies. Maintains a list of all polls.
-- **Module types currently registered (six):**
-  - `"anon-vote"` (M1) — see [`module-m1-anon-voting.md`](./module-m1-anon-voting.md)
-  - `"blind-vote"` (M2) — see [`module-m2-blind-voting.md`](./module-m2-blind-voting.md)
-  - `"approval-vote"` — see [`module-approval.md`](./module-approval.md)
-  - `"ranked-vote"` — see [`module-ranked.md`](./module-ranked.md)
-  - `"quadratic-vote"` — see [`module-quadratic.md`](./module-quadratic.md)
-  - `"survey-vote"` — see [`module-survey.md`](./module-survey.md)
-- **Key functions:**
-  - `registerModule(moduleType, implementation)` -- owner registers a new module
-  - `createPoll(moduleType, title, description, initData)` -- anyone creates a poll (UNLISTED by default)
-  - `createPoll(moduleType, title, description, visibility, initData)` -- overload with an explicit visibility opt-in
-  - `getListedPolls()` -- the public-directory view: only polls that opted in to listing
-  - `getAllPolls()` -- returns ALL polls (owner/ops compat; public directories must use `getListedPolls()`)
-  - `getPollInfo(pollAddress)` -- resolve one poll by address (link-access path for unlisted polls)
+Tessera lets a group make a decision everyone can trust, and lets anyone check the result
+is honest **without trusting whoever ran it**. It is **open-source software a community
+self-hosts**. A community runs one **server** that holds an **append-only ballot log**; the
+log's checkpoints are pinned to a **public, host-independent anchor** (a signed-root
+broadcast by default; a public L2 chain as the equivocation-resistant upgrade). Secret
+ballots use **blind-signature credentials** (no ZK, no chain for voting). Anyone can
+recompute the tally from the published ballots and confirm it matches the anchored record.
+It is **not** a blockchain app and **not** trustless — it spends a bounded trust in the
+organiser (for integrity) to buy enormous simplicity, and backs that trust with public
+verifiability.
 
-### Privacy defaults (R4)
-
-Two creation-time flags implement the revolution spec's "private by default"
-principles (design spec §3.1-2, §5). Both default to the private choice and are
-opt-IN to exposure:
-
-| Flag | Where | Values | Default |
-|---|---|---|---|
-| `visibility` | `PollRegistry` (per poll, in `PollInfo` + `PollCreated`) | 0 = unlisted (link/QR/code access only), 1 = listed | **0 — unlisted** |
-| `resultsPolicy` | every module (last `initialize` param, `resultsPolicy()` view) | 0 = sealed-until-close, 1 = live-public | **0 — sealed** |
-
-Honesty notes (the flags' exact claims, no more):
-
-- `visibility` is **discovery** privacy, not content privacy. Chain data is
-  public — anyone with the poll address (or scanning events) can read
-  everything. The flag keeps compliant directories from *presenting* unlisted
-  polls; the link is the capability.
-- `resultsPolicy` is **metadata** that compliant clients and the relayer honor.
-  Ballots are public calldata, so an on-chain `getResults()` restriction would
-  be security theater — it stays unrestricted. Cryptographic sealing
-  (threshold/timelock) is the R5 roadmap phase.
-- The relayer's create route accepts optional `visibility` / `resultsPolicy`
-  fields (defaulting to 0/0) and appends `resultsPolicy` to the client's
-  encoded `initialize` call, so pre-R4 clients keep working and get the
-  private defaults.
-
-### IZkPoll (Interface)
-- **Role:** Shared interface that all voting modules implement.
-- **Key functions:**
-  - `getState()` -- poll lifecycle state (Registration/Voting/Ended)
-  - `getResults()` -- vote tally per option
-  - `getOptions()` -- poll option labels
-  - `getParticipantCount()` -- number of registered participants
-  - `verifyParticipation(nullifierHash)` -- M3 receipt verification
-  - `owner()` -- poll creator address
-  - `resultsPolicy()` -- R4 results-timing policy (0 = sealed-until-close, 1 = live-public)
-
-### Minimal Proxy Pattern (EIP-1167)
-Each poll is a thin clone (~45 bytes of bytecode) that delegates all calls to a deployed implementation contract. This saves gas: creating a poll costs ~45k gas instead of ~2M+ gas for a full contract deployment.
-
-The implementation contract is deployed once per module type. Clones are created by `PollRegistry.createPoll()` and initialized via `initialize()`.
-
-## Client Architecture (Tessera)
-
-The sole client is the Flutter workspace in [`codes/app/`](../../codes/app/) — one
-codebase across **mobile, desktop, and web** ("Tessera"). The old React/Vite
-frontend was removed; the prover bundle is self-contained.
-
-### Layers (pub workspace packages)
-- **Core** (`packages/core_*`) — `core_chain` (`ChainReader`/`ChainWriter`,
-  the canonical ABI assets, `AppConfig`); `core_crypto` (identity, tickets,
-  confirmation codes, the proof services + bundled Semaphore artifacts);
-  `core_relay` (`relay_client.dart`, sponsored poll creation); `core_storage`
-  (secure stores); `core_domain` (journey state machines + capabilities).
-- **Features** (`packages/feature_*`) — `feature_vote` (voter home +
-  per-module journey screens), `feature_organize`, `feature_join` (QR/link
-  grammar), `feature_you` (identity + receipt verify); `design_system`
-  carries the `Db` tokens.
-- **Shell** (`apps/tessera`) — the composition root, guarded router, and the
-  three-space IA (VOTE / ORGANIZE / YOU, plus the JOIN action).
-
-### Routing
-- The VOTE space's DIRECTORY tab reads the opt-in listed polls
-  (`PollRegistry.getListedPolls()`); private polls are joined by link/QR
-  (polls are unlisted by default).
-- `/poll/<address>` resolves the module type **on-chain**
-  (`PollModuleResolver`) and hosts the matching journey screen — the module
-  is never trusted from the URL.
-
-### Identity & local secrets
-- The Semaphore identity **seed** is held in platform **secure storage**
-  (Keychain / libsecret / DPAPI), never plaintext prefs, and prefills the ballot.
-- Blind-vote commit-reveal salts and the live-meeting organizer keypair are also
-  secure-stored; a blind voter must reveal from the device they committed on.
-
-### Proving
-- **Web** — proof generated in-browser by the bundled `zkprover.js`.
-- **Desktop** — opt-in Node sidecar reusing the same prover bundle
-  (`DESKTOP_PROVER_*`), verified against the real Groth16 vkey.
-- **Mobile** — headless `webview_flutter` hosting the same prover with bundled
-  Semaphore artifacts (emulator-verified).
-
-## Relayer (off-chain, optional)
-
-An off-chain Express service in [`codes/relayer/`](../../codes/relayer/) forwards the SNARK-message votes (anon / approval / ranked / quadratic / survey) and ZK airdrop claims on behalf of voters who have no funded wallet, and additionally drives a **sponsored** (wallet-free) poll lifecycle (create / register / start). It is an optional component: when no relayer host is configured the client submits transactions directly (dev-signer or connected wallet). The ZK proof is always generated client-side; the relayer never sees plaintext identity material.
-
-### Position in architecture
+## Components
 
 ```
-Tessera client (Flutter)        Relayer service              Node (Hardhat / Sepolia)
-─────────────────────────       ─────────────────            ─────────────────────────
-relay_client.dart               POST /api/relay/vote
-  ├─ generates ZK proof  ─────► validation.ts (shape)
-  └─ POST proof payload         relay.ts
-                                  ├─ getState() ────────────► Poll clone (read)
-                                  ├─ isNullifierUsed() ─────► Poll clone (read)
-                                  └─ castVote(proof) ───────► Poll clone (write)
-                                wallet.ts
-                                  └─ signs with RELAYER_PRIVATE_KEY
+        ┌──────────────────────────────────────────────┐
+        │  PUBLIC ANCHOR  (default: signed-root broadcast;│  host-independent,
+        │  upgrade: an L2 chain)  — setupCommitment + roots│  tamper-evident
+        └───────────────▲──────────────────────▲─────────┘
+                        │ post roots           │ read roots (anyone, free)
+   ┌────────────────────┴─────────┐   ┌─────────┴────────────────┐
+   │  TESSERA SERVER (self-host)  │   │   VERIFIER (anyone)      │
+   │  • decision lifecycle + auth │   │  • recompute tally+verdict
+   │  • eligibility + per-decision│   │  • Merkle root == anchor │
+   │    blind-sign issuer         │   │  • serials / inclusion   │
+   │  • append-only log + running │   │  • read trust level (V5) │
+   │    hash-chained checkpoints  │   └─────────▲────────────────┘
+   │  • Merkle roots + receipts   │             │ published ballots (read-only)
+   └───▲──────────────▲───────────┘             │
+       │ join / cast  │ serve app + proofs ─────┘
+   ┌───┴──────────────────────────┐
+   │  CLIENT (Flutter, web-first) │  Participant / Convener / Verifier UI
+   └──────────────────────────────┘
 ```
 
-The relayer is a thin pass-through: it owns the hot wallet that pays gas and a small pre-check layer in front of each broadcast, nothing else. It runs in its own container next to `contracts` (see [`docker-compose.yml`](../../docker-compose.yml)).
+- **Server** (self-hosted, one command, SQLite default): decision lifecycle
+  (`draft→registration→open→closed→challenge→published`/`cancelled`), convener auth,
+  eligibility (open/invite/passcode/domain), per-decision blind-signature credential issuer,
+  the append-only ballot log, running hash-chained checkpoints + Merkle roots, the anchor
+  adapter, and it serves the client + the public read API. No hard dependency on any
+  Tessera-authors-run service.
+- **Anchor** (pluggable): `broadcast` (default, zero-wallet — the signed final root is
+  distributed to voters), `chain` (an L2 for host-independent non-equivocation, needs a
+  funded wallet), `casual` (host-attested only, branded unverifiable). Trust level is always
+  disclosed to verifiers (V5).
+- **Client** (one Flutter codebase, web-first): voter (join→cast→verify), convener
+  (create→run→close→publish→share), verifier UI. The voter path carries a hard web-payload
+  budget (CI-gated; thin web shell as the pre-planned fallback).
+- **Verifier** (anyone — a client tab, a static page, or a CLI): recomputes the tally **and
+  the decision verdict** from the published ballots, recomputes the Merkle root and binds it
+  to the anchored root, checks credential serials + inclusion. Needs only public reads + the
+  anchor.
 
-### Gasless flow
+## Trust model (summary — full version in the design doc §6)
 
-The voter generates a Semaphore proof in the browser, then POSTs `{pollAddress, vote, proof}` to the relayer instead of submitting on-chain. The relayer's pre-check layer (see [`codes/relayer/src/relay.ts`](../../codes/relayer/src/relay.ts)) calls `getState()`, `getOptionCount()`, and `isNullifierUsed()` on the target poll before broadcasting — duplicate-vote attempts and wrong-phase calls are rejected as HTTP errors rather than as reverted on-chain transactions that still cost gas. Each pre-check failure maps to a stable error string the client can display (`Poll is not in voting phase`, `Invalid vote index`, `This vote token has already been used (nullifier consumed)`). The nullifier pre-check is a gas optimization, not an anonymity boundary; the on-chain contract performs the same check authoritatively and would reject a duplicate even without it.
+| Holds even against a malicious host | Rests on host honesty (named limits) | Out of scope |
+|---|---|---|
+| tally correctness (recompute) | eligibility / ballot-stuffing (host defines the roster; audited via published/challengeable rosters) | coercion-resistance |
+| ballot-set tamper-evidence after acknowledgement (hash-chained receipts + anchored roots) | secret-ballot privacy vs a *live* malicious host (metadata correlation — single-party) | anonymity vs global chain validators |
+| setup immutability (anchored commitment) | censorship-by-silence (receipt-withholding) | nation-state availability |
 
-On a successful pre-check the relayer signs `castVote(vote, proof)` with `RELAYER_PRIVATE_KEY`, waits for the receipt, and returns the tx hash. The proof carries the same nullifier and Merkle root the direct-wallet path would emit; on-chain state is identical regardless of which path was used.
+The stronger guarantees (privacy even against the host) are the **post-1.0 "strong mode"**:
+separate registrar ⊥ ballot box (Belenios-style), and/or the parked Semaphore ZK credential.
 
-### Trust model summary
+## Voting methods
 
-| Property              | Direct mode                     | Relayer mode                       |
-| --------------------- | ------------------------------- | ---------------------------------- |
-| Anonymity             | Yes (ZK proof; sender unlinked) | Yes (ZK proof; sender = relayer EOA) |
-| No-ETH-needed         | No (voter pays gas)             | Yes (relayer pays gas)             |
-| Censorship resistance | High (any RPC works)            | Partial (relayer can refuse; fall back to direct) |
-| Liveness              | Voter wallet + RPC              | Partial (voter + relayer + relayer RPC) |
+Pick-one · approve-any · ranked (IRV) · quadratic (credit split) · multi-question survey,
+plus abstain/none-of-the-above. Tally is **pure off-chain code** (the `core_domain/voting/`
+logic, recomputable by any verifier from the published ballots) — there is no on-chain tally
+and no per-vote transaction.
 
-The relayer cannot deanonymize the voter, alter the vote (`proof.message` is bound to the option index and verified on-chain), double-vote (the nullifier is consumed on first submission), or redirect an airdrop (the `receiver` is bound into the proof's scope). It can only forward correctly or refuse.
+## What this replaced
 
-### When to enable vs disable
-
-- **Local dev** — relayer-on by default. UX guarantee: a contributor with a fresh checkout can vote without funding a wallet. The client routes through the relayer whenever a relayer host is configured and `/api/relay/status` is reachable.
-- **Staging / Sepolia** — relayer-on with monitored hot-wallet balance. `/api/relay/status` returns the balance; alert on `balance < daily_volume × gas_price × safety_multiple`. Otherwise failure mode is silent reverts visible only to voters.
-- **Production / mainnet** — depends on the threat model. The relayer adds a censorship vector (it can refuse service) and a liveness dependency, in exchange for onboarding voters who hold no ETH. If gasless onboarding is not a requirement, omit the service and ship direct-mode only; the contracts have no relayer dependency.
-
-### Architectural integration points
-
-- **Hot wallet key.** [`codes/relayer/src/wallet.ts`](../../codes/relayer/src/wallet.ts) lazy-constructs a single `ethers.Wallet` from `RELAYER_PRIVATE_KEY` on first use and caches both the wallet and its `JsonRpcProvider` in module scope. The key is consumed only at process start; nothing else in the codebase reads it. A malformed key throws synchronously at first request, which surfaces in the boot-time `getRelayerInfo()` log line — startup failures are loud, not silent. For local dev the value defaults to Hardhat account #0 via [`docker-compose.yml`](../../docker-compose.yml); any non-dev deploy must override it (KMS / secret manager — never the on-disk `.env`).
-- **Container wiring.** [`docker-compose.yml`](../../docker-compose.yml) defines the `relayer` service alongside `contracts` (a Hardhat node) and an `explorer`. It is built from [`codes/relayer/`](../../codes/relayer/), binds port 3001 to loopback only (`127.0.0.1:3001`), and points `RPC_URL` at `http://contracts:8545` over the compose-internal DNS. `depends_on: [contracts]` with a `service_healthy` condition gates startup on JSON-RPC readiness. The Tessera client is **not** part of the compose stack — it runs via `flutter run`; the one-liner local stack is `./dev-stack.sh up`.
-- **Client.** The client lives in the Flutter workspace at [`codes/app/packages/core_relay/lib/relay_client.dart`](../../codes/app/packages/core_relay/lib/relay_client.dart). It reads the relayer host from `AppConfig`, exposes the vote/issue/queue/redeem/status calls, and normalizes proof field elements to decimal strings before posting so the relayer can stay schema-strict. A one-shot `/api/relay/status` health check decides whether the relayer path is offered; otherwise the client submits directly.
-- **Request validation.** [`codes/relayer/src/validation.ts`](../../codes/relayer/src/validation.ts) shape-checks every request body before any RPC call: address syntax via `ethers.isAddress`, option-index range, proof field presence, and an 8-element `points` array. This is shape validation only — proof correctness is the on-chain `SemaphoreVerifier`'s job, not the relayer's. The error tiers are distinct: HTTP 400 for malformed input (validation), 503 for insufficient hot-wallet balance, and 500 for unexpected reverts or RPC failures, which lets the client distinguish "fix your request" from "service is down".
-
-## Deployment Stack
-
-```
-PoseidonT3 (library)
-    └── Semaphore (ZK verification, linked to PoseidonT3 + a Verifier)
-        ├── PollRegistry (factory)
-        │   ├── ZkAnonVoting      (M1 — Semaphore anonymous; clone source)
-        │   ├── ZkBlindVoting     (M2 — commit-reveal, no Semaphore dep; clone source)
-        │   ├── ZkApprovalVoting  (multi-select bitmask; clone source)
-        │   ├── ZkRankedVoting    (ranked-choice; clone source)
-        │   ├── ZkQuadraticVoting (credit allocation; clone source)
-        │   └── ZkSurveyVoting    (multi-question survey; clone source)
-        └── ZkAirdrop             (standalone — uses Semaphore directly, NOT in registry)
-
-Verifier slot:
-    - Local dev:    MockSemaphoreVerifier  (always returns true — no SNARK artifacts needed)
-    - Production:   SemaphoreVerifier      (real Groth16; requires SNARK artifact CDN at runtime)
-
-    Toggle via env var: USE_REAL_VERIFIER=true npm run deploy:local
-    (default = mock; deploy script prints a loud banner when the mock is wired)
-```
-
-## Upgrades & Immutability
-
-This system has **no upgrade pattern**. None of the contracts sit behind a UUPS / Transparent / Beacon proxy. The choices below are deliberate; do not try to retrofit an upgrade slot onto modules without redesigning the registry.
-
-### Per-poll clones are immutable
-
-Every poll created via `PollRegistry.createPoll()` is an EIP-1167 minimal proxy (~45 bytes) whose bytecode hard-codes the implementation address it delegates to. There is no admin slot, no `upgradeTo`, no beacon lookup. A poll's behavior is fixed at creation time to whatever implementation was registered for its module type at that moment.
-
-### `registerModule` swaps don't migrate existing polls
-
-The registry owner can call `registerModule("anon-vote", newImpl)` to point future clones at a new implementation. **Existing clones are unaffected.** Each clone's delegate target is baked into its own bytecode at deploy time — the registry's mapping is only consulted by `createPoll()`. A swap therefore only changes which implementation new polls are cloned from; every poll that already exists keeps running against the implementation it was originally cloned from, forever.
-
-### "Upgrading" a module = ship a new module, create new polls
-
-If a bug is found in `ZkAnonVoting`:
-
-1. Deploy a fixed implementation.
-2. Call `registerModule("anon-vote", fixedImpl)` (or register under a new module type, e.g. `"anon-vote-v2"`).
-3. Direct users to create new polls. Old polls keep their old (buggy) behavior until they end naturally.
-
-There is no in-place migration path for state already held in a clone. Treat each poll as a single-use, immutable instance.
-
-### `ZkAirdrop` is standalone, not a clone
-
-`ZkAirdrop` is deployed once with a real constructor and is **not** managed by `PollRegistry`. It has no clone factory, no upgrade hook, and a fixed address. To "upgrade" the airdrop, deploy a fresh `ZkAirdrop` contract and point users (and the client's `deployed-addresses.json`) at the new address. The old contract remains live at its original address and cannot be patched.
-
-### The Registry itself is permanent
-
-`PollRegistry` is also deployed without a proxy. Its address is permanent for the lifetime of the deployment. The only mutable registry state is:
-
-- `registerModule(moduleType, impl)` — owner adds or replaces module entries (affects future `createPoll` calls only).
-- `transferOwnership(newOwner)` — standard `Ownable` (or `Ownable2Step`'s 2-step variant once P1-6 lands) ownership handoff.
-
-If the registry itself needs to change shape, the migration is: deploy a new `PollRegistry`, re-register modules on it, and switch the client over. Polls created against the old registry keep working — they don't depend on it after construction — but they will no longer appear in `getAllPolls()` of the new registry.
-
-## Container Architecture
-
-The dev-only `docker-compose.yml` stack is the chain + relayer + a block
-explorer. The Tessera client is **not** containerized — it runs via
-`flutter run` (or `flutter build web` for a static deploy). The one-liner local
-stack is `./dev-stack.sh up`.
-
-```
-docker-compose (dev only — loopback-bound)
-├── contracts (Hardhat node + auto-deploy)
-│   ├── Port 8545 (JSON-RPC)
-│   └── Runs: hardhat node → deploy.ts
-├── relayer   (Express gasless-relay + sponsored lifecycle)
-│   ├── Port 3001 (HTTP, 127.0.0.1)
-│   └── depends_on: contracts (service_healthy)
-└── explorer  (alethio/ethereum-lite-explorer)
-    └── Port 3728 (HTTP)
-```
+Retired in the 2026-06-19 redesign: the `PollRegistry` EIP-1167 factory, the six
+`Zk*Voting` module contracts, `ZkAirdrop`, the Mock/real Groth16 `SemaphoreVerifier`, the
+three Semaphore provers + SNARK artifacts, and the Express relayer. Rationale and the
+foundation-by-foundation verdict are in the design doc §8/§17.

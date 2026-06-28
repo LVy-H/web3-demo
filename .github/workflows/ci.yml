@@ -7,40 +7,29 @@ on:
     branches: [main]
 
 jobs:
-  contracts:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: codes/contracts
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: codes/contracts/package-lock.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm test
-
+  # (The on-chain contracts job + nightly real-verifier were removed in the
+  # 2026-06-19 redesign — the architecture is now a self-hosted server, not a
+  # smart-contract chain. See docs/superpowers/specs/2026-06-19-tessera-system-design.md.
+  # A `server` job for codes/server is added once it gains real tests (Task 1.6).)
   # (The React/Vite frontend job was removed — the frontend is deprecated and
-  # deleted; the Flutter app `mobile` job below is the canonical web/client gate.)
+  # deleted; the Flutter app `app` job below is the canonical web/client gate.)
 
-  relayer:
+  # The self-hosted server (codes/server) — replaces the old contracts + relayer
+  # jobs. Skeleton for now (health route); grows with Phases 2-3.
+  server:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: codes/relayer
+        working-directory: codes/server
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
-          cache-dependency-path: codes/relayer/package-lock.json
+          cache-dependency-path: codes/server/package-lock.json
       - run: npm ci
-      - run: npm run build
+      - run: npm run typecheck
       - run: npm test
 
   # Tessera workspace (codes/app — the sole client since the cutover).
