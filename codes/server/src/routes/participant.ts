@@ -3,7 +3,8 @@ import rateLimit from "express-rate-limit";
 import type { Db, Repos } from "../db";
 import { DuplicateBallotError } from "../db";
 import type { ServerKey } from "../crypto";
-import { canonicalize, sha256hex, chainNext } from "../crypto";
+import { canonicalize, sha256hex } from "../crypto";
+import { merkleRoot } from "../merkle";
 import { ballotPayloadSchema } from "../domain";
 import { creditsSpent, QUADRATIC_CREDITS, type Method } from "../tally";
 import { hashToken } from "../auth";
@@ -20,15 +21,27 @@ export interface ParticipantDeps {
   ballotRateLimit?: RateLimitConfig | null;
 }
 
-/** Domain-separated canonical hash of a ballot (the leaf in the receipt chain). */
+/**
+ * The PUBLIC, recomputable ballot leaf (system-design §11.2 / the Phase-3 plan).
+ *
+ *   ballotHash = sha256hex('tessera:leaf:v1\n' + canonicalize(
+ *                  { decisionId, logSeq, payload, serial: serial ?? null }))
+ *
+ * Recomputable from public data ALONE: the idempotencyKey is deliberately NOT
+ * in the leaf (it stays a private dedup key in the UNIQUE constraint), and the
+ * leaf binds `logSeq` so the position is committed. The independent verifier
+ * recomputes this exact string (`recomputeBallotHash`), so the server MUST emit
+ * it byte-for-byte. `serial` is the credential serial (null in open mode).
+ */
 function computeBallotHash(
   decisionId: string,
+  logSeq: number,
   payload: unknown,
-  idempotencyKey: string,
+  serial: string | null,
 ): string {
   return sha256hex(
-    "tessera:ballot:v1\n" +
-      canonicalize({ decisionId, payload, idempotencyKey }),
+    "tessera:leaf:v1\n" +
+      canonicalize({ decisionId, logSeq, payload, serial: serial ?? null }),
   );
 }
 
@@ -208,14 +221,21 @@ export function participantRouter(deps: ParticipantDeps): Router {
       return;
     }
 
-    const ballotHash = computeBallotHash(decisionId, payload, idempotencyKey);
-    const serial = typeof email === "string" ? email : null;
+    // Open mode: there is no anonymous credential, so the serial is null (the
+    // public leaf records `serial: null`). Persisting null — rather than the
+    // voter's email — keeps the public ballot log non-identifying. Credentialed
+    // secret-mode (serial = unblinded credential serial) is a later iteration.
+    const serial: string | null = null;
 
-    // Single transaction: append ballot + advance head + persist receipt. -----
+    // Single transaction: append ballot + recompute the Merkle root + persist
+    // the receipt committing to it (the running root === §11.5 Merkle root). ---
     const commit = db.transaction(() => {
       const prevHead = repos.head.get(decisionId)?.head ?? "";
       const logSeq = repos.ballots.count(decisionId);
-      const newHead = chainNext(prevHead, ballotHash);
+
+      // The PUBLIC leaf: binds decisionId + this position + payload + serial,
+      // and is recomputable by an independent verifier from public data alone.
+      const ballotHash = computeBallotHash(decisionId, logSeq, payload, serial);
 
       repos.ballots.append({
         decisionId,
@@ -226,27 +246,32 @@ export function participantRouter(deps: ParticipantDeps): Router {
         prevHead,
         ballotHash,
       });
-      repos.head.set(decisionId, newHead, logSeq + 1);
+
+      // Recompute the RFC 6962 Merkle root over EVERY leaf (including the one
+      // just appended). This becomes the receipt's runningRoot and the decision
+      // head, so /root, the receipt, and the verifier's recomputation all agree.
+      const newRoot = merkleRoot(repos.ballots.leafHashes(decisionId));
+      repos.head.set(decisionId, newRoot, logSeq + 1);
 
       const serverSig = serverKey.sign(
         canonicalize({
           ballotHash,
           logPosition: logSeq,
-          runningRoot: newHead,
+          runningRoot: newRoot,
         }),
       );
       repos.receipts.put({
         ballotHash,
         decisionId,
         logPosition: logSeq,
-        runningRoot: newHead,
+        runningRoot: newRoot,
         serverSig,
       });
 
       return {
         ballotHash,
         logPosition: logSeq,
-        runningRoot: newHead,
+        runningRoot: newRoot,
         serverSig,
       };
     });
@@ -256,10 +281,15 @@ export function participantRouter(deps: ParticipantDeps): Router {
       res.status(201).json({ receipt, decisionId });
     } catch (err) {
       if (err instanceof DuplicateBallotError) {
-        // Exactly-once retry: same (decisionId, idempotencyKey). If the payload
-        // is identical the ballotHash matches the stored receipt → 200 replay.
-        const existing = repos.receipts.byBallot(ballotHash);
-        if (existing) {
+        // Exactly-once retry: same (decisionId, idempotencyKey). The leaf now
+        // binds logSeq, so we compare the STORED payload (not a recomputed hash)
+        // to tell an identical replay from a same-key/different-payload conflict.
+        const stored = repos.ballots.findByIdempotency(decisionId, idempotencyKey);
+        const existing = stored ? repos.receipts.byBallot(stored.ballotHash) : null;
+        const samePayload =
+          stored !== null &&
+          canonicalize(JSON.parse(stored.payloadJson)) === canonicalize(payload);
+        if (existing && samePayload) {
           res.status(200).json({
             receipt: {
               ballotHash: existing.ballotHash,
@@ -271,7 +301,7 @@ export function participantRouter(deps: ParticipantDeps): Router {
           });
           return;
         }
-        // Same key, DIFFERENT payload → no receipt for this hash → conflict.
+        // Same key, DIFFERENT payload → conflict (exactly-once is violated).
         res.status(409).json({
           error: "idempotency-conflict",
           code: "IDEMPOTENCY_CONFLICT",

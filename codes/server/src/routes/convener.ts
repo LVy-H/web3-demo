@@ -5,8 +5,9 @@ import {
   canonicalize,
   sha256hex,
   computeSetupCommitment,
-  genesisHead,
 } from "../crypto";
+import { merkleRoot } from "../merkle";
+import { buildCheckpoint } from "../anchor";
 import {
   DecisionCreateSchema,
   assertTransition,
@@ -191,11 +192,11 @@ export function convenerRouter(deps: ConvenerDeps): Router {
       repos.decisions.setState(decision.id, to, at);
 
       if (to === "open" && from === "draft") {
-        // Initialise the running head at genesis ONLY on the real first open
-        // (draft → open). open → open is now an illegal transition (rejected
-        // above) so this never re-runs after ballots exist — guarding C1, the
-        // chain-head reset that forked the §11.5 root binding.
-        repos.head.set(decision.id, genesisHead(decision.id), 0);
+        // Initialise the running head to the EMPTY RFC 6962 Merkle root ONLY on
+        // the real first open (draft → open). open → open is now an illegal
+        // transition (rejected above) so this never re-runs after ballots exist
+        // — guarding C1, the head reset that forked the §11.5 root binding.
+        repos.head.set(decision.id, merkleRoot([]), 0);
       }
       res.status(200).json({ id: decision.id, state: to });
     };
@@ -231,6 +232,29 @@ export function convenerRouter(deps: ConvenerDeps): Router {
       actor: req.account!.id,
     });
     repos.decisions.setState(decision.id, "published", at);
+
+    // Build + persist the FINAL signed checkpoint over the published ballot set
+    // (§11 checkpoints / §12.1 anchor). This is the broadcast anchor `/anchor`
+    // serves: the signed RFC 6962 root a verifier binds the served ballots to
+    // (root-binding, §11 step 5). The signed payload is canonicalize({root,
+    // treeSize, decisionId}) — exactly what the verifier recomputes. Chains the
+    // prior checkpoint's root (null for the first).
+    const leaves = repos.ballots.leafHashes(decision.id);
+    const prevRoot = repos.checkpoints.latest(decision.id)?.root ?? null;
+    const checkpoint = buildCheckpoint({
+      decisionId: decision.id,
+      leaves,
+      prevRoot,
+      sign: (msg) => deps.serverKey.sign(msg),
+    });
+    repos.checkpoints.append({
+      decisionId: checkpoint.decisionId,
+      root: checkpoint.root,
+      treeSize: checkpoint.treeSize,
+      prevRoot: checkpoint.prevRoot,
+      signedRoot: checkpoint.signedRoot,
+    });
+
     res.status(200).json({ id: decision.id, state: "published" });
   });
 
