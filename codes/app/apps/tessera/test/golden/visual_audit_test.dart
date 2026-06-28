@@ -33,12 +33,73 @@
 @Tags(['golden'])
 library;
 
+import 'package:core_chain/chain_reader.dart';
+import 'package:core_domain/journeys/capabilities.dart';
+import 'package:core_domain/journeys/voter_journey.dart';
+import 'package:core_relay/relay_client.dart';
+import 'package:core_storage/created_polls_store.dart';
 import 'package:design_system/theme.dart';
 import 'package:design_system/widgets/results_bars.dart';
 import 'package:feature_organize/feature_organize.dart';
+import 'package:feature_vote/feature_vote.dart';
+import 'package:feature_you/feature_you.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:flutter_test/flutter_test.dart';
+
+// ── Walkthrough fakes ──────────────────────────────────────────────────────
+// The README's hero walkthrough (create → vote → results → verify) renders the
+// REAL production screens. The organizer create-flow needs an OrganizerJourney
+// port; we feed it the same faked wire deps the create-flow widget test uses,
+// so what renders is the genuine form, not a mock.
+const _relayerAddress = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8';
+const _pollAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
+const _flatAbi =
+    '[{"type":"function","name":"initialize","stateMutability":"nonpayable",'
+    '"inputs":[{"name":"semaphore","type":"address"},'
+    '{"name":"_owner","type":"address"},'
+    '{"name":"options","type":"string[]"}],"outputs":[]}]';
+
+class _FakeRelay implements RelayClient {
+  @override
+  Future<RelayerInfo?> getRelayerInfo() async =>
+      const RelayerInfo(relayer: _relayerAddress);
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('RelayClient.${invocation.memberName}');
+}
+
+class _FakeReader implements ChainReader {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('ChainReader.${invocation.memberName}');
+}
+
+class _StubGateway implements OrganizeRelayGateway {
+  @override
+  Future<CreatePollResult> createPoll({
+    required String moduleType,
+    required String title,
+    required String description,
+    required String initDataHex,
+    required int visibility,
+    required int resultsPolicy,
+  }) async => const CreatePollResult(pollAddress: _pollAddress);
+  @override
+  Future<void> startVoting(String pollAddress) async {}
+  @override
+  Future<void> endVoting(String pollAddress) async {}
+}
+
+const _sponsoredOnly = Capabilities(
+  canProve: false,
+  canSign: false,
+  canScanQr: false,
+  hasNfc: false,
+  hasBle: false,
+  canUseWallet: false,
+  relayerAvailable: true,
+);
 
 void main() {
   // Load the REAL bundled fonts so the goldens render with Inter +
@@ -248,6 +309,147 @@ void main() {
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/distribute-sheet.png'),
+    );
+  });
+
+  // ════════════════════════════════════════════════════════════════════════
+  // README WALKTHROUGH — create → vote → results → verify, all real screens.
+  // ════════════════════════════════════════════════════════════════════════
+
+  // ── walk-create (organizer) ──────────────────────────────────────────────
+  // The genuine CreateFlowView draft form, driven by the OrganizerJourney
+  // machine over faked wire deps, pre-filled like a real first decision.
+  testWidgets('walk-create', (tester) async {
+    final port = RelayOrganizerPort(
+      relay: _FakeRelay(),
+      reader: _FakeReader(),
+      gateway: _StubGateway(),
+      createdPolls: InMemoryCreatedPollsStore(),
+      flatModuleAbiJson: _flatAbi,
+      surveyVotingAbiJson: _flatAbi,
+    );
+    tester.view.physicalSize = const Size(390, 1450);
+    tester.view.devicePixelRatio = 1.0;
+    await tester.pumpWidget(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: buildDarkBauhausTheme(),
+        home: CreateFlowView(
+          port: port,
+          capabilities: _sponsoredOnly,
+          onDone: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(CreateFlowView.titleFieldKey),
+      'Approve the treasury grant?',
+    );
+    await tester.enterText(find.byKey(const Key('create-option-0')), 'Approve');
+    await tester.enterText(find.byKey(const Key('create-option-1')), 'Reject');
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/walk-create.png'),
+    );
+  });
+
+  // ── walk-ballot (voter) ──────────────────────────────────────────────────
+  // The real VOTE chrome (phase strip + pick-one ballot tiles) plus the
+  // enabled cast button, exactly as the voter sees it mid-decision.
+  testWidgets('walk-ballot', (tester) async {
+    await pumpSurface(
+      tester,
+      width: 390,
+      height: 470,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const PhaseStrip(phase: 1),
+          const SizedBox(height: 20),
+          Text('Approve the treasury grant?', style: dbSans(20, 800, Db.chalk)),
+          const SizedBox(height: 6),
+          Text(
+            'Pick one. Your vote is private — only the tally is public.',
+            style: dbMono(11, Db.mute, height: 1.5),
+          ),
+          const SizedBox(height: 18),
+          SingleChoiceBallot(
+            options: const ['Approve the treasury grant', 'Reject', 'Abstain'],
+            onChanged: (_) {},
+            initial: const SingleChoice(0),
+          ),
+          const SizedBox(height: 6),
+          // Faithful enabled cast button — mirrors PrimaryActionButton's
+          // enabled branch (segnale fill, void label) without needing a live
+          // NextAction from the machine.
+          Container(
+            height: 52,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: Db.segnale,
+              border: Border.fromBorderSide(BorderSide(color: Db.segnale)),
+            ),
+            child: Text(
+              'CAST VOTE',
+              style: dbSans(13, 800, Db.void_, letterSpacing: 1.2),
+            ),
+          ),
+        ],
+      ),
+    );
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/walk-ballot.png'),
+    );
+  });
+
+  // ── walk-receipt (voter) ─────────────────────────────────────────────────
+  // The real ReceiptPanel: the private, verifiable receipt a voter keeps.
+  testWidgets('walk-receipt', (tester) async {
+    await pumpSurface(
+      tester,
+      width: 390,
+      height: 300,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const PhaseStrip(phase: 2),
+          const SizedBox(height: 20),
+          const ReceiptPanel(
+            code: '8462190375516024873190462285517043',
+          ),
+        ],
+      ),
+    );
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/walk-receipt.png'),
+    );
+  });
+
+  // ── walk-verify (anyone) ─────────────────────────────────────────────────
+  // The real VerifyView with a counted receipt auto-checked — the
+  // "was my vote counted?" answer anyone can run, no voting pass needed.
+  testWidgets('walk-verify', (tester) async {
+    setSurface(tester, width: 390, height: 820);
+    await tester.pumpWidget(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: buildDarkBauhausTheme(),
+        home: VerifyView(
+          checkReceipt: (_, _) async => true,
+          lookupPollTitle: (_) async => 'Approve the treasury grant?',
+          initialPollAddress: _pollAddress,
+          initialReceiptCode: '8462190375516024873190462285517043',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/walk-verify.png'),
     );
   });
 }
