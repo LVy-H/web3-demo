@@ -417,9 +417,7 @@ void main() {
         children: [
           const PhaseStrip(phase: 2),
           const SizedBox(height: 20),
-          const ReceiptPanel(
-            code: '8462190375516024873190462285517043',
-          ),
+          const ReceiptPanel(code: '8462190375516024873190462285517043'),
         ],
       ),
     );
