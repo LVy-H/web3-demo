@@ -62,29 +62,40 @@ dev-signer/wallet onboarding. (Inventory: see the implementation plan.)
 - **Exit:** a convener can create→open→close→publish an **open-ballot** decision end-to-end;
   a voter casts and gets a self-contained receipt; one-command (broadcast-mode) deploy works.
 
-## Phase 3 — Trust core: credentials, checkpoints, anchor, verifier — **NEXT**
+## Phase 3 — Trust core: credentials, checkpoints, anchor, verifier — **DONE (2026-06-21..28, #135, #138)**
 > The part that makes the result *checkable without trusting the host*.
-- Secret-ballot **blind-signature credentials** (per-decision RSABSSA-PSS, pubkey committed
-  in `setupCommitment`; registration-closes-before-voting).
-- Running **hash-chained checkpoints** + Merkle log (RFC 6962-style) + receipts that sign
-  the running root.
-- **Anchor adapter**: broadcast (default, zero-wallet) + public-chain (upgrade) with tx
-  status/finality handling + trust-level disclosure (V5).
-- **Public verifier**: recompute tally **and verdict** from published ballots, recompute the
-  Merkle root and bind it to the anchored root, check serials/inclusion. Challenge window.
-- **Exit:** an independent party verifies a **secret-ballot** decision against the anchor
-  without trusting the server; the verification protocol (§11) holds end-to-end.
+- Secret-ballot **blind-signature credentials** (per-decision RFC 9474
+  RSABSSA-SHA384-PSS-Randomized, pubkey committed in `setupCommitment`;
+  registration-closes-before-voting). Server `/register` blind-signs; credentialed cast
+  presents `(serial, credentialSig)`; serial uniqueness = no double-vote.
+- Running **hash-chained checkpoints** + Merkle log (RFC 6962) + receipts that sign the
+  running root.
+- **Anchor adapter**: broadcast (default, zero-wallet) commitment anchor. (Public-chain
+  anchor + witnessed-log remain the named post-1.0 upgrades.)
+- **Public verifier**: recomputes tally **and verdict** from published ballots, recomputes
+  the Merkle root and binds it to the anchored root, checks serials/inclusion.
+- **Exit met:** an independent party verifies a secret-ballot decision against the anchor
+  without trusting the server.
 
-## Phase 4 — Client rewire & web-payload gate — **PLANNED**
-- Swap the journey ports from chain/relay/crypto to **server HTTP**; reuse the screens.
-- Self-contained receipts; trust-level (V5) in the UI; returning-voter / shared-device
-  states (P7).
-- **N4 web-payload spike → CI gate** on the voter path (≤~1 MB, ≤~3 s cold load on throttled
-  4G). If Flutter web misses, adopt the **pre-planned thin web voter shell** (design §12.4).
-- **Exit:** the full voter + convener + verifier flows work in the client against the server;
-  the voter-path payload budget is a green CI gate (or the shell fallback is in place).
+## Phase 4 — Client rewire & web-payload gate — **DONE (client rewire + secret-ballot client); one item open**
+- ✅ Swapped the journey ports from chain/relay/crypto to **server HTTP**, reusing the
+  screens (#136); server-backed organizer + voter adapters (`ServerClient`), proven by a
+  live e2e against a real server.
+- ✅ **Secret-ballot client** — pure-Dart RSABSSA in `core_crypto` blinds locally and is
+  **live-proven byte-exact** against the real server (register → cast → reused-serial 409 →
+  `GET /verify`).
+- ⬚ **OPEN — N4 web-payload budget → CI gate** on the voter path (≤~1 MB, ≤~3 s cold load on
+  throttled 4G). The `flutter build web` compile gate exists; the *size budget* gate does
+  not yet. If Flutter web misses the budget, adopt the pre-planned thin web voter shell
+  (design §12.4). **This is the remaining Phase-4 item.**
 
-## Phase 5 — Product completeness — **PLANNED**
+## Multi-tenant control plane — **SHIPPED (operator feature, #137)**
+> Not a 1.0-path phase, but landed in the v0.4.0 cycle.
+- `codes/control/`: isolated **instance-per-org**, a host-header → tenant **routing reverse
+  proxy**, and the **`tessera-ctl`** operator CLI (localhost-first v1) for self-hosting many
+  groups from one deployment.
+
+## Phase 5 — Product completeness — **NEXT (ACTIVE)**
 > The FRs the review proved are first-hour-of-real-use needs, not polish.
 - Decision **result semantics**: pass threshold / quorum / tie-break → published verdict
   (carried/failed/tie/quorum-not-met), recomputed by the verifier.

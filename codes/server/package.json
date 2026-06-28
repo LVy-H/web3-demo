@@ -1,6 +1,6 @@
 {
   "name": "tessera-server",
-  "version": "0.0.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Tessera self-hosted server: append-only ballot log + verifiable bulletin board (design 2026-06-19).",
   "scripts": {

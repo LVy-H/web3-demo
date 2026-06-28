@@ -1,99 +1,86 @@
 # Releasing
 
-> **Status: PROPOSAL.** This describes the release process we *want*. Today, only `local` is real — the testnet/mainnet flows are placeholders to fill in when we get there.
+> Updated for the **2026-06-19 self-hosted redesign**. The old testnet/mainnet contract
+> flows are gone — **there are no smart contracts since the redesign**. A release is now a
+> **git tag + GitHub release**, and "deploy" means **self-host** (local demo or the `deploy/`
+> docker-compose path). See [VERSIONING.md](./VERSIONING.md).
 
-## Release types
+## What a release is
 
-| Type | Network | Audience | Frequency | Reversible? |
-|------|---------|----------|-----------|-------------|
-| **Local** | Hardhat | Devs only | Every `npm run deploy:local` | Yes — addresses reset on node restart |
-| **Testnet** | Sepolia | Public devs / testers | Per minor or major | Yes — abandon and redeploy |
-| **Mainnet** | Mainnet (Ethereum or L2) | End users | Per major; rare | **No** — every deployment is permanent. Treat with care. |
+A **git tag `vX.Y.Z`** on `main` plus a **GitHub release** carrying the matching CHANGELOG
+excerpt. There is nothing to deploy to a public network — anyone who wants to run Tessera
+**self-hosts** it. The release is the thing operators pull and run.
 
-## Release checklist (apply to every type, scaling rigor)
+| Surface | What ships | How it runs |
+|---------|-----------|-------------|
+| **Client** (`codes/app`) | Flutter web/desktop/Android build | `./demo.sh up` (local) or any static host for the web build |
+| **Server** (`codes/server`) | the self-hosted ballot-log + verifier service | Docker / docker-compose, or `dev-stack.sh up` for local dev |
+| **Control plane** (`codes/control`) | multi-tenant operator proxy + `tessera-ctl` | `deploy/` docker-compose |
+
+## Release checklist
 
 ### Pre-release
-
-- [ ] All P0 items closed in `improvements/findings.md`
-- [ ] All P1 items closed (mainnet only — recommended for testnet)
-- [ ] CI green on `main` (the **`mobile`** job — `flutter analyze` + `flutter test` — is a hard gate)
-- [ ] **Tessera app**: `flutter analyze` clean; `flutter test` green; `flutter build web` + `flutter build linux` succeed
-- [ ] **Critic-audited**: each merged PR was reviewed by an adversarial critic agent + GitHub Copilot, findings addressed
-- [ ] **Verified-or-fenced**: every shipped path is runtime-verified, or capability-gated so unverified code (e.g. BLE/NFC, opt-in desktop prover) is inert and can't regress a working path
-- [ ] No uncommitted changes on the release branch
-- [ ] CHANGELOG.md has an `## [Unreleased]` section with the actual changes
-- [ ] If contracts changed: ABIs regenerated and committed
-- [ ] If contracts changed: tests pass under `npm test`
-- [ ] Mainnet only: external audit completed, threat model document up to date
-- [ ] Mainnet only: owner is a multisig, not an EOA
+- [ ] CI green on `main` — the **`app`**, **`android`**, and **`server`** jobs all pass.
+- [ ] **Client**: `dart run melos run analyze` clean; `dart run melos run test` green;
+      `flutter build web` succeeds.
+- [ ] **Server**: `npm test` green; `npm run build` succeeds; the running-server smoke passes.
+- [ ] **Control plane**: `npm test` green; `npm run build` succeeds.
+- [ ] **Critic-audited**: each merged PR was reviewed by an adversarial critic agent + GitHub
+      Copilot, findings addressed.
+- [ ] **Verified-or-fenced**: every shipped path is runtime-verified, or fenced so unverified
+      code is inert and can't regress a working path.
+- [ ] No uncommitted changes on the release branch.
+- [ ] `CHANGELOG.md` has an `## [Unreleased]` section with the actual changes.
+- [ ] Claims are honest (design §13) — in particular the single-party-trust caveat is intact.
 
 ### Cut the release
-
-1. Decide the version number per `VERSIONING.md`.
-2. Update `CHANGELOG.md`: rename `## [Unreleased]` → `## [vX.Y.Z] — YYYY-MM-DD`, add a fresh empty `## [Unreleased]` above it.
-3. Update the version in all three packages so they stay aligned: `codes/contracts/package.json`, `codes/relayer/package.json`, and **`codes/mobile/pubspec.yaml`** (`version: X.Y.Z+N` — the canonical client).
-4. If applicable, update the `VERSION` constant on each contract (proposed; skip if not adopted).
-5. Commit: `chore: release vX.Y.Z`.
+1. Decide the version number per [VERSIONING.md](./VERSIONING.md).
+2. Update `CHANGELOG.md`: rename `## [Unreleased]` → `## [vX.Y.Z] — YYYY-MM-DD`, add a fresh
+   empty `## [Unreleased]` above it.
+3. **Bump all three aligned version files** so they stay in sync:
+   - `codes/app/apps/tessera/pubspec.yaml` → `version: X.Y.Z+N`
+   - `codes/server/package.json` → `"version": "X.Y.Z"`
+   - `codes/control/package.json` → `"version": "X.Y.Z"`
+4. Update `STATUS.md` (snapshot date + where-things-stand), move the active marker in
+   `ROADMAP.md`, and clear `FOCUS.md` to the next iteration's goal.
+5. Commit: `chore: release vX.Y.Z — <headline>`.
 6. Tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`.
-7. Push the commit and the tag.
+7. Push the commit and the tag; create the **GitHub release** from the tag with the CHANGELOG
+   excerpt as the body.
 
-### Deploy
+## Deploy = self-host
 
-#### Local (Hardhat)
+There is no testnet or mainnet. To run a release:
+
+### Local (one command)
 ```bash
-cd codes/contracts
-npm run node              # Terminal 1
-npm run deploy:local      # Terminal 2 — overwrites deployed-addresses.json
+./demo.sh up      # server + Flutter web client, locally
 ```
-That's it. Addresses are deterministic; the file is gitignored or rewritten per run.
-
-#### Testnet (Sepolia — proposed flow)
+For server-only local dev (the client run separately via `flutter run`):
 ```bash
-cd codes/contracts
-PRIVATE_KEY=... RPC_URL=https://sepolia.infura.io/v3/... npm run deploy:sepolia
+./dev-stack.sh up # starts codes/server on :3001, waits for /health
 ```
-*(`deploy:sepolia` script does not exist yet — add it as part of [P3-19] and [P4-22].)*
 
-After deploy:
-- [ ] Verify each contract on Etherscan
-- [ ] Commit `deployed-addresses.sepolia.json` to the repo
-- [ ] Test the full happy path against the testnet frontend
-- [ ] Document the deployed addresses in CHANGELOG entry
-
-#### Mainnet (proposed flow)
-Add **every** safeguard for testnet plus:
-- [ ] Deployment runs from a hardware wallet, not a hot key
-- [ ] Owner is set to a Gnosis Safe or equivalent multisig before any module is registered
-- [ ] Real `SemaphoreVerifier` (NOT `MockSemaphoreVerifier`) — verify the deploy script picks the real one
-- [ ] SNARK artifacts bundled with the frontend, not fetched from a third-party CDN at runtime ([P4-24])
-- [ ] Announce the deployment with addresses + commit hash before users interact
-
-### Post-release
-
-- [ ] Tag-pushed status mentioned in STATUS.md
-- [ ] Old `## [Unreleased]` section moved into the dated CHANGELOG entry
-- [ ] FOCUS.md cleared and the next iteration's goal written
-- [ ] Frontend rebuilt and deployed (if applicable) — usually a Vercel / Netlify push or a static-site upload; document the host once chosen
+### Production (docker-compose, self-hosted)
+```bash
+cd deploy/<target>            # docker-compose self-host path
+docker compose up -d
+```
+The multi-tenant control plane (`deploy/multi-tenant/`) runs many isolated org instances
+behind a host-routing proxy; `tessera-ctl` is the operator CLI. Operator ops (TLS, backing up
+the `data/` volume **including the credential keys**, the optional funded-wallet anchor path)
+are hardened in Phase 6 — see [ROADMAP.md](./ROADMAP.md).
 
 ## Rollback
 
-| Network | Possible? | How |
-|---------|-----------|-----|
-| Local | Yes | Restart `npm run node` |
-| Testnet | Yes | Mark old addresses as deprecated in `deployed-addresses.sepolia.json`, deploy fresh, update frontend |
-| Mainnet | **No** | The contract stays. You can register a new module impl for new polls (existing polls still use the old impl forever — that's the EIP-1167 trade-off). For a fully broken contract, you can only stop pointing to it from the registry and announce the deprecation. |
-
-## What to do if a deployment fails mid-script
-
-The deploy script is sequential. If it fails partway:
-
-1. **Do not retry the whole script** — it'll deploy a second `Semaphore`, second `PollRegistry`, etc.
-2. Inspect the partial output (`hardhat-node.log` or stdout).
-3. Either (a) abandon and start over (local only), or (b) write a one-off resume script that picks up from the failed step and reuses already-deployed addresses.
-4. Once recovered, file an entry in `improvements/findings.md` so we make the script idempotent.
+Self-hosted, so rollback is the operator's: redeploy the previous tag's image, restore the
+`data/` volume from backup if a migration went wrong. Because published ballots, receipts, the
+anchored Merkle root, and the credential protocol are stable wire formats (a MAJOR-bump
+contract — see VERSIONING.md), an older verifier still checks a decision published by a newer
+server within the same major.
 
 ## Communication
 
-- Internal: STATUS.md update + a message in your shared channel
-- External (testnet+): a tagged GitHub release with CHANGELOG excerpt
-- Mainnet: same plus an announcement with the audit report attached
+- **Internal:** `STATUS.md` update + a message in your shared channel.
+- **External:** the tagged GitHub release with the CHANGELOG excerpt; operators pull the new
+  tag and redeploy.
