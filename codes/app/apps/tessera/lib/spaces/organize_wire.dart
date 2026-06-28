@@ -151,7 +151,10 @@ Future<OrganizerConsolePort> buildConsolePort({
     // have pasted it after startup); voter routes ignore it, convener routes
     // require it.
     server.token = AppConfig.convenerToken;
-    return ServerOrganizerPortAdapter(client: server, createdPolls: createdPolls);
+    return ServerOrganizerPortAdapter(
+      client: server,
+      createdPolls: createdPolls,
+    );
   }
   return buildOrganizerPort(
     relay: relay,

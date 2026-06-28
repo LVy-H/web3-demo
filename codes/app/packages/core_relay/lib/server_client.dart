@@ -67,8 +67,9 @@ class ServerClient {
     final message = data['error'] is String
         ? data['error'] as String
         : 'request failed (HTTP ${res.statusCode})';
-    final signature =
-        data['signature'] is String ? data['signature'] as String : null;
+    final signature = data['signature'] is String
+        ? data['signature'] as String
+        : null;
     throw ServerException(
       message,
       status: res.statusCode,
@@ -195,14 +196,13 @@ class ServerClient {
     required String idempotencyKey,
     String? passcode,
     String? email,
-  }) =>
-      _post('/ballots', {
-        'decisionId': decisionId,
-        'payload': payload,
-        'idempotencyKey': idempotencyKey,
-        'passcode': ?passcode,
-        'email': ?email,
-      });
+  }) => _post('/ballots', {
+    'decisionId': decisionId,
+    'payload': payload,
+    'idempotencyKey': idempotencyKey,
+    'passcode': ?passcode,
+    'email': ?email,
+  });
 }
 
 /// Thrown for any non-2xx from the server. [code] is the server's machine
@@ -232,6 +232,5 @@ class ServerException implements Exception {
   bool get isMaxParticipants => code == 'MAX_PARTICIPANTS';
 
   @override
-  String toString() =>
-      'ServerException(${code ?? status ?? '?'}): $message';
+  String toString() => 'ServerException(${code ?? status ?? '?'}): $message';
 }

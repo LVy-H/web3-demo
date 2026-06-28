@@ -89,8 +89,9 @@ class ServerVoterPortAdapter implements VoterJourneyPort {
   Future<VoterPollView> fetchSnapshot() async {
     final d = await client.getDecision(decisionId);
     final opts = d['options'];
-    final options =
-        opts is List ? opts.map((e) => e.toString()).toList() : <String>[];
+    final options = opts is List
+        ? opts.map((e) => e.toString()).toList()
+        : <String>[];
     final state = d['state'] is String ? d['state'] as String : 'draft';
     final turnout = _asBigInt(d['turnout']);
     // Open ballots are individually published (the receipt chain), but the
@@ -160,8 +161,10 @@ class ServerVoterPortAdapter implements VoterJourneyPort {
       seed = generateIdentitySeed();
       await identityStore.write(seed);
     }
-    final idempotencyKey =
-        ballotIdempotencyKey(identitySeed: seed, decisionId: decisionId);
+    final idempotencyKey = ballotIdempotencyKey(
+      identitySeed: seed,
+      decisionId: decisionId,
+    );
 
     final Map<String, dynamic> response;
     try {
