@@ -154,6 +154,32 @@ class ServerClient {
   /// `GET /decisions/:id` → the public decision view (no token needed).
   Future<Map<String, dynamic>> getDecision(String id) => _get('/decisions/$id');
 
+  /// `GET /decisions/:id/issuer` → `{issuerPublicKeyPem, issuerPubKeyHash}` for
+  /// a SECRET-mode decision (no token needed). The per-decision RSABSSA issuer
+  /// SPKI public key a registering voter blinds their credential under; the
+  /// client MUST verify `sha256hex(issuerPublicKeyPem) == issuerPubKeyHash`
+  /// (the anchored hash) before trusting it. `404 NOT_SECRET` in open mode.
+  Future<Map<String, dynamic>> getIssuer(String id) =>
+      _get('/decisions/$id/issuer');
+
+  // ── secret-ballot registration ───────────────────────────────────────────
+
+  /// `POST /register {decisionId, blindedMessage}` → `200 {decisionId,
+  /// blindSignature}` (SECRET mode only; no token needed). The voter has
+  /// locally blinded a credential message under the issuer pubkey; the server
+  /// blind-signs the opaque token (never seeing the final credential). The
+  /// caller `finalize()`s [blindSignature] into a credential signature. A
+  /// non-2xx throws a [ServerException] (`REGISTRATION_CLOSED` once voting is
+  /// open, `MAX_PARTICIPANTS`, `NOT_SECRET_MODE`, `INELIGIBLE`).
+  Future<Map<String, dynamic>> register(
+    String decisionId,
+    String blindedMessage,
+  ) =>
+      _post('/register', {
+        'decisionId': decisionId,
+        'blindedMessage': blindedMessage,
+      });
+
   /// `GET /ballots?decisionId=&after=&limit=` → `{ballots[], leafCount,
   /// nextCursor, complete?}`.
   Future<Map<String, dynamic>> getBallots(
@@ -180,6 +206,12 @@ class ServerClient {
   Future<Map<String, dynamic>> getAnchor(String decisionId) =>
       _get('/anchor?decisionId=${Uri.encodeQueryComponent(decisionId)}');
 
+  /// `GET /verify/:id` → `{report:{ok, checks[...]}, authoritative:false}` —
+  /// the server-side convenience that rebuilds the public bundle and runs the
+  /// independent verifier (the §11 checks). Non-authoritative; anyone can run
+  /// the same verifier over the public endpoints.
+  Future<Map<String, dynamic>> getVerify(String id) => _get('/verify/$id');
+
   // ── ballot cast ──────────────────────────────────────────────────────────
 
   /// `POST /ballots {decisionId, payload, idempotencyKey}` →
@@ -187,14 +219,23 @@ class ServerClient {
   /// decisionId}`; `200` (same receipt) on an identical retry. A non-2xx
   /// throws a [ServerException] whose [ServerException.code] is one of
   /// `DECISION_CLOSED` / `MAX_PARTICIPANTS` / `VALIDATION` / `INELIGIBLE` /
-  /// `IDEMPOTENCY_CONFLICT`, carrying the server `signature` for signed
-  /// refusals. No token needed (participant route).
+  /// `SERIAL_USED` / `IDEMPOTENCY_CONFLICT`, carrying the server `signature`
+  /// for signed refusals. No token needed (participant route).
+  ///
+  /// SECRET mode: pass the anonymous blind-sig credential as [serial] +
+  /// [credentialSig] (from the register→finalize flow). The server verifies
+  /// the credential against the per-decision issuer pubkey over the bound
+  /// message `"$decisionId|$serial"` and records [serial] as the no-double-vote
+  /// key (a reused serial → `409 SERIAL_USED`). Open-mode callers omit both;
+  /// open-mode eligibility uses [passcode] / [email] instead.
   Future<Map<String, dynamic>> castBallot({
     required String decisionId,
     required Map<String, dynamic> payload,
     required String idempotencyKey,
     String? passcode,
     String? email,
+    String? serial,
+    String? credentialSig,
   }) =>
       _post('/ballots', {
         'decisionId': decisionId,
@@ -202,6 +243,8 @@ class ServerClient {
         'idempotencyKey': idempotencyKey,
         'passcode': ?passcode,
         'email': ?email,
+        'serial': ?serial,
+        'credentialSig': ?credentialSig,
       });
 }
 
@@ -230,6 +273,15 @@ class ServerException implements Exception {
 
   /// The decision hit its participant cap.
   bool get isMaxParticipants => code == 'MAX_PARTICIPANTS';
+
+  /// SECRET mode: this credential serial already cast a ballot (no double-vote).
+  bool get isSerialUsed => code == 'SERIAL_USED';
+
+  /// The presented credential / eligibility was rejected at cast or register.
+  bool get isIneligible => code == 'INELIGIBLE';
+
+  /// Registration closed (the decision moved past 'registration' to voting).
+  bool get isRegistrationClosed => code == 'REGISTRATION_CLOSED';
 
   @override
   String toString() =>

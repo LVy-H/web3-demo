@@ -83,6 +83,36 @@ export function publicRouter(deps: PublicDeps): Router {
     });
   });
 
+  // GET /decisions/:id/issuer — the PUBLIC per-decision RSABSSA issuer pubkey. --
+  // A secret-mode voter holds only the decision id; to `blind()` a credential
+  // they need the issuer SPKI public key. `create` returns it once to the
+  // convener, but a fresh voter cannot see that response — so expose it here,
+  // trust-minimised: the client recomputes sha256hex(issuerPublicKeyPem) and
+  // checks it equals the anchored `issuerPubKeyHash` (in the setupCommitment)
+  // before blinding, so a tampered key is caught before any round trip.
+  // Open mode / a decision with no issuer key → 404 NOT_SECRET.
+  router.get("/decisions/:id/issuer", (req, res) => {
+    const id = String(req.params.id);
+    const row = repos.decisions.get(id);
+    if (!row) {
+      res.status(404).json({ error: "not-found", code: "NOT_FOUND" });
+      return;
+    }
+    const d = parseDecision(row);
+    const key = repos.signingKeys.get(id);
+    if (d.ballotMode !== "secret" || !key) {
+      // Not a secret-ballot decision (no per-decision issuer) → nothing to serve.
+      res.status(404).json({ error: "not-secret", code: "NOT_SECRET", decisionId: id });
+      return;
+    }
+    res.status(200).json({
+      issuerPublicKeyPem: key.publicKeyPem,
+      // The SAME anchored hash the public view / verifier bind to; the client
+      // asserts sha256hex(issuerPublicKeyPem) === this before blinding.
+      issuerPubKeyHash: key.pubKeyHash,
+    });
+  });
+
   // GET /ballots?decisionId=&after=&limit= — cursor-paginated ballot list. ----
   router.get("/ballots", (req, res) => {
     const decisionId = String(req.query.decisionId ?? "");

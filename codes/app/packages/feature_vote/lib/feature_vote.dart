@@ -11,6 +11,7 @@ export 'src/data/listed_polls_reader.dart'
 export 'src/data/survey_reader.dart';
 export 'src/ports/ballot_encoding.dart';
 export 'src/ports/blind_port_adapter.dart';
+export 'src/ports/secret_ballot_credential.dart';
 export 'src/ports/server_voter_port_adapter.dart';
 export 'src/ports/voter_port_adapter.dart';
 export 'src/screens/blind_journey_screen.dart';
