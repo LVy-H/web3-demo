@@ -3,8 +3,7 @@
 #
 # The old stack (Hardhat chain + relayer + Android-emulator e2e) was removed with
 # the on-chain architecture. The new stack is just the self-hosted server
-# (codes/server); the Flutter client runs separately via `flutter run`. The server
-# is a skeleton today (health route) and this script grows with Phases 2-3.
+# (codes/server); the Flutter client runs separately via `flutter run`.
 #
 #   ./dev-stack.sh up      start the server (npm run dev) on :3001, wait for /health
 #   ./dev-stack.sh down    stop the server this script started

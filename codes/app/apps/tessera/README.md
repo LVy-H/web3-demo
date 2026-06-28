@@ -1,17 +1,41 @@
-# tessera
+# Tessera Flutter App
 
-A new Flutter project.
+The Tessera client app for voters, organizers, and verifiers.
 
-## Getting Started
+This app defaults to the current server-backed product path:
 
-This project is a starting point for a Flutter application.
+- `SERVER_MODE=true`
+- `SERVER_URL=http://127.0.0.1:3001`
+- no wallet required for the local demo
+- organizer actions use the server admin token pasted in Settings -> Network
 
-A few resources to get you started if this is your first Flutter project:
+## Run
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+From the repository root, the full local product demo is:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+./demo.sh up
+```
+
+For app development with a separately running server:
+
+```bash
+./dev-stack.sh up
+cd codes/app/apps/tessera
+flutter run -d chrome
+```
+
+To point a build at a specific server:
+
+```bash
+flutter run -d chrome --dart-define=SERVER_URL=http://127.0.0.1:3001
+```
+
+## Build Web
+
+```bash
+flutter build web --dart-define=SERVER_URL=http://127.0.0.1:3001
+```
+
+The repository-level `./demo.sh build` command builds this app and copies the
+web bundle into `site/demo/` for static hosting.

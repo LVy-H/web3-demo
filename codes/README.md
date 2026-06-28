@@ -1,134 +1,94 @@
-# Tessera — modular zero-knowledge voting
+# Tessera code workspace
 
-A modular, privacy-preserving on-chain voting platform built on the Semaphore
-Protocol (v4), with an optional gasless/sponsored relayer. A central
-`PollRegistry` factory deploys per-poll EIP-1167 minimal proxies for **six
-registered voting modules** — anonymous, blind (commit-reveal), approval,
-ranked-choice, quadratic, and survey. A standalone `ZkAirdrop` contract reuses
-Semaphore for one-shot anonymous claims and is intentionally **not** part of the
-registry.
+This directory holds the implementation behind the current Tessera architecture:
+a self-hosted, verifiable bulletin-board server plus one Flutter client.
 
-The sole client is the Flutter workspace in `codes/app/` — one codebase across
-mobile, desktop, and web (shell at `codes/app/apps/tessera/`).
+The old on-chain stack (Hardhat contracts, Semaphore/Groth16 voting modules,
+gasless relayer, and browser dApp) has been removed from the working tree. It is
+preserved in git history only. The default local product no longer needs a
+blockchain, wallet, MetaMask, relayer, or SNARK prover.
 
-## Quick start (local, 4 terminals)
+## Components
+
+| Path | Purpose |
+| --- | --- |
+| [`server/`](server/) | TypeScript/Express server: SQLite append-only ballot log, decision lifecycle, convener auth, tally/verdict, signed receipts, Merkle checkpoints, anchor, blind-signature credentials, and public verify API. |
+| [`app/`](app/) | Flutter workspace: the voter, organizer, and verifier UI. The app defaults to the server-backed REST path (`SERVER_MODE=true`). |
+| [`control/`](control/) | Multi-tenant operator/control plane: one isolated Tessera server per org, routed by host name. |
+
+## Quick Start
+
+From the repository root, run the one-command demo:
 
 ```bash
-# Terminal 1 — local chain
-cd contracts && npm install && npm run node
-
-# Terminal 2 — deploy contracts to the running node
-cd contracts && npm run deploy:local
-
-# Terminal 3 — the Tessera app (Flutter; canonical client for mobile/desktop/web)
-cd app/apps/tessera && flutter run -d linux   # or -d chrome, -d <android-serial>
-
-# Terminal 4 (optional) — gasless relayer (http://localhost:3001)
-cd relayer && npm install && npm start
-
-# Terminal 5 (optional) — Flutter tests
-cd app && dart run melos run test
+./demo.sh up
 ```
 
-> Tip: `../dev-stack.sh up` does node → deploy → demo poll → relayer in one step.
+It starts the server on `http://127.0.0.1:3001`, builds and serves the Flutter
+web app on `http://127.0.0.1:8080`, and prints the admin token used by organizer
+actions. Stop it with:
 
-`deploy:local` writes addresses to `codes/contracts/deployed-addresses.json`.
-The React frontend has been removed — the Flutter app (`codes/app`) is the
-sole client.
-
-## Architecture at a glance
-
-```
-PollRegistry (factory, EIP-1167 clones) — six registered module types
-├── ZkAnonVoting       — M1: Semaphore anonymous (single choice + nullifier)
-├── ZkBlindVoting      — M2: commit-reveal, no Semaphore dependency
-├── ZkApprovalVoting   — multi-select bitmask ballot
-├── ZkRankedVoting     — ranked-choice (instant-runoff tally computed in Dart)
-├── ZkQuadraticVoting  — credit allocation (CREDITS=100, sum of squares ≤ 100)
-└── ZkSurveyVoting     — multi-question "Google-Forms"; one ballot per survey
-
-ZkAirdrop              — standalone, uses Semaphore directly (not registered)
-
-Relayer (optional)     — Express service; submits the SNARK-message votes
-                         (anon / approval / ranked / quadratic / survey) and
-                         airdrop claims on behalf of voters, plus a sponsored
-                         (wallet-free) poll lifecycle. See ./relayer/README.md.
+```bash
+./demo.sh down
 ```
 
-The app's VOTE-space DIRECTORY tab reads the opt-in listed polls from
-`PollRegistry.getListedPolls()` (polls are unlisted by default — private polls
-are joined by link/QR). Opening `/poll/<address>` resolves the poll's module
-type on-chain (`PollModuleResolver` in
-`codes/app/apps/tessera/lib/routing/`) and hosts the matching voter journey
-screen — the module type is never trusted from the URL.
+For development, run the pieces separately:
 
-## Optional: gasless voting via relayer
+```bash
+./dev-stack.sh up
+cd codes/app/apps/tessera
+flutter run -d chrome
+```
 
-`codes/relayer/` is an Express service that signs and submits ZK vote /
-airdrop transactions on behalf of a voter, so the voter needs neither a
-wallet nor ETH. Voters still generate their ZK proof client-side — the
-relayer cannot see who they are and cannot alter the vote (the option /
-answers are bound into the proof's `message` field, enforced on-chain). It
-can only refuse to forward.
+The app reads the default server URL from `SERVER_URL` and can be re-pointed at
+runtime in Settings -> Network. Paste the admin token there to create, open,
+close, and publish decisions.
 
-The relayer also provides a **sponsored** (wallet-free) poll lifecycle
-(create / register / start) so non-technical users never touch a wallet.
+## Server API at a Glance
 
-In the app, casting a vote always runs in two steps: prove (client-side) then
-relay — the vote screen shows `GENERATING PROOF…` then `SUBMITTING…`. The
-relayer URL is configured via `AppConfig.relayerUrl`; the Settings screen shows
-the active host.
+Public/read routes:
 
-Trust model and API reference: [`./relayer/README.md`](./relayer/README.md).
+- `GET /health`
+- `GET /key`
+- `GET /decisions/:id`
+- `GET /decisions/:id/issuer`
+- `GET /ballots?decisionId=...`
+- `GET /root?decisionId=...`
+- `GET /results?decisionId=...`
+- `GET /anchor?decisionId=...`
+- `GET /verify/:id`
 
-## Tests & CI
+Participant routes:
 
-- Contracts: `cd contracts && npm test` (Hardhat — 268 passing).
-- Relayer: `cd relayer && npm test` (Vitest — 96 passing, 2 skipped).
-- Flutter: `cd app && dart run melos run analyze` and `dart run melos run test`.
+- `POST /register` for secret-ballot blind-signature credential issuance.
+- `POST /ballots` for idempotent ballot casts and signed receipts.
 
-CI (`.github/workflows/ci.yml`) runs three jobs — contracts, relayer, and
-app. The **app** job (melos format/analyze/test across every workspace package
-+ `flutter build web`) is the canonical-client release gate.
+Convener routes require `Authorization: Bearer <admin-token>`:
 
-> Local dev and CI use `MockSemaphoreVerifier` (an always-true verifier), so no
-> SNARK artifacts are needed. Public networks require the real Groth16
-> `SemaphoreVerifier` (`USE_REAL_VERIFIER=true`; tracked as P4-23/P4-24).
+- `POST /decisions`
+- `POST /decisions/:id/open`
+- `POST /decisions/:id/close`
+- `POST /decisions/:id/publish`
+- `POST /decisions/:id/cancel`
+- `POST /decisions/:id/extend`
 
-## Documentation
+Supported tally methods are `single`, `approval`, `ranked`, `quadratic`, and
+`survey`, with `abstain` accepted for every method. Secret ballots use RFC 9474
+RSABSSA blind-signature credentials so eligibility can be checked without
+linking the issued credential to the eventual ballot.
 
-- Full architecture: [`../docs/architecture/system-overview.md`](../docs/architecture/system-overview.md)
-- Current project status: [`../docs/project/STATUS.md`](../docs/project/STATUS.md)
-- Contributor backlog: [`../docs/improvements/README.md`](../docs/improvements/README.md)
-- Relayer service: [`./relayer/README.md`](./relayer/README.md)
+## Tests
 
-Per-module deep dives live alongside the overview in `../docs/architecture/`:
-[`module-m1-anon-voting.md`](../docs/architecture/module-m1-anon-voting.md),
-[`module-m2-blind-voting.md`](../docs/architecture/module-m2-blind-voting.md),
-[`module-approval.md`](../docs/architecture/module-approval.md),
-[`module-ranked.md`](../docs/architecture/module-ranked.md),
-[`module-quadratic.md`](../docs/architecture/module-quadratic.md),
-[`module-survey.md`](../docs/architecture/module-survey.md), and
-[`module-airdrop.md`](../docs/architecture/module-airdrop.md).
+```bash
+cd codes/server  && npm test
+cd codes/control && npm test
+cd codes/app     && dart run melos run analyze && dart run melos run test
+```
 
-## Wallets & signing (local dev)
+## Related Docs
 
-The default local flow needs **no wallet**: contracts are deployed with the
-deterministic Hardhat key, and votes are submitted through the dev-signer
-(`DEV_PRIVATE_KEY`) or the sponsored relayer. MetaMask is only relevant to the
-optional desktop/web WalletConnect (Reown) path.
-
-If you do connect a wallet for the WalletConnect path, add a custom network for
-the local Hardhat node:
-
-| Field | Value |
-| --- | --- |
-| Network name | Hardhat Local |
-| RPC URL | `http://127.0.0.1:8545` |
-| Chain ID | `31337` |
-| Currency symbol | ETH |
-
-Import one of the deterministic Hardhat test accounts (printed by
-`npm run node`) to get a funded wallet. Reset the account's transaction
-history in MetaMask whenever you restart the local node — nonces will
-otherwise drift.
+- [`../README.md`](../README.md) - product overview and local demo.
+- [`../deploy/README.md`](../deploy/README.md) - self-hosting the server and static app.
+- [`../deploy/multi-tenant/README.md`](../deploy/multi-tenant/README.md) - isolated org hosting.
+- [`../docs/project/STATUS.md`](../docs/project/STATUS.md) - current project status.
+- [`../docs/architecture/system-overview.md`](../docs/architecture/system-overview.md) - architecture orientation.

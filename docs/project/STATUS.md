@@ -45,7 +45,7 @@ server (#138) plus a pure-Dart client, **live-proven byte-exact** against a real
 ### Built (Phases 2–4 — DONE, merged to `main`)
 - **Server (#134)** — `codes/server/` (TypeScript + Express + better-sqlite3): SQLite WAL
   append-only log + typed repos; convener bootstrap-token auth; the decision lifecycle
-  (state machine + signed events); the six-method **tally oracle + verdict**; idempotent
+  (state machine + signed events); the five-method **tally oracle + verdict**; idempotent
   single-transaction **cast** with server-signed **hash-chained receipts**; the public read
   API (`/decisions`, `/ballots`, `/root`, `/results`, `/anchor`). One-command build/start;
   Docker + `dev-stack.sh up`.

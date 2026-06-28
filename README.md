@@ -37,7 +37,7 @@ everyone.*
 
 | Component | Path | Purpose |
 | --- | --- | --- |
-| **Server** | [`codes/server/`](codes/server/) | Self-hosted core: SQLite append-only ballot log, decision lifecycle + convener auth, the six-method **tally + verdict** oracle, idempotent casts with server-signed **hash-chained receipts**, and the public read API. |
+| **Server** | [`codes/server/`](codes/server/) | Self-hosted core: SQLite append-only ballot log, decision lifecycle + convener auth, the five-method **tally + verdict** oracle, idempotent casts with server-signed **hash-chained receipts**, and the public read API. |
 | **Trust core** | [`codes/server/src/`](codes/server/src/) | RFC 6962 Merkle log + Ed25519-signed checkpoints, a pluggable **anchor** (broadcast by default, a public chain as the equivocation-resistant upgrade), and the **independent public verifier** (six checks, pure code, depends only on public data). |
 | **Secret ballots** | [`credentials`](codes/server/src/credentials/) · [`core_crypto`](codes/app/packages/core_crypto/) | RFC 9474 **RSABSSA** blind-signature credentials — a server-side issuer plus a pure-Dart client — so a ballot is eligibility-gated **and** anonymous. |
 | **Client (Tessera)** | [`codes/app/`](codes/app/) | One Flutter codebase (web-first; also desktop/mobile) — the voter, convener, and verifier UI. |

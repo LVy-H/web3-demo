@@ -3,7 +3,6 @@
 # The 2026-06-19 redesign replaced the on-chain stack (hardhat contracts +
 # relayer + block explorer) with a single self-hosted server. The Flutter client
 # runs via `flutter run` (not docker). The local one-liner is `./dev-stack.sh up`.
-# The server is a skeleton today (health route); compose grows with Phases 2-3.
 
 services:
   server:

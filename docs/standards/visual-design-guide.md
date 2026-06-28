@@ -55,7 +55,7 @@ A voting app must feel **neutral, trustworthy, and secure**. Avoid bright/playfu
 **Rules:**
 - Maximum 3 font weights per page (400, 600, 800)
 - Never use bold for paragraphs -- bold is for headings and labels only
-- Monospace (`font-mono`) only for blockchain data (addresses, hashes, tokens)
+- Monospace (`font-mono`) only for technical data (decision ids, hashes, tokens)
 - Minimum 14px for body text (12px only for captions)
 
 ### Spacing (8px Grid)
