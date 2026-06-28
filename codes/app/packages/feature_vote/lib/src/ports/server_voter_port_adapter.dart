@@ -35,6 +35,8 @@ import 'package:core_domain/models/relay_proof.dart';
 import 'package:core_relay/server_client.dart';
 import 'package:core_storage/identity_store.dart';
 
+import 'secret_ballot_credential.dart';
+
 /// Maps a server `method` string to the voter journey's module enum, or null
 /// for an unknown method.
 VoterModule? voterModuleForServerMethod(String method) => switch (method) {
@@ -47,10 +49,13 @@ VoterModule? voterModuleForServerMethod(String method) => switch (method) {
 };
 
 /// Server decision `state` string → [PollSnapshot.state] int
-/// (0=registration/pre, 1=voting, 2=ended): draft→0, open→1, everything
-/// terminal (closed | challenge | published | cancelled)→2.
+/// (0=registration/pre, 1=voting, 2=ended): draft / registration→0, open→1,
+/// everything terminal (closed | challenge | published | cancelled)→2.
+/// SECRET-mode decisions start in 'registration' (credential issuance opens
+/// before voting), which is a PRE-voting phase, not 'ended'.
 int voterPhaseForState(String state) => switch (state) {
   'draft' => 0,
+  'registration' => 0,
   'open' => 1,
   _ => 2,
 };
@@ -78,12 +83,29 @@ class ServerVoterPortAdapter implements VoterJourneyPort {
   /// module the host screen already resolved.
   final VoterModule module;
 
+  /// Drives the SECRET-mode register→blind→finalize handshake. Injectable for
+  /// tests; defaults to one bound to [client].
+  final SecretBallotRegistrar _registrar;
+
+  /// Whether the fetched decision is a SECRET (blind-sig credential) ballot —
+  /// learned from [fetchSnapshot]'s `ballotMode`. Drives the cast branch.
+  bool _secret = false;
+
+  /// The anchored issuer pubkey hash from the public view, checked against the
+  /// `/issuer` key before blinding (trust-minimised). Null until fetched.
+  String? _issuerPubKeyHash;
+
+  /// The obtained anonymous credential (SECRET mode), cached so register runs
+  /// once per voter session (join phase) and the same credential casts.
+  SecretBallotCredential? _credential;
+
   ServerVoterPortAdapter({
     required this.client,
     required this.identityStore,
     required this.decisionId,
     required this.module,
-  });
+    SecretBallotRegistrar? secretRegistrar,
+  }) : _registrar = secretRegistrar ?? SecretBallotRegistrar(client);
 
   @override
   Future<VoterPollView> fetchSnapshot() async {
@@ -93,6 +115,13 @@ class ServerVoterPortAdapter implements VoterJourneyPort {
         ? opts.map((e) => e.toString()).toList()
         : <String>[];
     final state = d['state'] is String ? d['state'] as String : 'draft';
+    // SECRET vs OPEN: a secret decision casts with a blind-sig credential; an
+    // open one carries no credential. Capture the anchored issuer hash so the
+    // register step can check the served issuer key against it.
+    _secret = d['ballotMode'] == 'secret';
+    _issuerPubKeyHash = d['issuerPubKeyHash'] is String
+        ? d['issuerPubKeyHash'] as String
+        : null;
     final turnout = _asBigInt(d['turnout']);
     // Open ballots are individually published (the receipt chain), but the
     // per-option tally is the /results read, not part of the snapshot; the
@@ -127,6 +156,16 @@ class ServerVoterPortAdapter implements VoterJourneyPort {
 
   @override
   Future<void> requestJoin(VoterPollView view) async {
+    if (_secret) {
+      // SECRET mode: "joining" is registering for an anonymous blind-sig
+      // credential while registration is open (it CLOSES when the decision
+      // moves to 'open'). Obtain it once and cache it for the later cast.
+      _credential ??= await _registrar.obtain(
+        decisionId,
+        expectedIssuerPubKeyHash: _issuerPubKeyHash,
+      );
+      return;
+    }
     // Open mode: no group to join. Ensure a local identity seed exists so the
     // idempotency key is stable for this device (lazy create — spec §3).
     final seed = await identityStore.read();
@@ -154,6 +193,10 @@ class ServerVoterPortAdapter implements VoterJourneyPort {
     VoterPollView view,
     CancellationToken cancellation,
   ) async {
+    if (_secret) {
+      return _relaySecretBallot(spec);
+    }
+
     // Stable per-(voter, decision) key so a retry by the same voter dedupes to
     // one ballot (the server returns the same receipt on an identical retry).
     var seed = await identityStore.read();
@@ -195,6 +238,63 @@ class ServerVoterPortAdapter implements VoterJourneyPort {
     // nullifier := ballotHash (the voter's ballot mark) and
     // txHash := runningRoot (the anchored chain head). TODO: a ServerReceipt
     // model carrying logPosition + serverSig is the clean fix.
+    return VoterReceipt(nullifier: ballotHash, txHash: runningRoot);
+  }
+
+  /// SECRET-mode cast: present the anonymous blind-sig credential
+  /// `(serial, credentialSig)`. The credential was obtained at [requestJoin]
+  /// (registration); if a journey skipped that step we lazily obtain it here
+  /// (works only while registration is still open — registration CLOSES at
+  /// 'open'). The idempotency key binds the anonymous serial, NOT the device
+  /// identity (deriving it from the seed would link device→ballot and defeat
+  /// secrecy); a retry of the same credential still dedupes to one ballot.
+  Future<VoterReceipt> _relaySecretBallot(BallotSpec spec) async {
+    final SecretBallotCredential cred;
+    try {
+      cred = _credential ??= await _registrar.obtain(
+        decisionId,
+        expectedIssuerPubKeyHash: _issuerPubKeyHash,
+      );
+    } on ServerException catch (e) {
+      if (e.isRegistrationClosed) {
+        throw Exception(
+          'Registration has closed — you cannot get a ballot credential now.',
+        );
+      }
+      throw Exception(e.message);
+    }
+
+    final Map<String, dynamic> response;
+    try {
+      response = await client.castBallot(
+        decisionId: decisionId,
+        payload: _payloadFor(spec),
+        idempotencyKey: 'cast-${cred.serial}',
+        serial: cred.serial,
+        credentialSig: cred.credentialSig,
+      );
+    } on ServerException catch (e) {
+      if (e.isDecisionClosed) {
+        throw Exception('Voting has closed — this ballot was not counted.');
+      }
+      if (e.isSerialUsed) {
+        throw Exception('This credential has already voted (no double-vote).');
+      }
+      if (e.isIneligible) {
+        throw Exception('Your ballot credential was rejected.');
+      }
+      if (e.isMaxParticipants) {
+        throw Exception('This decision is full — the cap has been reached.');
+      }
+      throw Exception(e.message);
+    }
+
+    final receipt = response['receipt'];
+    if (receipt is! Map) {
+      throw Exception('The server did not return a receipt.');
+    }
+    final ballotHash = receipt['ballotHash']?.toString() ?? '';
+    final runningRoot = receipt['runningRoot']?.toString() ?? '';
     return VoterReceipt(nullifier: ballotHash, txHash: runningRoot);
   }
 

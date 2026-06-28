@@ -2,7 +2,7 @@ import request from "supertest";
 import { describe, it, expect } from "vitest";
 import { makeTestApp, type TestApp } from "../helpers/app";
 import { hashToken, mintConvenerToken } from "../../src/auth";
-import { verifySig, canonicalize } from "../../src/crypto";
+import { verifySig, canonicalize, sha256hex } from "../../src/crypto";
 
 const baseDecision = {
   title: "Q?",
@@ -162,6 +162,55 @@ describe("convener routes", () => {
       timestamp: ev.ts,
     });
     expect(verifySig(t.serverKey.publicKeyPem, preimage, ev.signedSig)).toBe(true);
+  });
+});
+
+describe("public issuer endpoint (GET /decisions/:id/issuer)", () => {
+  const secretDecision = {
+    ...baseDecision,
+    ballotMode: "secret",
+    resultsPolicy: "sealed",
+  };
+
+  it("serves the issuer pubkey + hash for a SECRET decision (hash matches create)", async () => {
+    const t = makeTestApp();
+    const created = await auth(
+      t,
+      request(t.app).post("/decisions").send(secretDecision),
+    );
+    expect(created.status).toBe(201);
+    const id = created.body.id as string;
+    const createHash = created.body.issuerPubKeyHash as string;
+    const createPem = created.body.issuerPublicKeyPem as string;
+
+    const res = await request(t.app).get(`/decisions/${id}/issuer`);
+    expect(res.status).toBe(200);
+    expect(res.body.issuerPublicKeyPem).toBe(createPem);
+    expect(res.body.issuerPubKeyHash).toBe(createHash);
+    // The recompute the client performs: sha256hex(issuerPublicKeyPem) === hash.
+    expect(sha256hex(res.body.issuerPublicKeyPem)).toBe(res.body.issuerPubKeyHash);
+    // And it agrees with the anchored hash in the public metadata view.
+    const meta = (await request(t.app).get(`/decisions/${id}`)).body;
+    expect(res.body.issuerPubKeyHash).toBe(meta.issuerPubKeyHash);
+  });
+
+  it("404 NOT_SECRET for an OPEN-mode decision (no issuer)", async () => {
+    const t = makeTestApp();
+    const created = await auth(
+      t,
+      request(t.app).post("/decisions").send(baseDecision),
+    );
+    const id = created.body.id as string;
+    const res = await request(t.app).get(`/decisions/${id}/issuer`);
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("NOT_SECRET");
+  });
+
+  it("404 NOT_FOUND for an unknown decision id", async () => {
+    const t = makeTestApp();
+    const res = await request(t.app).get(`/decisions/does-not-exist/issuer`);
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("NOT_FOUND");
   });
 });
 

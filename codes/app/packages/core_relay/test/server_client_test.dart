@@ -224,6 +224,103 @@ void main() {
       await c.getAnchor(id);
       expect(paths, ['/results', '/root', '/anchor']);
     });
+
+    test('getIssuer GETs /decisions/:id/issuer (no token needed)', () async {
+      late http.Request req;
+      final c = ServerClient(
+        baseUrl: base,
+        client: MockClient((r) async {
+          req = r;
+          return http.Response(
+            jsonEncode({
+              'issuerPublicKeyPem':
+                  '-----BEGIN PUBLIC KEY-----\nAA\n'
+                  '-----END PUBLIC KEY-----\n',
+              'issuerPubKeyHash': 'deadbeef',
+            }),
+            200,
+          );
+        }),
+      );
+      final res = await c.getIssuer(id);
+      expect(req.method, 'GET');
+      expect(req.url.toString(), '$base/decisions/$id/issuer');
+      expect(req.headers.containsKey('authorization'), isFalse);
+      expect(res['issuerPubKeyHash'], 'deadbeef');
+    });
+
+    test('getIssuer 404 NOT_SECRET throws the typed exception', () async {
+      final c = ServerClient(
+        baseUrl: base,
+        client: MockClient(
+          (r) async => http.Response(
+            jsonEncode({'error': 'not-secret', 'code': 'NOT_SECRET'}),
+            404,
+          ),
+        ),
+      );
+      await expectLater(
+        c.getIssuer(id),
+        throwsA(
+          isA<ServerException>().having((e) => e.code, 'code', 'NOT_SECRET'),
+        ),
+      );
+    });
+  });
+
+  group('register (secret-mode blind-sign)', () {
+    test(
+      'POSTs {decisionId, blindedMessage} and parses the blind signature',
+      () async {
+        late http.Request req;
+        final c = ServerClient(
+          baseUrl: base,
+          client: MockClient((r) async {
+            req = r;
+            return http.Response(
+              jsonEncode({'decisionId': id, 'blindSignature': 'b64sig'}),
+              200,
+            );
+          }),
+        );
+        final res = await c.register(id, 'blinded-b64');
+        expect(req.method, 'POST');
+        expect(req.url.path, '/register');
+        // No Authorization header — register is a participant route.
+        expect(req.headers.containsKey('authorization'), isFalse);
+        expect(jsonDecode(req.body), {
+          'decisionId': id,
+          'blindedMessage': 'blinded-b64',
+        });
+        expect(res['blindSignature'], 'b64sig');
+      },
+    );
+
+    test('REGISTRATION_CLOSED 409 surfaces as a typed exception', () async {
+      final c = ServerClient(
+        baseUrl: base,
+        client: MockClient(
+          (r) async => http.Response(
+            jsonEncode({
+              'error': 'registration-closed',
+              'code': 'REGISTRATION_CLOSED',
+              'signature': 'sig',
+            }),
+            409,
+          ),
+        ),
+      );
+      await expectLater(
+        c.register(id, 'blinded'),
+        throwsA(
+          isA<ServerException>().having(
+            (e) => e.isRegistrationClosed,
+            'isRegistrationClosed',
+            isTrue,
+          ),
+        ),
+      );
+    });
   });
 
   group('castBallot', () {
@@ -316,6 +413,67 @@ void main() {
             'isMaxParticipants',
             isTrue,
           ),
+        ),
+      );
+    });
+
+    test('SECRET mode adds {serial, credentialSig} to the body', () async {
+      late http.Request req;
+      final c = ServerClient(
+        baseUrl: base,
+        client: MockClient((r) async {
+          req = r;
+          return http.Response(
+            jsonEncode({
+              'receipt': {'ballotHash': 'bh', 'runningRoot': 'rr'},
+              'decisionId': id,
+            }),
+            201,
+          );
+        }),
+      );
+      await c.castBallot(
+        decisionId: id,
+        payload: const {'kind': 'single', 'choice': 0},
+        idempotencyKey: 'cast-serial',
+        serial: 'deadbeefcafe0011',
+        credentialSig: 'cred-b64',
+      );
+      expect(jsonDecode(req.body), {
+        'decisionId': id,
+        'payload': {'kind': 'single', 'choice': 0},
+        'idempotencyKey': 'cast-serial',
+        'serial': 'deadbeefcafe0011',
+        'credentialSig': 'cred-b64',
+      });
+    });
+
+    test('SERIAL_USED 409 (double-vote) sets the typed flag', () async {
+      final c = ServerClient(
+        baseUrl: base,
+        client: MockClient(
+          (r) async => http.Response(
+            jsonEncode({
+              'error': 'serial-used',
+              'code': 'SERIAL_USED',
+              'signature': 'signed-refusal',
+            }),
+            409,
+          ),
+        ),
+      );
+      await expectLater(
+        c.castBallot(
+          decisionId: id,
+          payload: const {'kind': 'single', 'choice': 0},
+          idempotencyKey: 'k',
+          serial: 's',
+          credentialSig: 'c',
+        ),
+        throwsA(
+          isA<ServerException>()
+              .having((e) => e.isSerialUsed, 'isSerialUsed', isTrue)
+              .having((e) => e.signature, 'signature', 'signed-refusal'),
         ),
       );
     });
