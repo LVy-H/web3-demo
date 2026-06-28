@@ -37,7 +37,7 @@ dev-signer/wallet onboarding. (Inventory: see the implementation plan.)
   scope all settled.
 - Repo cleanup: main synced, worktree/branch sprawl pruned, artifacts cleared.
 
-## Phase 1 — Dismantle & extract — **NEXT**
+## Phase 1 — Dismantle & extract — **DONE (2026-06-21, PR #133)**
 > Make the workspace match the new architecture before building. Mostly deletion + a clean
 > seam where the old chain/relay/crypto ports were.
 - Delete the ZK proving stack (`core_crypto/proof/*`, the 4.7 MB SNARK artifacts, 3
@@ -52,7 +52,7 @@ dev-signer/wallet onboarding. (Inventory: see the implementation plan.)
 - **Exit:** workspace compiles with old backends stubbed out; CI green on the kept packages;
   no Solidity/ZK/relayer left on the critical path.
 
-## Phase 2 — The server — **PLANNED**
+## Phase 2 — The server — **DONE (2026-06-21)** — open-ballot end-to-end; 245 tests + running-server smoke
 > The self-hostable core: a single service with an append-only log.
 - Append-only ballot log (SQLite, WAL, single-writer, idempotent casts — design §12.6).
 - Decision lifecycle (`draft→registration→open→closed→challenge→published`/`cancelled`),
@@ -62,7 +62,7 @@ dev-signer/wallet onboarding. (Inventory: see the implementation plan.)
 - **Exit:** a convener can create→open→close→publish an **open-ballot** decision end-to-end;
   a voter casts and gets a self-contained receipt; one-command (broadcast-mode) deploy works.
 
-## Phase 3 — Trust core: credentials, checkpoints, anchor, verifier — **PLANNED**
+## Phase 3 — Trust core: credentials, checkpoints, anchor, verifier — **NEXT**
 > The part that makes the result *checkable without trusting the host*.
 - Secret-ballot **blind-signature credentials** (per-decision RSABSSA-PSS, pubkey committed
   in `setupCommitment`; registration-closes-before-voting).
