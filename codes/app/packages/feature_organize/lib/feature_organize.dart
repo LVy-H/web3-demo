@@ -14,6 +14,7 @@ export 'src/ports/organize_gateway.dart';
 export 'src/ports/organizer_console_port.dart';
 export 'src/ports/relay_live_host_port.dart';
 export 'src/ports/relay_organizer_port.dart';
+export 'src/ports/server_organizer_port_adapter.dart';
 export 'src/qr/qr_matrix.dart';
 export 'src/qr/qr_view.dart';
 export 'src/share/distribute_sheet.dart';

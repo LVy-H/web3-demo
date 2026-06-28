@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tessera — a verifiable bulletin board for group decisions</title>
+  <meta name="description" content="Tessera is an open-source, self-hostable tool for trustworthy group decisions: anonymous-yet-eligible ballots with a tally anyone can recompute and a tamper-evident history. Honest about its limits.">
+  <meta name="theme-color" content="#0A0C10">
+  <link rel="icon" type="image/svg+xml" href="assets/tessera-mark.svg">
+  <link rel="stylesheet" href="styles.css">
+  <meta property="og:title" content="Tessera — verifiable group decisions you can check yourself">
+  <meta property="og:description" content="A self-hosted verifiable bulletin board: anonymous-yet-eligible ballots, a publicly recomputable tally, a tamper-evident history. Not 'trustless' — honest about what it does and doesn't guarantee.">
+  <meta property="og:type" content="website">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="index.html">
+        <img src="assets/tessera-mark.svg" alt="" width="30" height="30">
+        <span>Tessera</span>
+      </a>
+      <span class="nav-spacer"></span>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="index.html" aria-current="page">Home</a>
+        <a href="index.html#how">How it works</a>
+        <a href="honesty.html">Honesty</a>
+        <a href="blog/index.html">Blog</a>
+        <a href="https://github.com/" rel="external">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ══ HERO ══════════════════════════════════════════════════════════ -->
+    <section class="hero">
+      <div class="wrap">
+        <p class="label label--accent">Open-source · self-hostable · no wallet</p>
+        <h1>Group decisions everyone can <span class="accent">check</span> — not just believe.</h1>
+        <p class="lead">A self-hosted verifiable bulletin board for group decisions: anonymous-yet-eligible ballots, a tally anyone can recompute, and a history you can prove wasn&rsquo;t altered.</p>
+        <p class="whatis">Tessera is a small, open-source tool a community runs on its own server. It collects ballots into a public, append-only log, hands each voter a receipt, and pins the record to a host-independent anchor. Anyone&mdash;voter, organiser, or a complete stranger&mdash;can re-add the votes and confirm the published result is the one the ballots actually produce.</p>
+        <div class="btn-row">
+          <a class="btn btn--primary" href="#how">See how it works</a>
+          <a class="btn" href="honesty.html">What it does &amp; doesn&rsquo;t guarantee</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ PROBLEM ═══════════════════════════════════════════════════════ -->
+    <section id="problem">
+      <div class="wrap">
+        <p class="label">The problem</p>
+        <h2>A vote is only as good as the trust in whoever counted it.</h2>
+        <div class="grid grid-2 mt-2">
+          <div>
+            <p>A club, a co-op board, a student union, a DAO working group&mdash;they all hit the same wall. Someone runs the vote. Everyone else has to take that person&rsquo;s word for the result. Did every ballot count? Was anything quietly added, dropped, or re-tallied after the fact? You usually can&rsquo;t tell.</p>
+            <p>The usual fixes each fail somewhere. A show of hands isn&rsquo;t secret. A Google Form is either named (not anonymous) or open (not eligibility-gated), and only the owner sees the raw responses&mdash;so only the owner&rsquo;s tally exists. A blockchain election is heavy, expensive, and solves a scale problem most groups don&rsquo;t have.</p>
+          </div>
+          <div class="callout">
+            <p><strong>What groups actually need:</strong> a result everyone can <em>independently check</em> is honest&mdash;without having to trust the organiser, the host, or any service run by someone else.</p>
+            <p class="note mt-1">Tessera is built for that one job. It is a <strong>trust</strong> tool, not a scale tool.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ HOW IT WORKS ══════════════════════════════════════════════════ -->
+    <section id="how">
+      <div class="wrap">
+        <p class="label">How it works</p>
+        <h2>An append-only ballot log, anonymous credentials, and a public anchor.</h2>
+        <p>Three plain pieces, no jargon required to use it:</p>
+
+        <ul class="feat-list mt-2">
+          <li>
+            <span class="mk">01</span>
+            <span><strong>Anonymous-yet-eligible ballots.</strong> <span class="body">In secret mode, each eligible voter gets a blind-signature credential&mdash;a token that proves &ldquo;I&rsquo;m allowed to vote&rdquo; without revealing <em>which</em> voter they are. One credential, one ballot, no double-voting.</span></span>
+          </li>
+          <li>
+            <span class="mk">02</span>
+            <span><strong>A public append-only log.</strong> <span class="body">Every ballot is appended to a log anyone can read. The tally is just the published ballots run through a shared, open counting rule&mdash;so anyone can recompute it and the verdict (carried / failed / quorum-not-met), not just the count.</span></span>
+          </li>
+          <li>
+            <span class="mk">03</span>
+            <span><strong>A host-independent anchor.</strong> <span class="body">The log&rsquo;s running &ldquo;fingerprint&rdquo; (a Merkle root) is committed to an anchor the host can&rsquo;t silently rewrite&mdash;a signed root broadcast to every voter by default, or a public chain as an upgrade. Receipts chain to that root, so altering an acknowledged ballot breaks a chain a receipt-holder can show.</span></span>
+          </li>
+        </ul>
+
+        <!-- diagram: Participant -> Server (bulletin board) -> Verifier / Anchor -->
+        <figure class="mt-2" aria-label="Data flow: participant to server bulletin board, anchored to a public anchor, checkable by any verifier">
+          <div class="flow">
+            <div class="node">
+              <svg class="ico" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="6" width="14" height="14" fill="#F5F7FA"/><rect x="28" y="6" width="14" height="14" fill="#868FA3"/><rect x="6" y="28" width="14" height="14" fill="#868FA3"/><rect x="29" y="27" width="14" height="14" fill="#FF3B5C" transform="rotate(8 36 34)"/></svg>
+              <h4>Participant</h4>
+              <p>Joins by link, QR, or code. Casts one ballot. Keeps a self-contained receipt.</p>
+            </div>
+            <div class="arrow" aria-hidden="true">&rarr;</div>
+            <div class="node">
+              <svg class="ico" viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="8" width="32" height="6" fill="#F5F7FA"/><rect x="8" y="18" width="32" height="6" fill="#C9D0DB"/><rect x="8" y="28" width="32" height="6" fill="#868FA3"/><rect x="8" y="38" width="20" height="6" fill="#FF3B5C"/></svg>
+              <h4>Tessera server</h4>
+              <p>Self-hosted. Checks eligibility, appends ballots to the log, posts roots to the anchor.</p>
+            </div>
+            <div class="arrow" aria-hidden="true">&rarr;</div>
+            <div class="node">
+              <svg class="ico" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="6" width="36" height="36" fill="none" stroke="#2A3140" stroke-width="3"/><rect x="14" y="22" width="8" height="14" fill="#10FF8A"/><rect x="26" y="14" width="8" height="22" fill="#FF3B5C"/></svg>
+              <h4>Verifier &amp; anchor</h4>
+              <p>Anyone re-adds the ballots, recomputes the root, and confirms it matches the anchored root.</p>
+            </div>
+          </div>
+          <figcaption class="note center mt-1">The server holds the board; the anchor holds something the host can&rsquo;t forge. Verification reads both&mdash;and trusts neither blindly.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ══ WHY NOT A GOOGLE FORM ═════════════════════════════════════════ -->
+    <section id="vs">
+      <div class="wrap">
+        <p class="label">The honest comparison</p>
+        <h2>&ldquo;Why not just a Google Form, plus a posted hash?&rdquo;</h2>
+        <p>A fair question&mdash;and the answer is specific, not hand-wavy. Here is exactly what changes, drawn straight from the system design&rsquo;s comparison table.</p>
+
+        <div class="table-scroll mt-2">
+          <table>
+            <caption>Google Form + a posted hash vs. Tessera</caption>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Google Form + posted hash</th>
+                <th scope="col">Tessera</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Anonymous <em>and</em> eligibility-gated ballots</th>
+                <td><span class="no">No</span> &mdash; either named, or open to anyone</td>
+                <td><span class="yes">Yes</span> &mdash; blind-signature credential</td>
+              </tr>
+              <tr>
+                <th scope="row">Tally anyone can recompute from raw ballots</th>
+                <td><span class="no">No</span> &mdash; owner-controlled, only the owner sees them</td>
+                <td><span class="yes">Yes</span> &mdash; published ballots + a shared counting rule</td>
+              </tr>
+              <tr>
+                <th scope="row">Closed ballot-set tamper-evident <em>against the owner</em></th>
+                <td><span class="no">No</span> &mdash; only the final blob; the owner can re-hash freely</td>
+                <td><span class="yes">Yes</span> &mdash; running hash-chained receipts + anchored interim roots</td>
+              </tr>
+              <tr>
+                <th scope="row">Equivocation-resistant (one global view)</th>
+                <td><span class="no">No</span></td>
+                <td><span class="partial">Chain mode</span> &mdash; the optional public-chain anchor</td>
+              </tr>
+              <tr>
+                <th scope="row">A verifier tool + a stated <em>trust level</em></th>
+                <td><span class="no">No</span></td>
+                <td><span class="yes">Yes</span> &mdash; recompute the verdict; every result labelled with its trust level</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout mt-2">
+          <p><strong>The differentiator is genuine but narrow.</strong> It is <em>anonymous-yet-eligible ballots with a publicly recomputable tally and a tamper-evident history</em>&mdash;<strong>not &ldquo;trustless.&rdquo;</strong> Some properties hold even against a malicious host; others rest on the host being honest (eligibility/anti-stuffing, secret-ballot privacy against a <em>live</em> host). That distinction is the whole point&mdash;and we state it plainly.</p>
+          <p class="mt-1"><a href="honesty.html">Read exactly what Tessera does and doesn&rsquo;t guarantee &rarr;</a></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ SELF-HOST ═════════════════════════════════════════════════════ -->
+    <section id="selfhost">
+      <div class="wrap">
+        <p class="label">Self-host</p>
+        <h2>Your decision, your server, no one else&rsquo;s service.</h2>
+        <div class="grid grid-3 mt-2">
+          <div class="card">
+            <p class="num">// open source</p>
+            <h3>Read every line</h3>
+            <p>The whole stack is open. The counting rules, the credential scheme, the anchoring&mdash;all auditable. Nothing about the result hides behind a closed service.</p>
+          </div>
+          <div class="card">
+            <p class="num">// one command</p>
+            <h3>Stand it up yourself</h3>
+            <p>A community runs its own instance. The default mode needs <strong>no crypto wallet and no funds</strong>&mdash;it signs and broadcasts its anchor roots. One small VPS is plenty.</p>
+          </div>
+          <div class="card">
+            <p class="num">// no dependency</p>
+            <h3>Never depend on us</h3>
+            <p>There is no Tessera-run service in the path. Verification works against your instance and your anchor&mdash;not anything the authors operate.</p>
+          </div>
+        </div>
+        <p class="note mt-2">Default anchoring is zero-wallet (a signed root broadcast to voters, tamper-evident if anyone keeps it). A public chain is an optional upgrade for equivocation-resistance&mdash;not a requirement.</p>
+      </div>
+    </section>
+
+    <!-- ══ DEMO ══════════════════════════════════════════════════════════ -->
+    <section id="see-it">
+      <div class="wrap">
+        <p class="label">See it in action</p>
+        <h2>A live decision, end to end.</h2>
+        <p>The Tessera client is one Flutter app (web, desktop, mobile) covering the whole journey&mdash;create, distribute, vote, close, publish. These are real screens, driving a real self-hosted server.</p>
+
+        <div id="demo" class="screens mt-2">
+          <figure>
+            <img src="assets/screens/share.png" alt="Tessera share screen: a QR code and a tessera:// link to open the poll, with copy and share buttons" loading="lazy" />
+            <figcaption>Distribute &mdash; one QR / link, no account or wallet to join.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/screens/results.png" alt="Tessera results screen: a tally with the leading option highlighted and per-option percentages" loading="lazy" />
+            <figcaption>Results &mdash; a tally anyone can recompute from the published ballots.</figcaption>
+          </figure>
+        </div>
+
+        <p class="note mt-1">Proven end to end: the client drives a live server through <code>create &rarr; open &rarr; cast &rarr; close &rarr; publish</code> &mdash; returning <code>carried</code>, the right tally, and a Merkle-rooted ballot log.</p>
+
+        <h3 class="mt-2">Run it yourself</h3>
+        <pre class="code"><code># start the self-hosted server (prints an admin token once, no wallet needed)
+cd codes/server &amp;&amp; npm install &amp;&amp; npm run build &amp;&amp; node dist/index.js
+
+# build the Flutter web client, then point it at your server
+cd codes/app/apps/tessera &amp;&amp; flutter build web
+# open the app  →  Settings → Network → Server URL + paste the admin token
+
+# anyone can check a published result — recompute the tally + bind it to the anchor
+cd codes/server &amp;&amp; npm run verify -- &lt;bundle.json&gt;   # → VERIFIED ✓ (all 6 checks)</code></pre>
+        <p class="note mt-1">You never take the host&rsquo;s word for it: the <strong>verifier</strong> ships in the box &mdash; it recomputes the tally and binds it to the anchored root (all six checks), so any published result is checkable by anyone. <a href="blog/how-you-can-check-the-result-yourself.html">How that works &rarr;</a></p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ══ FOOTER ══════════════════════════════════════════════════════════ -->
+  <footer class="site-footer">
+    <div class="wrap foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="index.html">
+          <img src="assets/tessera-mark.svg" alt="" width="28" height="28">
+          <span>Tessera</span>
+        </a>
+        <p>An open-source, self-hostable verifiable bulletin board for trustworthy group decisions. Honest about its limits&mdash;that honesty is the point.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="index.html#how">How it works</a></li>
+          <li><a href="honesty.html">Honest guarantees</a></li>
+          <li><a href="blog/index.html">Blog</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Build it</h4>
+        <ul>
+          <li><a href="https://github.com/" rel="external">Source on GitHub</a></li>
+          <li><a href="index.html#selfhost">Self-host</a></li>
+          <li><a href="blog/how-you-can-check-the-result-yourself.html">Verify a result</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="wrap foot-bottom">
+      <span>Open source · self-hostable · no wallet by default</span>
+      <span>Dark Bauhaus &mdash; built from the design-system tokens</span>
+    </div>
+  </footer>
+</body>
+</html>

@@ -13,6 +13,7 @@ import 'package:core_chain/chain_reader.dart';
 import 'package:core_chain/config.dart' show AppConfig;
 import 'package:core_relay/relay_client.dart'
     show CreatePollResult, RelayClient;
+import 'package:core_relay/server_client.dart' show ServerClient;
 import 'package:core_storage/created_polls_store.dart';
 import 'package:feature_organize/feature_organize.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -131,6 +132,35 @@ class HttpOrganizeRelayGateway implements OrganizeRelayGateway {
     }
     return data;
   }
+}
+
+/// Builds the organize screens' [OrganizerConsolePort], picking the open-ballot
+/// SERVER adapter under [AppConfig.serverMode] (the Phase-4 default — the kept
+/// screens drive the REST server) or the chain/relayer adapter otherwise (kept,
+/// not deleted). The server path reads its convener token live from
+/// [AppConfig.convenerToken], so pasting the admin token in Settings applies
+/// without a rebuild.
+Future<OrganizerConsolePort> buildConsolePort({
+  required RelayClient relay,
+  required ChainReader reader,
+  required ServerClient server,
+  required CreatedPollsStore createdPolls,
+}) async {
+  if (AppConfig.serverMode) {
+    // Refresh the shared client's token from the live config (the operator may
+    // have pasted it after startup); voter routes ignore it, convener routes
+    // require it.
+    server.token = AppConfig.convenerToken;
+    return ServerOrganizerPortAdapter(
+      client: server,
+      createdPolls: createdPolls,
+    );
+  }
+  return buildOrganizerPort(
+    relay: relay,
+    reader: reader,
+    createdPolls: createdPolls,
+  );
 }
 
 /// Builds the production [RelayOrganizerPort] for the organize screens:

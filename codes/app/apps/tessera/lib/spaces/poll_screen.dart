@@ -10,6 +10,7 @@ import 'package:core_domain/journeys/blind_journey.dart';
 import 'package:core_domain/journeys/capabilities.dart';
 import 'package:core_domain/journeys/voter_journey.dart';
 import 'package:core_relay/relay_client.dart';
+import 'package:core_relay/server_client.dart';
 import 'package:core_storage/blind_commit_store.dart';
 import 'package:core_storage/identity_store.dart';
 import 'package:design_system/theme.dart';
@@ -197,6 +198,27 @@ class _VoterPollHostState extends State<_VoterPollHost> {
   }
 
   VoterJourneyMachine _buildMachine() {
+    // Phase-4 open-ballot path: drive the kept poll screen against the REST
+    // server instead of the chain/relayer + ZK prover. Behind AppConfig.
+    // serverMode (default ON) so the chain adapter stays constructible.
+    if (AppConfig.serverMode) {
+      return VoterJourneyMachine(
+        // Open ballots carry NO ZK proof, so "can prove" is always true on the
+        // server path — the journey's ballot gate (canProve) is satisfied by
+        // the server being the integrity anchor, not a Semaphore prover. The
+        // relayer is likewise irrelevant (no group to join).
+        capabilities: _capabilities.copyWith(
+          canProve: true,
+          relayerAvailable: true,
+        ),
+        port: ServerVoterPortAdapter(
+          client: context.read<ServerClient>(),
+          identityStore: context.read<IdentityStore>(),
+          decisionId: widget.address,
+          module: widget.module,
+        ),
+      );
+    }
     final chainReader = context.read<ChainReader>();
     final policyReader = ResultsPolicyReader(client: chainReader.client);
     return VoterJourneyMachine(
