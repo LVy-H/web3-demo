@@ -1,12 +1,16 @@
 // Tessera decision lifecycle — the state machine (§9).
 //
-// Legal transitions (open mode; 'registration' is Phase-3 secret-mode only):
-//   draft     → open
+// Legal transitions:
+//   OPEN mode:    draft        → open
+//   SECRET mode:  draft        → registration → open
+//                 (registration is where blind-sig credentials are issued, and
+//                  it CLOSES before voting opens — registration-before-voting,
+//                  §6/§11.0 — so register is rejected once a decision is 'open'.)
 //   open      → closed
 //   closed    → challenge
 //   challenge → published
 //   closed    → published                 (challenge optional)
-//   {draft, open, closed, challenge} → cancelled
+//   {draft, registration, open, closed, challenge} → cancelled
 //
 // NOTE: 'extend' is an AMENDMENT, not a state transition. Extending an open
 // decision keeps the state 'open' — it appends a signed lifecycle event (the
@@ -25,7 +29,11 @@ import type { DecisionState } from "./types";
  * Terminal states ('published', 'cancelled') map to the empty set.
  */
 const TRANSITIONS: Readonly<Record<DecisionState, ReadonlySet<DecisionState>>> = {
-  draft: new Set<DecisionState>(["open", "cancelled"]),
+  // draft → open is the open-mode entry; draft → registration is the secret-mode
+  // entry (credential issuance opens before voting).
+  draft: new Set<DecisionState>(["open", "registration", "cancelled"]),
+  // registration → open is the secret-mode "close registration, open voting" edge.
+  registration: new Set<DecisionState>(["open", "cancelled"]),
   // 'extend' is an amendment, not a transition: open does NOT map to open.
   open: new Set<DecisionState>(["closed", "cancelled"]),
   closed: new Set<DecisionState>(["challenge", "published", "cancelled"]),

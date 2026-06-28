@@ -10,15 +10,17 @@
 /**
  * Decision lifecycle states.
  *
- * Open mode runs: draft → open → closed → challenge → published.
+ * Open mode runs:   draft → open → closed → challenge → published.
+ * Secret mode runs: draft → registration → open → closed → challenge → published
+ *   — 'registration' is where blind-sig credentials are issued, and it CLOSES
+ *   before voting opens (registration-before-voting, §6/§11.0): this breaks the
+ *   issuance↔cast ordering a live host could otherwise correlate.
  * The 'challenge' step is optional (closed → published is legal).
  * Any pre-publish state can transition to the terminal 'cancelled'.
- *
- * Note: the 'registration' state from §9 is Phase-3 secret-mode only and is
- * deliberately absent from the Phase-2 open-mode machine.
  */
 export type DecisionState =
   | "draft"
+  | "registration"
   | "open"
   | "closed"
   | "challenge"
@@ -52,6 +54,7 @@ export type TieBreak = "declare" | "runoff" | "casting" | "random-seed";
 /** Frozen tuple of all lifecycle states — the iteration source of truth. */
 export const DECISION_STATES = [
   "draft",
+  "registration",
   "open",
   "closed",
   "challenge",

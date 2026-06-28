@@ -23,12 +23,46 @@ export class DuplicateBallotError extends Error {
   }
 }
 
+/**
+ * Thrown by `BallotRepo.append` when a ballot with the same
+ * (decision_id, credential_serial) already exists — the DB-level last line of
+ * defense for §11.3 no-double-vote (secret mode), behind the in-txn read-check.
+ * The route layer maps this to the same signed `serial-used` 409 as a serial
+ * caught by the pre-insert check.
+ */
+export class DuplicateSerialError extends Error {
+  readonly decisionId: string;
+  readonly credentialSerial: string;
+  constructor(decisionId: string, credentialSerial: string) {
+    super(
+      `ballot already exists for decision ${decisionId} credentialSerial ${credentialSerial}`,
+    );
+    this.name = "DuplicateSerialError";
+    this.decisionId = decisionId;
+    this.credentialSerial = credentialSerial;
+  }
+}
+
 /** better-sqlite3 tags UNIQUE violations with this code on the thrown error. */
 function isUniqueConstraint(err: unknown): boolean {
   return (
     typeof err === "object" &&
     err !== null &&
     (err as { code?: string }).code === "SQLITE_CONSTRAINT_UNIQUE"
+  );
+}
+
+/**
+ * True when a UNIQUE violation names `column` among the offending columns.
+ * better-sqlite3's message reads e.g. `UNIQUE constraint failed:
+ * ballots.decision_id, ballots.credential_serial` — we discriminate which of
+ * the two ballot UNIQUE constraints fired so each maps to the right response.
+ */
+function isUniqueConstraintOn(err: unknown, column: string): boolean {
+  return (
+    isUniqueConstraint(err) &&
+    typeof (err as { message?: string }).message === "string" &&
+    (err as { message: string }).message.includes(column)
   );
 }
 
@@ -181,6 +215,21 @@ export interface CheckpointInput {
   treeSize: number;
   prevRoot: string | null;
   signedRoot: string;
+}
+
+/** Per-decision SECRET-ballot blind-sig issuer key (§12.2). */
+export interface SigningKey {
+  decisionId: string;
+  publicKeyPem: string;
+  privateKeyPem: string;
+  pubKeyHash: string;
+  createdAt: number;
+}
+export interface SigningKeyInput {
+  decisionId: string;
+  publicKeyPem: string;
+  privateKeyPem: string;
+  pubKeyHash: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -345,6 +394,21 @@ const toCheckpoint = (r: CheckpointRow): Checkpoint => ({
   createdAt: r.created_at,
 });
 
+interface SigningKeyRow {
+  decision_id: string;
+  public_key_pem: string;
+  private_key_pem: string;
+  pub_key_hash: string;
+  created_at: number;
+}
+const toSigningKey = (r: SigningKeyRow): SigningKey => ({
+  decisionId: r.decision_id,
+  publicKeyPem: r.public_key_pem,
+  privateKeyPem: r.private_key_pem,
+  pubKeyHash: r.pub_key_hash,
+  createdAt: r.created_at,
+});
+
 // ---------------------------------------------------------------------------
 // Repo interfaces
 // ---------------------------------------------------------------------------
@@ -377,6 +441,12 @@ export interface BallotRepo {
   leafHashes(decisionId: string): string[];
   /** The stored ballot for a (decisionId, idempotencyKey) pair, or null. */
   findByIdempotency(decisionId: string, idempotencyKey: string): Ballot | null;
+  /**
+   * Whether a SECRET-mode credential `serial` has already been cast for this
+   * decision (the no-double-vote check, §11.3). Open-mode ballots store a null
+   * serial, so this only ever matches credentialed casts.
+   */
+  serialExists(decisionId: string, serial: string): boolean;
 }
 
 export interface ReceiptRepo {
@@ -418,6 +488,22 @@ export interface CheckpointRepo {
   latest(decisionId: string): Checkpoint | null;
 }
 
+/** Per-decision SECRET-ballot issuer key store (§12.2). One key per decision. */
+export interface SigningKeyRepo {
+  /** Persist a decision's issuer keypair (called once, at secret-mode create). */
+  put(k: SigningKeyInput): SigningKey;
+  /** The decision's issuer key, or null (open-mode decisions have none). */
+  get(decisionId: string): SigningKey | null;
+}
+
+/** Append-only issued-credential ledger backing the §6 stuffing audit. */
+export interface IssuedCredentialRepo {
+  /** Record that one blind-sig credential was issued for this decision. */
+  record(decisionId: string, issuedAt: number): void;
+  /** How many credentials were issued for a decision (the §6 issued-count). */
+  count(decisionId: string): number;
+}
+
 export interface Repos {
   accounts: AccountRepo;
   decisions: DecisionRepo;
@@ -427,6 +513,8 @@ export interface Repos {
   eligibility: EligibilityRepo;
   head: HeadRepo;
   checkpoints: CheckpointRepo;
+  signingKeys: SigningKeyRepo;
+  issuedCredentials: IssuedCredentialRepo;
 }
 
 // ---------------------------------------------------------------------------
@@ -560,6 +648,10 @@ export function makeRepos(db: Database.Database): Repos {
   const balByIdem = db.prepare(
     `SELECT * FROM ballots WHERE decision_id = ? AND idempotency_key = ?`,
   );
+  const balSerialExists = db.prepare(
+    `SELECT 1 FROM ballots
+     WHERE decision_id = ? AND credential_serial = ? LIMIT 1`,
+  );
 
   const ballots: BallotRepo = {
     append(b) {
@@ -572,6 +664,16 @@ export function makeRepos(db: Database.Database): Repos {
         balInsert.run(row);
       } catch (err) {
         if (isUniqueConstraint(err)) {
+          // Two ballot UNIQUE constraints can fire here: the partial
+          // (decision_id, credential_serial) index (secret-mode double-vote)
+          // and the (decision_id, idempotency_key) constraint (exactly-once
+          // replay). Discriminate so the route maps each to the right response.
+          if (
+            b.credentialSerial !== null &&
+            isUniqueConstraintOn(err, "credential_serial")
+          ) {
+            throw new DuplicateSerialError(b.decisionId, b.credentialSerial);
+          }
           throw new DuplicateBallotError(b.decisionId, b.idempotencyKey);
         }
         throw err;
@@ -607,6 +709,9 @@ export function makeRepos(db: Database.Database): Repos {
         | BallotRow
         | undefined;
       return r ? toBallot(r) : null;
+    },
+    serialExists(decisionId, serial) {
+      return balSerialExists.get(decisionId, serial) !== undefined;
     },
   };
 
@@ -760,6 +865,44 @@ export function makeRepos(db: Database.Database): Repos {
     },
   };
 
+  // signing_keys (SECRET-ballot issuer) -----------------------------------
+  const skInsert = db.prepare(
+    `INSERT INTO signing_keys (
+        decision_id, public_key_pem, private_key_pem, pub_key_hash, created_at)
+     VALUES (@decisionId, @publicKeyPem, @privateKeyPem, @pubKeyHash, @createdAt)`,
+  );
+  const skGet = db.prepare(`SELECT * FROM signing_keys WHERE decision_id = ?`);
+
+  const signingKeys: SigningKeyRepo = {
+    put(k) {
+      const row: SigningKey = { ...k, createdAt: Date.now() };
+      skInsert.run(row);
+      return row;
+    },
+    get(decisionId) {
+      const r = skGet.get(decisionId) as SigningKeyRow | undefined;
+      return r ? toSigningKey(r) : null;
+    },
+  };
+
+  // issued_credentials (append-only §6 stuffing-audit ledger) --------------
+  const icInsert = db.prepare(
+    `INSERT INTO issued_credentials (id, decision_id, issued_at)
+     VALUES (?, ?, ?)`,
+  );
+  const icCount = db.prepare(
+    `SELECT COUNT(*) AS c FROM issued_credentials WHERE decision_id = ?`,
+  );
+
+  const issuedCredentials: IssuedCredentialRepo = {
+    record(decisionId, issuedAt) {
+      icInsert.run(randomUUID(), decisionId, issuedAt);
+    },
+    count(decisionId) {
+      return (icCount.get(decisionId) as { c: number }).c;
+    },
+  };
+
   return {
     accounts,
     decisions,
@@ -769,5 +912,7 @@ export function makeRepos(db: Database.Database): Repos {
     eligibility,
     head,
     checkpoints,
+    signingKeys,
+    issuedCredentials,
   };
 }

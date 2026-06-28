@@ -10,8 +10,8 @@
  *  - IDs/JSON are TEXT; timestamps are INTEGER epoch milliseconds.
  *  - `ballots` is APPEND-ONLY: BEFORE UPDATE/DELETE triggers RAISE(ABORT).
  *
- * Phase-3 tables (sessions, signing_keys, issued_credentials, checkpoints,
- * anchors) are deliberately NOT created here — they arrive as later migrations.
+ * Phase-3 tables (checkpoints — id 3; signing_keys + issued_credentials — id 4/5
+ * for SECRET ballots) arrive as later, append-only numbered migrations.
  */
 export interface Migration {
   /** Strictly increasing integer; defines apply order and dedup key. */
@@ -166,6 +166,74 @@ export const MIGRATIONS: readonly Migration[] = [
       BEGIN
         SELECT RAISE(ABORT, 'checkpoints are append-only');
       END;
+    `,
+  },
+  {
+    id: 4,
+    name: "secret-signing-keys",
+    // SECRET ballots (§12.2): one per-decision RFC 9474 RSABSSA-PSS issuer key.
+    // `pub_key_hash` (= sha256hex(public_key_pem)) is folded into the decision's
+    // setupCommitment and anchored before registration, so the host cannot swap
+    // signing keys mid-decision (§6, §11.1). The PRIVATE key never leaves the
+    // server: only `POST /register`'s blindSign touches it.
+    //
+    // PRIMARY KEY(decision_id): exactly one issuer per decision.
+    sql: /* sql */ `
+      CREATE TABLE signing_keys (
+        decision_id     TEXT    PRIMARY KEY REFERENCES decisions(id),
+        public_key_pem  TEXT    NOT NULL,
+        private_key_pem TEXT    NOT NULL,
+        pub_key_hash    TEXT    NOT NULL,
+        created_at      INTEGER NOT NULL
+      );
+    `,
+  },
+  {
+    id: 5,
+    name: "secret-issued-credentials",
+    // SECRET ballots issued-credential ledger (§6/§9 IssuedCredential, §11.2).
+    // One append-only row per blind-signature issued at registration. It backs
+    // the §6 "issued-count ≤ roster size" stuffing audit — a roster member can
+    // dispute "the registered count is 47 but only 30 of us registered". It holds
+    // NO link to the eventual ballot (the credential is blind), only that an
+    // issuance happened for this decision and when.
+    //
+    // Append-only audit trail: forbid mutation/removal of recorded issuances.
+    sql: /* sql */ `
+      CREATE TABLE issued_credentials (
+        id          TEXT    PRIMARY KEY,
+        decision_id TEXT    NOT NULL REFERENCES decisions(id),
+        issued_at   INTEGER NOT NULL
+      );
+      CREATE INDEX idx_issued_credentials_decision ON issued_credentials(decision_id);
+
+      CREATE TRIGGER trg_issued_credentials_no_update
+        BEFORE UPDATE ON issued_credentials
+      BEGIN
+        SELECT RAISE(ABORT, 'issued_credentials are append-only');
+      END;
+      CREATE TRIGGER trg_issued_credentials_no_delete
+        BEFORE DELETE ON issued_credentials
+      BEGIN
+        SELECT RAISE(ABORT, 'issued_credentials are append-only');
+      END;
+    `,
+  },
+  {
+    id: 6,
+    name: "secret-serial-unique",
+    // §11.3 no-double-vote, enforced at the DB level. The cast path already
+    // read-checks `serialExists` inside the txn, but that is TOCTOU and only
+    // holds under better-sqlite3's single-writer model — a multi-process
+    // deployment could interleave two casts of the same serial past the read.
+    // This UNIQUE index makes the second INSERT abort atomically. PARTIAL by
+    // design: open-ballot rows carry credential_serial = NULL and stay
+    // unconstrained (a voter may cast multiple open ballots by varying
+    // idempotencyKey — the deliberate "open ballot" model).
+    sql: /* sql */ `
+      CREATE UNIQUE INDEX idx_ballots_decision_serial
+        ON ballots(decision_id, credential_serial)
+        WHERE credential_serial IS NOT NULL;
     `,
   },
 ];

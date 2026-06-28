@@ -67,6 +67,42 @@ describe("openDb + migrate (schema & pragmas)", () => {
     expect(after).toBe(before);
   });
 
+  it("creates the SECRET-ballot tables (signing_keys, issued_credentials)", () => {
+    const rows = db
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table'`)
+      .all() as { name: string }[];
+    const names = new Set(rows.map((r) => r.name));
+    for (const t of ["signing_keys", "issued_credentials"]) {
+      expect(names.has(t), `missing table ${t}`).toBe(true);
+    }
+  });
+
+  it("issued_credentials is append-only (UPDATE/DELETE abort)", () => {
+    // Seed an account + decision + one issuance to mutate.
+    db.prepare(
+      `INSERT INTO accounts (id, display_name, token_hash, created_at)
+       VALUES ('a1','admin','h',0)`,
+    ).run();
+    db.prepare(
+      `INSERT INTO decisions (
+         id, convener_id, title, options_json, method, eligibility_json,
+         visibility, ballot_mode, results_policy, rule_json, schedule_json,
+         anchor_mode, max_participants, setup_commitment, state, created_at)
+       VALUES ('d1','a1','t','[]','single','{}','listed','secret','sealed','{}',
+               '{}','broadcast',NULL,'sc','registration',0)`,
+    ).run();
+    db.prepare(
+      `INSERT INTO issued_credentials (id, decision_id, issued_at)
+       VALUES ('ic1','d1',1)`,
+    ).run();
+    expect(() =>
+      db.prepare(`UPDATE issued_credentials SET issued_at = 2 WHERE id='ic1'`).run(),
+    ).toThrow(/append-only/);
+    expect(() =>
+      db.prepare(`DELETE FROM issued_credentials WHERE id='ic1'`).run(),
+    ).toThrow(/append-only/);
+  });
+
   it("enforces ballots UNIQUE(decision_id, idempotency_key) at the schema level", () => {
     const idx = db
       .prepare(`SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='ballots'`)

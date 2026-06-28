@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type Database from "better-sqlite3";
-import { openDb, migrate, makeRepos, DuplicateBallotError } from "../../src/db";
+import {
+  openDb,
+  migrate,
+  makeRepos,
+  DuplicateBallotError,
+  DuplicateSerialError,
+} from "../../src/db";
 import type { Repos } from "../../src/db";
 import { tmpDbPath } from "./helpers";
 
@@ -140,6 +146,68 @@ describe("repos round-trip", () => {
     expect((caught as DuplicateBallotError).idempotencyKey).toBe("dup");
     // count unchanged
     expect(repos.ballots.count(d.id)).toBe(1);
+  });
+
+  it("ballots: duplicate (decision_id, credential_serial) throws DuplicateSerialError", () => {
+    const a = newAccount(repos);
+    const d = newDecision(repos, a.id);
+    repos.ballots.append({
+      decisionId: d.id,
+      payloadJson: "{}",
+      credentialSerial: "serial-x",
+      idempotencyKey: "k1",
+      logSeq: 1,
+      prevHead: "genesis",
+      ballotHash: "h1",
+    });
+    let caught: unknown;
+    try {
+      // Same serial, DIFFERENT idempotencyKey → only the serial UNIQUE fires,
+      // so this must surface as DuplicateSerialError, not DuplicateBallotError.
+      repos.ballots.append({
+        decisionId: d.id,
+        payloadJson: "{}",
+        credentialSerial: "serial-x",
+        idempotencyKey: "k2",
+        logSeq: 2,
+        prevHead: "h1",
+        ballotHash: "h2",
+      });
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(DuplicateSerialError);
+    expect((caught as DuplicateSerialError).credentialSerial).toBe("serial-x");
+    // count unchanged — the double-vote INSERT aborted.
+    expect(repos.ballots.count(d.id)).toBe(1);
+  });
+
+  it("ballots: NULL credential_serial (open ballots) never collide on the serial index", () => {
+    const a = newAccount(repos);
+    const d = newDecision(repos, a.id);
+    repos.ballots.append({
+      decisionId: d.id,
+      payloadJson: "{}",
+      credentialSerial: null,
+      idempotencyKey: "o1",
+      logSeq: 1,
+      prevHead: "genesis",
+      ballotHash: "n1",
+    });
+    // A second open ballot (serial NULL) is allowed: the partial index excludes
+    // NULLs, so the open-ballot model (multiple ballots via idempotencyKey) holds.
+    expect(() =>
+      repos.ballots.append({
+        decisionId: d.id,
+        payloadJson: "{}",
+        credentialSerial: null,
+        idempotencyKey: "o2",
+        logSeq: 2,
+        prevHead: "n1",
+        ballotHash: "n2",
+      }),
+    ).not.toThrow();
+    expect(repos.ballots.count(d.id)).toBe(2);
   });
 
   it("ballots: same idempotency_key across different decisions is allowed", () => {
