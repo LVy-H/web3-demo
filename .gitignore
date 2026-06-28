@@ -1,5 +1,9 @@
 # Dependencies
 node_modules/
+# Local demo stack (demo.sh): built web app served into the site + server state
+site/demo/
+.demo-data/
+.out/
 # Hardhat
 cache/
 artifacts/

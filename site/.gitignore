@@ -1,0 +1,4 @@
+# The live Flutter web app, built into the site for hosting (marketing + the real
+# app together). It's a heavy CanvasKit build artifact rebuilt by the deploy step
+# (`./demo.sh build`) — never commit it.
+demo/

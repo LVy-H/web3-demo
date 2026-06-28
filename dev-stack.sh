@@ -9,6 +9,9 @@
 #   ./dev-stack.sh up      start the server (npm run dev) on :3001, wait for /health
 #   ./dev-stack.sh down    stop the server this script started
 #   ./dev-stack.sh status  is the server healthy?
+#
+# For the full ONE-COMMAND demo (server + built Flutter web client + admin token),
+# use ./demo.sh up — it builds the web app and serves it alongside the server.
 set -euo pipefail
 
 # ── Re-exec inside the Nix devShell if the Node toolchain is absent ──

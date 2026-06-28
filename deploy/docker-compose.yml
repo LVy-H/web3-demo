@@ -1,0 +1,39 @@
+# Tessera self-hosted server — PRODUCTION compose.
+#
+# Differences from the dev ../docker-compose.yml: this binds to all interfaces
+# (so a reverse proxy / the public internet can reach it) and — crucially —
+# mounts a NAMED VOLUME at DATA_DIR so the append-only ballot log + the server's
+# Ed25519 signing key SURVIVE restarts. Losing that volume = losing the server's
+# stable identity (every verifier checks the anchor against this key) and the
+# tamper-evident ballot history. Back it up.
+#
+#   cd deploy && docker compose up -d --build
+#   docker compose logs -f server      # the ADMIN TOKEN prints once on first boot
+#   curl http://localhost:3001/health  # → {"status":"ok"}
+#
+# Put TLS in front of it (Caddy/nginx/cloudflared); the app speaks http(s) and
+# the server already trusts one proxy hop (X-Forwarded-For) for correct client
+# IPs under the rate-limiter.
+
+services:
+  server:
+    build:
+      context: ../codes/server
+    image: tessera-server:latest
+    restart: unless-stopped
+    ports:
+      - "3001:3001"          # front this with TLS in production
+    environment:
+      - PORT=3001
+      - DATA_DIR=/app/data   # the ballot log + server key live here
+    volumes:
+      - tessera-data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  tessera-data:               # persists DATA_DIR — back this up

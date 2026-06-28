@@ -214,6 +214,15 @@
 
         <p class="note mt-1">Proven end to end: the client drives a live server through <code>create &rarr; open &rarr; cast &rarr; close &rarr; publish</code> &mdash; returning <code>carried</code>, the right tally, and a Merkle-rooted ballot log.</p>
 
+        <div class="launch mt-2">
+          <a class="btn btn--primary" href="demo/" rel="nofollow">&#9654;&ensp;Launch the live app</a>
+          <p class="note mt-1">The real Flutter client, running in your browser. It appears here once the
+          app is built into the site &mdash; run <code>./demo.sh build</code> (locally, the
+          one-command <code>./demo.sh up</code> serves it for you) or <code>./demo.sh build</code> in
+          your deploy step. Point it at any server under <strong>Settings &rarr; Network</strong>.
+          No hosted URL is implied &mdash; the demo runs where you build or deploy it.</p>
+        </div>
+
         <h3 class="mt-2">Run it yourself</h3>
         <pre class="code"><code># start the self-hosted server (prints an admin token once, no wallet needed)
 cd codes/server &amp;&amp; npm install &amp;&amp; npm run build &amp;&amp; node dist/index.js
