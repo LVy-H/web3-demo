@@ -1,7 +1,7 @@
 name: tessera
 description: "Tessera — one app for anonymous on-chain voting. Revolution shell (R2f): guarded router, capabilities probe, app skeleton; real screens land in R3."
 publish_to: 'none'
-version: 0.3.0+1 # Revolution line; the sole client since the cutover (legacy codes/mobile retired)
+version: 0.4.0+1 # Self-hosted redesign line; aligned with codes/server + codes/control
 resolution: workspace
 
 environment:

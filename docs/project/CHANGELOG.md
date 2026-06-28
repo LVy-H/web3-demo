@@ -4,7 +4,52 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
+---
+
+## [v0.4.0] — 2026-06-28
+
+The **ground-up redesign** release. A four-lens adversarial review concluded the
+product's value is *trust, not scale*, so the on-chain + Semaphore-ZK + relayer stack was
+replaced with a **self-hosted verifiable bulletin board** — a server a community runs for
+itself whose result anyone can check without trusting the host. Threat model: *trust the
+organiser for integrity, prove the count to everyone*. Spec:
+`docs/superpowers/specs/2026-06-19-tessera-system-design.md`. The redesign summary leads
+each group below; the entries beneath it are the client-side UX/a11y work that also landed
+in this cycle (much of it pre-redesign).
+
 ### Added
+- **Self-hosted server — open-ballot end-to-end (Phase 2, #134)** — new `codes/server/`
+  (TypeScript + Express + better-sqlite3): a SQLite (WAL) **append-only ballot log** + typed
+  repos; convener bootstrap-token auth; the decision lifecycle
+  (`draft → registration → open → closed → challenge → published` / `cancelled`); the
+  six-method **tally oracle + verdict** (ported from `core_domain/voting`); idempotent
+  single-transaction **cast** with server-signed **hash-chained receipts**; and the public
+  read API (`/decisions`, `/ballots`, `/root`, `/results`, `/anchor`). Builds and starts
+  with one command.
+- **Trust core + independent public verifier (Phase 3, #135)** — an **RFC 6962** Merkle log
+  over the ballots + hash-chained **checkpoints**, a broadcast **commitment anchor**, and a
+  standalone **public verifier** that recomputes the tally *and* verdict from the published
+  ballots, recomputes the Merkle root and binds it to the anchored root, and runs
+  root-binding + no-double-vote (serial/inclusion) checks. This is the part that makes a
+  result checkable *without trusting whoever ran it*.
+- **Client rewired to the server (Phase 4, #136)** — the Flutter client (`codes/app/`)
+  swapped its journey ports from chain/relay/crypto to **server HTTP**, reusing the existing
+  screens; server-backed open-ballot organizer + voter adapters (`ServerClient`), proven by
+  a live `ServerClient` e2e against a real running server.
+- **Secret ballots — server (#138) + pure-Dart client** — per-decision **RFC 9474
+  RSABSSA-SHA384-PSS-Randomized** blind-signature credentials: the server `/register` route
+  blind-signs, a credentialed cast presents `(serial, credentialSig)`, and serial
+  uniqueness gives no-double-vote without ever linking a voter to their ballot (pubkey
+  committed in `setupCommitment`; registration closes before voting). The **pure-Dart
+  client** (`core_crypto`) blinds locally and is live-proven **byte-exact** against the real
+  server (register → cast accepted → reused-serial 409 → `GET /verify` ok).
+- **Multi-tenant control plane (operator, #137)** — new `codes/control/`: isolated
+  **instance-per-org**, a host-header → tenant **routing reverse proxy**, and the
+  **`tessera-ctl`** operator CLI (localhost-first v1) for self-hosting many groups from one
+  deployment.
+- **One-command demo + production deploy path** — `./demo.sh up` brings up the server + the
+  Flutter web client locally; `deploy/` holds the docker-compose self-host path for
+  production (including the multi-tenant control plane).
 - **Vote-type P2 chooser + visual-audit harness (2026-06-13)** —
   - **"What's your goal?" guided chooser**: an optional, dismissible one-liner
     above the vote-type picker — tapping a goal (decide a winner / gather
@@ -309,6 +354,15 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
     architecture: `docs/architecture/module-survey.md`.
 
 ### Changed
+- **Architecture pivot — on-chain → self-hosted (2026-06-19)** — Tessera is no longer a
+  Semaphore/Groth16 on-chain dApp with a gasless relayer; it is a **self-hostable server**
+  a community runs for itself, with verifiability (not a global validator set) as the trust
+  anchor. Semaphore ZK is **parked** as a post-1.0 "strong mode" (privacy against a live
+  malicious host), not deleted. New `docs/project/ROADMAP.md` is a clean Phase 0–6 path to
+  1.0.
+- **CI repointed to the new stack** (incl. dart-format gate `b190529`) — the `contracts` /
+  `relayer` jobs are gone; CI now runs `app` + `android` + a new `server` job, and the
+  client packages pass a non-mutating `dart format` check before analyze/tests.
 - **Web cold load −19.7%** (12.0 MB → 9.6 MB; computed 10 Mbps load ≈ −22%) —
   icon tree-shaking, font subsetting, self-hosted CanvasKit, batched ABI
   loads, lazy-loaded `zkprover.js` (#115).
@@ -334,6 +388,14 @@ All notable changes to this project. Format: [Keep a Changelog](https://keepacha
 ### Deprecated
 
 ### Removed
+- **On-chain / ZK / relayer stack dismantled (Phase 1, #133)** — deleted `codes/contracts/`
+  (the six voting modules + `PollRegistry` + verifiers + `ZkAirdrop` + hardhat/deploy/
+  typechain), `codes/relayer/` (gasless relay + sponsored lifecycle), and
+  `core_crypto/proof/` (the three provers + ~5 MB SNARK artifacts); the client's
+  `ChainWriter`, dev-signer, and chain/relay port adapters went with them. The proof seam is
+  fenced behind a throwing stub; Semaphore ZK is parked, not lost. Backend-agnostic code
+  survived the pivot (`design_system`, `core_domain` journeys + off-chain tally,
+  `core_storage`, the `feature_*` voting screens, the join-code grammar).
 - Committed snapshot binaries `system-description.pdf`, `system-description.txt`,
   and `web3-demo.zip` (P3-18) — live source stays; frozen blobs dropped.
 
