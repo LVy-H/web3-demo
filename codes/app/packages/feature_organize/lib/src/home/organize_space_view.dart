@@ -28,8 +28,9 @@ class OrganizeSpaceView extends StatefulWidget {
   /// Open the create flow (`/organize/create` in production).
   final VoidCallback onCreate;
 
-  /// Open the run-event console for a poll (`/live/:address/host`).
-  final void Function(String pollAddress) onRunEvent;
+  /// Open the run-event console for a poll (`/live/:address/host`), when the
+  /// current backend supports that relayer-backed live flow.
+  final void Function(String pollAddress)? onRunEvent;
 
   final MinRosterPolicy minRoster;
 
@@ -187,6 +188,7 @@ class _OrganizeSpaceViewState extends State<OrganizeSpaceView> {
     final deployed = entry.state;
     if (deployed is! OrganizerDeployedState) return const SizedBox.shrink();
     final phase = entry.snapshot.phase;
+    final runEvent = widget.onRunEvent;
     return OrganizerPollCard(
       key: Key('poll-card-${entry.pollAddress}'),
       state: deployed,
@@ -198,8 +200,8 @@ class _OrganizeSpaceViewState extends State<OrganizeSpaceView> {
       onDistribute: phase == 0 ? () => _distribute(entry) : null,
       // The run-event console covers admit (phase 0) and live turnout/close
       // (phase 1); a closed poll has nothing live left to run.
-      onRunEvent: phase <= 1
-          ? () => widget.onRunEvent(entry.pollAddress)
+      onRunEvent: phase <= 1 && runEvent != null
+          ? () => runEvent(entry.pollAddress)
           : null,
     );
   }

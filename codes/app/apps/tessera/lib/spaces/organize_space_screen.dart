@@ -3,6 +3,7 @@
 // feature_organize's [OrganizeSpaceView]. The router did not change; only
 // this file did (R2f contract).
 import 'package:core_chain/chain_reader.dart';
+import 'package:core_chain/config.dart' show AppConfig;
 import 'package:core_relay/relay_client.dart';
 import 'package:core_relay/server_client.dart';
 import 'package:core_storage/created_polls_store.dart';
@@ -64,8 +65,9 @@ class _OrganizeSpaceScreenState extends State<OrganizeSpaceScreen> {
           port: port,
           nfcAvailable: capabilities.hasNfc,
           onCreate: () => context.go('/organize/create'),
-          onRunEvent: (pollAddress) =>
-              context.pushOnce('/live/$pollAddress/host'),
+          onRunEvent: AppConfig.serverMode
+              ? null
+              : (pollAddress) => context.pushOnce('/live/$pollAddress/host'),
         );
       },
     );
