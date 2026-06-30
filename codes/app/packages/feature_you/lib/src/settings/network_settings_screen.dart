@@ -10,12 +10,12 @@ import 'app_reload.dart';
 /// Point the app at your own backend without a rebuild (lifted from the
 /// legacy network_config_screen over core_storage's [NetworkConfigStore]).
 ///
-/// The saved override is applied in exactly one place — startup, via
-/// `AppConfig.apply` in the DI composition root. Saving here only persists +
-/// asks to reload (web) / restart (native); we never mutate the live config
-/// in place. [onConfigChanged] is R2f's re-probe hook (AppState.
-/// refreshCapabilities) so the capability surface — e.g. relayer
-/// reachability — re-evaluates immediately after a save.
+/// The saved backend override is applied in exactly one place — startup, via
+/// `AppConfig.apply` in the DI composition root. Saving a backend URL change
+/// persists + asks to reload (web) / restart (native); saving only the convener
+/// token applies immediately because the token intentionally lives in memory.
+/// [onConfigChanged] is R2f's re-probe hook (AppState.refreshCapabilities) so
+/// the capability surface re-evaluates immediately after a save.
 class NetworkSettingsScreen extends StatefulWidget {
   final NetworkConfigStore store;
   final Future<void> Function() onConfigChanged;
@@ -90,19 +90,30 @@ class _NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
     // operator can paste the admin token the server prints on startup.
     final token = _convenerToken.text.trim();
     AppConfig.convenerToken = token.isEmpty ? null : token;
-    await _persist(() => widget.store.save(config), 'Custom backend saved.');
+    await _persist(
+      () => widget.store.save(config),
+      config == AppConfig.effective
+          ? 'Admin token saved for this session.'
+          : 'Custom backend saved.',
+      reloadRequired: config != AppConfig.effective,
+    );
   }
 
   Future<void> _reset() async => _persist(
     () => widget.store.clear(),
     'Reverted to the built-in defaults.',
+    reloadRequired: true,
   );
 
   /// Run a store write with the busy spinner, then re-probe capabilities and
   /// offer the apply step. Any failure resets the button (never a stuck
   /// "SAVING…") and surfaces the error, so a misconfiguration can't look
   /// like a silent hang.
-  Future<void> _persist(Future<void> Function() write, String done) async {
+  Future<void> _persist(
+    Future<void> Function() write,
+    String done, {
+    required bool reloadRequired,
+  }) async {
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _busy = true);
     try {
@@ -112,7 +123,7 @@ class _NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
       try {
         await widget.onConfigChanged();
       } catch (_) {}
-      if (mounted) await _applied(done);
+      if (mounted) await _applied(done, reloadRequired: reloadRequired);
     } catch (e) {
       if (mounted) {
         setState(() => _busy = false);
@@ -129,10 +140,10 @@ class _NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
     }
   }
 
-  /// Confirm the write and offer the apply step. Web can reload in place
-  /// (which re-runs `main()` and re-applies); native must be restarted by
-  /// the user.
-  Future<void> _applied(String what) async {
+  /// Confirm the write and offer the apply step only when backend settings
+  /// changed. The admin token is intentionally in-memory; reloading would clear
+  /// it, so token-only saves show an OK dialog instead.
+  Future<void> _applied(String what, {required bool reloadRequired}) async {
     setState(() => _busy = false);
     await showDialog<void>(
       context: context,
@@ -141,13 +152,21 @@ class _NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
         shape: const RoundedRectangleBorder(side: BorderSide(color: Db.rule)),
         title: Text('SAVED', style: dbLabel(size: 11, tracking: 0.16)),
         content: Text(
-          canReloadApp
-              ? '$what\n\nReload now to apply it to this session.'
-              : '$what\n\nRestart the app to apply it.',
+          reloadRequired
+              ? (canReloadApp
+                    ? '$what\n\nReload now to apply the backend settings.'
+                    : '$what\n\nRestart the app to apply the backend settings.')
+              : '$what\n\nYou can create and manage decisions now. Reloading '
+                    'clears this in-memory token.',
           style: dbSans(14, 500, Db.chalkDim),
         ),
         actions: [
-          if (canReloadApp) ...[
+          if (!reloadRequired)
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text('OK', style: dbSans(12, 800, Db.segnale)),
+            )
+          else if (canReloadApp) ...[
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
               child: Text('LATER', style: dbSans(12, 700, Db.mute)),
@@ -186,10 +205,9 @@ class _NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
                     Text('NETWORK', style: dbHero(40)),
                     const SizedBox(height: 8),
                     Text(
-                      'Point this app at your own chain, relayer and '
-                      'registry. The same build works against any backend — '
-                      'useful when this is hosted and the defaults are '
-                      'localhost. Changes apply on reload.',
+                      'Point this app at a Tessera server. Paste the convener '
+                      'token to create and manage decisions. Backend URL '
+                      'changes apply on reload; the token applies immediately.',
                       style: dbSans(13, 500, Db.chalkDim),
                     ),
                     Padding(
@@ -286,9 +304,7 @@ class _NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
         padding: const EdgeInsets.symmetric(vertical: 16),
       ),
       child: Text(
-        _busy
-            ? 'SAVING…'
-            : (canReloadApp ? 'SAVE & RELOAD' : 'SAVE — RESTART TO APPLY'),
+        _busy ? 'SAVING…' : 'SAVE',
         style: dbSans(13, 800, Db.chalk, letterSpacing: 1.4),
       ),
     ),
