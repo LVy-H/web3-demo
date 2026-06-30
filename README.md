@@ -136,3 +136,5 @@ ahead: **Phase 5** product completeness (result semantics, notifications,
 lifecycle edits, abstain, sharing/export, WCAG-AA + i18n) and **Phase 6** 1.0
 hardening (security review, durability, one-command self-host packaging). **Not
 1.0 yet** — claims are kept verified-or-fenced.
+
+Chúng em đã biết làm web và hiểu hệ thống web hoạt động như thế nào.
